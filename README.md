@@ -17,7 +17,7 @@ The AI agent ecosystem has standards for several layers of the stack, but behavi
 | Agent persona | [SoulSpec](https://soulspec.org) | Personality, tone, and character traits |
 | Agent capabilities | [Agent Skills](https://agentskills.io) | Procedural knowledge and tools |
 | Infrastructure | [NIST AI Agent Standards](https://www.nist.gov/artificial-intelligence) | Identity, interoperability, and infrastructure |
-| Coding instructions | [AGENTS.md](https://github.com/anthropics/agents-md) | Instructions for AI coding agents |
+| Coding instructions | [AGENTS.md](https://agents.md) | Instructions for AI coding agents |
 | **Behavioral governance** | **ABGS (this specification)** | **Per-agent safety constraints, scope boundaries, oversight requirements** |
 
 ABGS fills the layer between model specifications (what the model can do) and deployment behavior (what the agent actually does). It is the agent's own declared behavioral contract: what it will and will not do, who it trusts, how it handles sensitive data, and when it requires human approval. ABGS also provides runtime enforcement through automated scanning and CI/CD integration.
