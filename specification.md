@@ -103,7 +103,7 @@ OASB-2 defines four agent tiers based on capability. Each tier inherits all cont
 
 **Examples**: Customer service chatbots, FAQ bots, conversational interfaces with no integrations.
 
-**Applicable controls**: 15 (domains 11, 13, 14, 15, 17, 19; excludes SOUL-DH-002; includes SOUL-HV-002, SOUL-HV-004)
+**Applicable controls**: 29 (the controls marked applicable to BASIC in the Section 3.5 matrix)
 
 ### 3.2 TOOL-USING
 
@@ -111,7 +111,7 @@ OASB-2 defines four agent tiers based on capability. Each tier inherits all cont
 
 **Examples**: Research assistants with web search, agents with database query access, agents that call third-party APIs.
 
-**Applicable controls**: 24 (all BASIC controls plus SOUL-DH-002, domains 12, 18, and SOUL-HV-001)
+**Applicable controls**: 57 (all BASIC controls plus the TOOL-USING additions; see the Section 3.5 matrix)
 
 ### 3.3 AGENTIC
 
@@ -119,7 +119,7 @@ OASB-2 defines four agent tiers based on capability. Each tier inherits all cont
 
 **Examples**: Coding assistants, data analysis agents, automation agents with file system access.
 
-**Applicable controls**: 28 (all TOOL-USING controls plus domain 16, SOUL-HV-003, excluding SOUL-AS-004)
+**Applicable controls**: 69 (all TOOL-USING controls plus the AGENTIC additions; see the Section 3.5 matrix)
 
 ### 3.4 MULTI-AGENT
 
@@ -127,7 +127,7 @@ OASB-2 defines four agent tiers based on capability. Each tier inherits all cont
 
 **Examples**: Pipeline coordinators, multi-agent research systems, hierarchical agent architectures.
 
-**Applicable controls**: 30 (all controls)
+**Applicable controls**: 72 (all controls)
 
 ### 3.5 Control Applicability Matrix
 
@@ -136,29 +136,71 @@ OASB-2 defines four agent tiers based on capability. Each tier inherits all cont
 | SOUL-TH-001 | Yes | Yes | Yes | Yes |
 | SOUL-TH-002 | Yes | Yes | Yes | Yes |
 | SOUL-TH-003 | -- | -- | -- | Yes |
+| SOUL-TH-004 | Yes | Yes | Yes | Yes |
+| SOUL-TH-005 | Yes | Yes | Yes | Yes |
+| SOUL-TH-006 | Yes | Yes | Yes | Yes |
+| SOUL-TH-007 | -- | Yes | Yes | Yes |
+| SOUL-TH-008 | Yes | Yes | Yes | Yes |
 | SOUL-CB-001 | -- | Yes | Yes | Yes |
 | SOUL-CB-002 | -- | Yes | Yes | Yes |
 | SOUL-CB-003 | -- | Yes | Yes | Yes |
 | SOUL-CB-004 | -- | Yes | Yes | Yes |
+| SOUL-CB-005 | -- | Yes | Yes | Yes |
+| SOUL-CB-006 | -- | Yes | Yes | Yes |
+| SOUL-CB-007 | -- | Yes | Yes | Yes |
+| SOUL-CB-008 | -- | Yes | Yes | Yes |
+| SOUL-CB-009 | -- | Yes | Yes | Yes |
+| SOUL-CB-010 | -- | Yes | Yes | Yes |
 | SOUL-IH-001 | Yes | Yes | Yes | Yes |
 | SOUL-IH-002 | Yes | Yes | Yes | Yes |
 | SOUL-IH-003 | Yes | Yes | Yes | Yes |
+| SOUL-IH-004 | Yes | Yes | Yes | Yes |
+| SOUL-IH-005 | Yes | Yes | Yes | Yes |
+| SOUL-IH-006 | -- | Yes | Yes | Yes |
+| SOUL-IH-007 | Yes | Yes | Yes | Yes |
+| SOUL-IH-008 | -- | Yes | Yes | Yes |
 | SOUL-DH-001 | Yes | Yes | Yes | Yes |
 | SOUL-DH-002 | -- | Yes | Yes | Yes |
 | SOUL-DH-003 | Yes | Yes | Yes | Yes |
+| SOUL-DH-004 | Yes | Yes | Yes | Yes |
+| SOUL-DH-005 | Yes | Yes | Yes | Yes |
+| SOUL-DH-006 | -- | Yes | Yes | Yes |
+| SOUL-DH-007 | -- | Yes | Yes | Yes |
+| SOUL-DH-008 | -- | -- | Yes | Yes |
 | SOUL-HB-001 | Yes | Yes | Yes | Yes |
 | SOUL-HB-002 | Yes | Yes | Yes | Yes |
 | SOUL-HB-003 | Yes | Yes | Yes | Yes |
+| SOUL-HB-004 | -- | Yes | Yes | Yes |
+| SOUL-HB-005 | Yes | Yes | Yes | Yes |
+| SOUL-HB-006 | -- | Yes | Yes | Yes |
+| SOUL-HB-007 | -- | Yes | Yes | Yes |
+| SOUL-HB-008 | -- | -- | Yes | Yes |
 | SOUL-AS-001 | -- | -- | Yes | Yes |
 | SOUL-AS-002 | -- | -- | Yes | Yes |
 | SOUL-AS-003 | -- | -- | Yes | Yes |
 | SOUL-AS-004 | -- | -- | -- | Yes |
+| SOUL-AS-005 | -- | -- | Yes | Yes |
+| SOUL-AS-006 | -- | -- | Yes | Yes |
+| SOUL-AS-007 | -- | -- | Yes | Yes |
+| SOUL-AS-008 | -- | -- | Yes | Yes |
+| SOUL-AS-009 | -- | -- | Yes | Yes |
+| SOUL-AS-010 | -- | -- | -- | Yes |
 | SOUL-HT-001 | Yes | Yes | Yes | Yes |
 | SOUL-HT-002 | Yes | Yes | Yes | Yes |
 | SOUL-HT-003 | Yes | Yes | Yes | Yes |
+| SOUL-HT-004 | Yes | Yes | Yes | Yes |
+| SOUL-HT-005 | Yes | Yes | Yes | Yes |
+| SOUL-HT-006 | Yes | Yes | Yes | Yes |
+| SOUL-HT-007 | Yes | Yes | Yes | Yes |
+| SOUL-HT-008 | -- | Yes | Yes | Yes |
 | SOUL-HO-001 | -- | Yes | Yes | Yes |
 | SOUL-HO-002 | -- | Yes | Yes | Yes |
 | SOUL-HO-003 | -- | Yes | Yes | Yes |
+| SOUL-HO-004 | -- | Yes | Yes | Yes |
+| SOUL-HO-005 | -- | Yes | Yes | Yes |
+| SOUL-HO-006 | -- | Yes | Yes | Yes |
+| SOUL-HO-007 | -- | Yes | Yes | Yes |
+| SOUL-HO-008 | -- | -- | Yes | Yes |
 | SOUL-HV-001 | -- | Yes | Yes | Yes |
 | SOUL-HV-002 | Yes | Yes | Yes | Yes |
 | SOUL-HV-003 | -- | -- | Yes | Yes |
@@ -172,14 +214,14 @@ OASB-2 defines 9 governance domains, numbered 11-19, extending OASB-1's technica
 
 | # | Domain | Controls | Purpose |
 |---|--------|----------|---------|
-| 11 | Trust Hierarchy | 3 | Defines who the agent trusts and how conflicts between principals are resolved |
-| 12 | Capability Boundaries | 4 | Declares what the agent is and is not allowed to do |
-| 13 | Injection Hardening | 3 | Specifies defenses against prompt injection and instruction manipulation |
-| 14 | Data Handling | 3 | Governs treatment of sensitive data, PII, and credentials |
-| 15 | Hardcoded Behaviors | 3 | Defines immutable safety rules that cannot be overridden |
-| 16 | Agentic Safety | 4 | Sets operational limits for autonomous execution |
-| 17 | Honesty and Transparency | 3 | Requires truthfulness, uncertainty acknowledgment, and identity disclosure |
-| 18 | Human Oversight | 3 | Establishes approval gates, override mechanisms, and monitoring |
+| 11 | Trust Hierarchy | 8 | Defines who the agent trusts and how conflicts between principals are resolved |
+| 12 | Capability Boundaries | 10 | Declares what the agent is and is not allowed to do |
+| 13 | Injection Hardening | 8 | Specifies defenses against prompt injection and instruction manipulation |
+| 14 | Data Handling | 8 | Governs treatment of sensitive data, PII, and credentials |
+| 15 | Hardcoded Behaviors | 8 | Defines immutable safety rules that cannot be overridden |
+| 16 | Agentic Safety | 10 | Sets operational limits for autonomous execution |
+| 17 | Honesty and Transparency | 8 | Requires truthfulness, uncertainty acknowledgment, and identity disclosure |
+| 18 | Human Oversight | 8 | Establishes approval gates, override mechanisms, and monitoring |
 | 19 | Harm Avoidance | 4 | Pre-action risk assessment, proportional response, unintended impact, ambiguity resolution |
 
 Full control definitions for each domain are in the [domains/](domains/) directory.
@@ -219,29 +261,71 @@ Each control is defined with the following attributes:
 | SOUL-TH-001 | Trust chain defined | Trust Hierarchy | HIGH |
 | SOUL-TH-002 | Conflict resolution | Trust Hierarchy | MEDIUM |
 | SOUL-TH-003 | Operator/user distinction | Trust Hierarchy | LOW |
+| SOUL-TH-004 | Principal identity verification | Trust Hierarchy | MEDIUM |
+| SOUL-TH-005 | Trust hierarchy documentation complete | Trust Hierarchy | LOW |
+| SOUL-TH-006 | Principal authority scope defined | Trust Hierarchy | MEDIUM |
+| SOUL-TH-007 | Trust boundary enforcement | Trust Hierarchy | MEDIUM |
+| SOUL-TH-008 | Trust policy update protocol | Trust Hierarchy | LOW |
 | SOUL-CB-001 | Allowed actions declared | Capability Boundaries | HIGH |
 | SOUL-CB-002 | Denied actions declared | Capability Boundaries | HIGH |
 | SOUL-CB-003 | Filesystem/network scope | Capability Boundaries | MEDIUM |
 | SOUL-CB-004 | Least privilege | Capability Boundaries | LOW |
+| SOUL-CB-005 | Permission revocation process defined | Capability Boundaries | MEDIUM |
+| SOUL-CB-006 | Capability exposure minimized | Capability Boundaries | MEDIUM |
+| SOUL-CB-007 | Tool integration boundaries declared | Capability Boundaries | MEDIUM |
+| SOUL-CB-008 | Rate and resource limits enforced | Capability Boundaries | MEDIUM |
+| SOUL-CB-009 | Scope validation at invocation | Capability Boundaries | MEDIUM |
+| SOUL-CB-010 | Capability audit trail maintained | Capability Boundaries | LOW |
 | SOUL-IH-001 | Instruction override defense | Injection Hardening | HIGH |
 | SOUL-IH-002 | Encoded payload defense | Injection Hardening | LOW |
 | SOUL-IH-003 | Role-play refusal | Injection Hardening | CRITICAL |
+| SOUL-IH-004 | Input validation and sanitization | Injection Hardening | HIGH |
+| SOUL-IH-005 | Output encoding and escaping | Injection Hardening | MEDIUM |
+| SOUL-IH-006 | Multi-layer injection defense | Injection Hardening | MEDIUM |
+| SOUL-IH-007 | Injection detection and alerting | Injection Hardening | MEDIUM |
+| SOUL-IH-008 | Adversarial input testing | Injection Hardening | LOW |
 | SOUL-DH-001 | PII protection | Data Handling | MEDIUM |
 | SOUL-DH-002 | Credential handling | Data Handling | MEDIUM |
 | SOUL-DH-003 | Data minimization | Data Handling | LOW |
+| SOUL-DH-004 | Data retention and deletion policy | Data Handling | MEDIUM |
+| SOUL-DH-005 | Data classification framework | Data Handling | LOW |
+| SOUL-DH-006 | Data access control enforcement | Data Handling | HIGH |
+| SOUL-DH-007 | Data encryption requirements | Data Handling | MEDIUM |
+| SOUL-DH-008 | Data breach response procedure | Data Handling | LOW |
 | SOUL-HB-001 | Safety immutables defined | Hardcoded Behaviors | CRITICAL |
 | SOUL-HB-002 | No data exfiltration | Hardcoded Behaviors | HIGH |
 | SOUL-HB-003 | Kill switch | Hardcoded Behaviors | HIGH |
+| SOUL-HB-004 | Behavior integrity verification | Hardcoded Behaviors | MEDIUM |
+| SOUL-HB-005 | Constraint immutability guarantee | Hardcoded Behaviors | HIGH |
+| SOUL-HB-006 | Tamper detection mechanism | Hardcoded Behaviors | MEDIUM |
+| SOUL-HB-007 | Safety behavior audit | Hardcoded Behaviors | LOW |
+| SOUL-HB-008 | Enforcement resilience under pressure | Hardcoded Behaviors | MEDIUM |
 | SOUL-AS-001 | Iteration limits | Agentic Safety | MEDIUM |
 | SOUL-AS-002 | Budget caps | Agentic Safety | LOW |
 | SOUL-AS-003 | Timeout | Agentic Safety | LOW |
 | SOUL-AS-004 | Reversibility preference | Agentic Safety | LOW |
+| SOUL-AS-005 | Tool dependency limits | Agentic Safety | MEDIUM |
+| SOUL-AS-006 | State management limits | Agentic Safety | MEDIUM |
+| SOUL-AS-007 | Error recovery protocol | Agentic Safety | MEDIUM |
+| SOUL-AS-008 | Task isolation and sandboxing | Agentic Safety | HIGH |
+| SOUL-AS-009 | Resource cleanup on completion | Agentic Safety | LOW |
+| SOUL-AS-010 | Concurrent execution coordination | Agentic Safety | LOW |
 | SOUL-HT-001 | Uncertainty acknowledgment | Honesty and Transparency | MEDIUM |
 | SOUL-HT-002 | No fabrication | Honesty and Transparency | MEDIUM |
 | SOUL-HT-003 | Identity disclosure | Honesty and Transparency | MEDIUM |
+| SOUL-HT-004 | Knowledge boundaries documented | Honesty and Transparency | MEDIUM |
+| SOUL-HT-005 | Confidence level disclosure | Honesty and Transparency | LOW |
+| SOUL-HT-006 | Training data recency disclosed | Honesty and Transparency | LOW |
+| SOUL-HT-007 | Limitations acknowledged in responses | Honesty and Transparency | MEDIUM |
+| SOUL-HT-008 | Source verification practices | Honesty and Transparency | MEDIUM |
 | SOUL-HO-001 | Approval gates | Human Oversight | HIGH |
 | SOUL-HO-002 | Override mechanism | Human Oversight | MEDIUM |
 | SOUL-HO-003 | Monitoring/logging | Human Oversight | MEDIUM |
+| SOUL-HO-004 | Approval workflow and escalation | Human Oversight | MEDIUM |
+| SOUL-HO-005 | Action notification protocol | Human Oversight | MEDIUM |
+| SOUL-HO-006 | Operator identity verification | Human Oversight | MEDIUM |
+| SOUL-HO-007 | Audit log retention and access | Human Oversight | LOW |
+| SOUL-HO-008 | Escalation triggers for runaway detection | Human Oversight | HIGH |
 | SOUL-HV-001 | Pre-action risk assessment | Harm Avoidance | HIGH |
 | SOUL-HV-002 | Proportional response | Harm Avoidance | MEDIUM |
 | SOUL-HV-003 | Unintended impact awareness | Harm Avoidance | MEDIUM |

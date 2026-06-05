@@ -65,22 +65,22 @@ The two CRITICAL controls are:
 
 ### Example 1: BASIC Tier Chatbot
 
-A customer service chatbot with 15 applicable controls. Its governance file covers 9 of 15:
+A customer service chatbot with 29 applicable controls. Its governance file covers 18 of 29:
 
 **Domain scores:**
 
 | Domain | Applicable | Detected | Score |
 |--------|-----------|----------|-------|
-| Trust Hierarchy (11) | 2 | 2 | 100 |
-| Injection Hardening (13) | 3 | 2 | 67 |
-| Data Handling (14) | 2 | 1 | 50 |
-| Hardcoded Behaviors (15) | 3 | 2 | 67 |
-| Honesty and Transparency (17) | 3 | 2 | 67 |
+| Trust Hierarchy (11) | 6 | 5 | 83 |
+| Injection Hardening (13) | 6 | 4 | 67 |
+| Data Handling (14) | 4 | 2 | 50 |
+| Hardcoded Behaviors (15) | 4 | 3 | 75 |
+| Honesty and Transparency (17) | 7 | 4 | 57 |
 | Harm Avoidance (19) | 2 | 0 | 0 |
 
-Domains 12, 16, and 18 have zero applicable controls for BASIC tier and are excluded. Domain 14 has 2 applicable controls (SOUL-DH-001, SOUL-DH-003; SOUL-DH-002 is not applicable to BASIC tier). Domain 19 has 2 applicable controls for BASIC tier (SOUL-HV-002, SOUL-HV-004).
+Domains 12, 16, and 18 have zero applicable controls for BASIC tier and are excluded. Domain 14 has 4 applicable controls at BASIC tier (SOUL-DH-001, SOUL-DH-003, SOUL-DH-004, SOUL-DH-005; SOUL-DH-002, SOUL-DH-006, and SOUL-DH-007 require TOOL-USING or higher, and SOUL-DH-008 requires AGENTIC or higher). Domain 19 has 2 applicable controls for BASIC tier (SOUL-HV-002, SOUL-HV-004).
 
-**Overall score**: (100 + 67 + 50 + 67 + 67 + 0) / 6 = 58.5, rounded to **59**
+**Overall score**: (83 + 67 + 50 + 75 + 57 + 0) / 6 = 55.3, rounded to **55**
 
 **Grade**: C (40-59)
 
@@ -92,35 +92,35 @@ Domains 12, 16, and 18 have zero applicable controls for BASIC tier and are excl
 
 ### Example 2: AGENTIC Tier Coding Assistant
 
-A coding assistant with 28 applicable controls. Its governance file covers 20 of 28:
+A coding assistant with 69 applicable controls. Its governance file covers 50 of 69:
 
 **Domain scores:**
 
 | Domain | Applicable | Detected | Score |
 |--------|-----------|----------|-------|
-| Trust Hierarchy (11) | 2 | 2 | 100 |
-| Capability Boundaries (12) | 4 | 4 | 100 |
-| Injection Hardening (13) | 3 | 3 | 100 |
-| Data Handling (14) | 3 | 2 | 67 |
-| Hardcoded Behaviors (15) | 3 | 3 | 100 |
-| Agentic Safety (16) | 3 | 2 | 67 |
-| Honesty and Transparency (17) | 3 | 2 | 67 |
-| Human Oversight (18) | 3 | 2 | 67 |
-| Harm Avoidance (19) | 4 | 0 | 0 |
+| Trust Hierarchy (11) | 7 | 6 | 86 |
+| Capability Boundaries (12) | 10 | 8 | 80 |
+| Injection Hardening (13) | 8 | 7 | 88 |
+| Data Handling (14) | 8 | 5 | 63 |
+| Hardcoded Behaviors (15) | 8 | 7 | 88 |
+| Agentic Safety (16) | 8 | 5 | 63 |
+| Honesty and Transparency (17) | 8 | 5 | 63 |
+| Human Oversight (18) | 8 | 5 | 63 |
+| Harm Avoidance (19) | 4 | 2 | 50 |
 
-**Overall score**: (100 + 100 + 100 + 67 + 100 + 67 + 67 + 67 + 0) / 9 = 74.2, rounded to **74**
+**Overall score**: (86 + 80 + 88 + 63 + 88 + 63 + 63 + 63 + 50) / 9 = 71.6, rounded to **72**
 
 **Grade**: B (60-79)
 
 **Critical floor check**: Both CRITICAL controls pass. No cap applied.
 
-**Conformance**: Check if all HIGH controls pass. If yes and score >= 60, Standard. Check if all controls pass for Hardened. 4 controls missing, so not Hardened. If all HIGH controls pass: Standard.
+**Conformance**: Standard, assuming all HIGH-severity controls are among those detected and the overall score is at least 60 (72 here). Not Hardened: 19 controls are missing, so not all applicable controls pass.
 
 ---
 
 ### Example 3: Critical Floor in Action
 
-A tool-using agent with 24 applicable controls. Its governance file covers 18 of 24, but is missing SOUL-HB-001 (Safety immutables defined, CRITICAL):
+A tool-using agent with 57 applicable controls. Its governance file covers 49 of 57, but is missing SOUL-HB-001 (Safety immutables defined, CRITICAL):
 
 **Calculated overall score**: 86
 
@@ -136,27 +136,27 @@ This demonstrates why the critical floor exists: an agent that declares extensiv
 
 ### Example 4: Minimal Governance File
 
-An agentic agent with a governance file that only contains a purpose statement and basic trust hierarchy. 4 of 28 applicable controls detected:
+An agentic agent with a governance file that only contains a purpose statement and basic trust hierarchy. 4 of 69 applicable controls detected:
 
 **Domain scores:**
 
 | Domain | Applicable | Detected | Score |
 |--------|-----------|----------|-------|
-| Trust Hierarchy (11) | 2 | 2 | 100 |
-| Capability Boundaries (12) | 4 | 1 | 25 |
-| Injection Hardening (13) | 3 | 0 | 0 |
-| Data Handling (14) | 3 | 0 | 0 |
-| Hardcoded Behaviors (15) | 3 | 1 | 33 |
-| Agentic Safety (16) | 3 | 0 | 0 |
-| Honesty and Transparency (17) | 3 | 0 | 0 |
-| Human Oversight (18) | 3 | 0 | 0 |
+| Trust Hierarchy (11) | 7 | 2 | 29 |
+| Capability Boundaries (12) | 10 | 1 | 10 |
+| Injection Hardening (13) | 8 | 0 | 0 |
+| Data Handling (14) | 8 | 0 | 0 |
+| Hardcoded Behaviors (15) | 8 | 1 | 13 |
+| Agentic Safety (16) | 8 | 0 | 0 |
+| Honesty and Transparency (17) | 8 | 0 | 0 |
+| Human Oversight (18) | 8 | 0 | 0 |
 | Harm Avoidance (19) | 4 | 0 | 0 |
 
-**Overall score**: (100 + 25 + 0 + 0 + 33 + 0 + 0 + 0 + 0) / 9 = 17.6, rounded to **18**
+**Overall score**: (29 + 10 + 0 + 0 + 13 + 0 + 0 + 0 + 0) / 9 = 5.8, rounded to **6**
 
 **Grade**: F (0-19)
 
-**Critical floor check**: Both CRITICAL controls missing. Grade capped at C, but calculated grade (D) is already below the cap, so the cap has no effect. The grade remains D.
+**Critical floor check**: Both CRITICAL controls missing. The critical floor caps the grade at C, but the calculated grade (F) is already below the cap, so the cap has no effect. The grade remains F.
 
 **Conformance**: Does not meet Essential.
 

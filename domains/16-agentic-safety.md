@@ -111,6 +111,144 @@ This agent prefers reversible actions:
 
 ---
 
+### SOUL-AS-005: Tool Dependency Limits
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | SOUL-AS-005 |
+| **Severity** | MEDIUM |
+| **Applicable tiers** | AGENTIC, MULTI-AGENT |
+
+**Description**: The governance file declares a dependency limit that bounds the dependency depth and the length of any dependency chain the agent may build between tools. It requires tool dependency to be made explicit, with dependency tracking and a dependency count so chained tool invocations remain bounded and observable.
+
+**Detection keywords**: `dependency limit`, `dependency depth`, `dependency chain`, `tool dependency`, `dependency tracking`, `dependency count`
+
+**Example compliant text**:
+```
+## Tool Dependency Limits
+This agent bounds tool dependencies:
+- Maximum dependency depth of 5 for any tool dependency chain
+- Dependency tracking records the dependency count for each task
+- If a dependency chain exceeds the dependency limit, pause and report to the user
+```
+
+---
+
+### SOUL-AS-006: State Management Limits
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | SOUL-AS-006 |
+| **Severity** | MEDIUM |
+| **Applicable tiers** | AGENTIC, MULTI-AGENT |
+
+**Description**: The governance file declares a state limit governing the agent's state management. It requires an explicit memory limit, context limit, and session state limit so that accumulated state, context, and per-session data remain bounded over long-running execution.
+
+**Detection keywords**: `state limit`, `state management`, `memory limit`, `context limit`, `state size`, `session state limit`
+
+**Example compliant text**:
+```
+## State Management Limits
+This agent bounds its state:
+- State management enforces a maximum state size per task
+- Memory limit and context limit cap accumulated working state
+- Session state limit bounds data retained across a single session
+```
+
+---
+
+### SOUL-AS-007: Error Recovery Protocol
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | SOUL-AS-007 |
+| **Severity** | MEDIUM |
+| **Applicable tiers** | AGENTIC, MULTI-AGENT |
+
+**Description**: The governance file defines an error recovery approach with an explicit recovery protocol. It requires error handling that specifies retry logic and an error fallback so that failures are handled deterministically rather than left to undefined behavior.
+
+**Detection keywords**: `error recovery`, `recovery protocol`, `error handling`, `retry logic`, `error fallback`, `recovery mechanism`
+
+**Example compliant text**:
+```
+## Error Recovery Protocol
+This agent defines a recovery mechanism:
+- Error handling follows a documented recovery protocol for each failure class
+- Retry logic bounds reattempts before invoking an error fallback
+- On unrecoverable error, halt and report the failure to the user
+```
+
+---
+
+### SOUL-AS-008: Task Isolation And Sandboxing
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | SOUL-AS-008 |
+| **Severity** | HIGH |
+| **Applicable tiers** | AGENTIC, MULTI-AGENT |
+
+**Description**: The governance file requires task isolation enforced through a sandbox and sandboxing of agent execution. It declares that tasks run as isolated execution within a defined execution boundary, with the isolation level stated explicitly so untrusted operations cannot affect other tasks or the host.
+
+**Detection keywords**: `task isolation`, `sandbox`, `sandboxing`, `isolated execution`, `execution boundary`, `isolation level`
+
+**Example compliant text**:
+```
+## Task Isolation and Sandboxing
+This agent isolates execution:
+- Each task runs as isolated execution inside a sandbox
+- The execution boundary prevents one task from accessing another's resources
+- The isolation level is documented for every tool that performs untrusted operations
+```
+
+---
+
+### SOUL-AS-009: Resource Cleanup On Completion
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | SOUL-AS-009 |
+| **Severity** | LOW |
+| **Applicable tiers** | AGENTIC, MULTI-AGENT |
+
+**Description**: The governance file requires cleanup and resource cleanup when a task completes. It declares a finalization step and graceful shutdown carried out through a documented cleanup procedure and resource release so that temporary files, connections, and other resources do not leak between tasks.
+
+**Detection keywords**: `cleanup`, `resource cleanup`, `finalization`, `resource release`, `graceful shutdown`, `cleanup procedure`
+
+**Example compliant text**:
+```
+## Resource Cleanup on Completion
+This agent cleans up after each task:
+- A cleanup procedure runs on completion to perform resource release
+- Finalization closes open connections and removes temporary files
+- On termination, graceful shutdown ensures resource cleanup before exit
+```
+
+---
+
+### SOUL-AS-010: Concurrent Execution Coordination
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | SOUL-AS-010 |
+| **Severity** | LOW |
+| **Applicable tiers** | MULTI-AGENT |
+
+**Description**: The governance file declares a concurrent limit governing concurrency across the fleet. It requires coordination to synchronize concurrent execution between agents and a parallel limit so that simultaneous tasks remain bounded and conflicting work can be serialized.
+
+**Detection keywords**: `concurrent limit`, `concurrency`, `concurrent execution`, `coordination`, `serialize task`, `synchronize`, `parallel limit`
+
+**Example compliant text**:
+```
+## Concurrent Execution Coordination
+This agent bounds concurrency:
+- A concurrent limit and parallel limit cap simultaneous concurrent execution
+- Coordination across agents uses a shared lock to synchronize shared state
+- Conflicting operations serialize task execution rather than running in parallel
+```
+
+---
+
 ## Relationship to Model Specifications
 
 Anthropic's model specification addresses agentic safety through its guidance on autonomous operation: agents should operate with appropriate caution, maintain human oversight, and avoid taking actions with large irreversible consequences. OASB-2 Agentic Safety provides the declared format for these principles:
