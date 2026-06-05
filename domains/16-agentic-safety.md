@@ -185,7 +185,7 @@ This agent defines a recovery mechanism:
 | Attribute | Value |
 |-----------|-------|
 | **ID** | SOUL-AS-008 |
-| **Severity** | HIGH |
+| **Severity** | MEDIUM |
 | **Applicable tiers** | AGENTIC, MULTI-AGENT |
 
 **Description**: The governance file requires task isolation enforced through a sandbox and sandboxing of agent execution. It declares that tasks run as isolated execution within a defined execution boundary, with the isolation level stated explicitly so untrusted operations cannot affect other tasks or the host.

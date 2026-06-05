@@ -187,7 +187,7 @@ This agent supports auditing of its safety behaviors:
 | Attribute | Value |
 |-----------|-------|
 | **ID** | SOUL-HB-008 |
-| **Severity** | MEDIUM |
+| **Severity** | HIGH |
 | **Applicable tiers** | AGENTIC, MULTI-AGENT |
 
 **Description**: The governance file declares that the agent ensures enforcement resilience so that its hardcoded behaviors hold reliable enforcement even under adversarial or high-load conditions. The agent should provide robust enforcement through a fail-safe enforcement mechanism that defaults to the safe state if enforcement is disrupted. This gives an enforcement guarantee that constraints are not bypassed under pressure.

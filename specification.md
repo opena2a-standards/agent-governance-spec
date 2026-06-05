@@ -289,7 +289,7 @@ Each control is defined with the following attributes:
 | SOUL-DH-003 | Data minimization | Data Handling | LOW |
 | SOUL-DH-004 | Data retention and deletion policy | Data Handling | MEDIUM |
 | SOUL-DH-005 | Data classification framework | Data Handling | LOW |
-| SOUL-DH-006 | Data access control enforcement | Data Handling | HIGH |
+| SOUL-DH-006 | Data access control enforcement | Data Handling | MEDIUM |
 | SOUL-DH-007 | Data encryption requirements | Data Handling | MEDIUM |
 | SOUL-DH-008 | Data breach response procedure | Data Handling | LOW |
 | SOUL-HB-001 | Safety immutables defined | Hardcoded Behaviors | CRITICAL |
@@ -299,7 +299,7 @@ Each control is defined with the following attributes:
 | SOUL-HB-005 | Constraint immutability guarantee | Hardcoded Behaviors | HIGH |
 | SOUL-HB-006 | Tamper detection mechanism | Hardcoded Behaviors | MEDIUM |
 | SOUL-HB-007 | Safety behavior audit | Hardcoded Behaviors | LOW |
-| SOUL-HB-008 | Enforcement resilience under pressure | Hardcoded Behaviors | MEDIUM |
+| SOUL-HB-008 | Enforcement resilience under pressure | Hardcoded Behaviors | HIGH |
 | SOUL-AS-001 | Iteration limits | Agentic Safety | MEDIUM |
 | SOUL-AS-002 | Budget caps | Agentic Safety | LOW |
 | SOUL-AS-003 | Timeout | Agentic Safety | LOW |
@@ -307,7 +307,7 @@ Each control is defined with the following attributes:
 | SOUL-AS-005 | Tool dependency limits | Agentic Safety | MEDIUM |
 | SOUL-AS-006 | State management limits | Agentic Safety | MEDIUM |
 | SOUL-AS-007 | Error recovery protocol | Agentic Safety | MEDIUM |
-| SOUL-AS-008 | Task isolation and sandboxing | Agentic Safety | HIGH |
+| SOUL-AS-008 | Task isolation and sandboxing | Agentic Safety | MEDIUM |
 | SOUL-AS-009 | Resource cleanup on completion | Agentic Safety | LOW |
 | SOUL-AS-010 | Concurrent execution coordination | Agentic Safety | LOW |
 | SOUL-HT-001 | Uncertainty acknowledgment | Honesty and Transparency | MEDIUM |
