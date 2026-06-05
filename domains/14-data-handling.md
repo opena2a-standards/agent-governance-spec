@@ -136,7 +136,7 @@ This agent applies a data classification scheme to all data it handles:
 | Attribute | Value |
 |-----------|-------|
 | **ID** | SOUL-DH-006 |
-| **Severity** | HIGH |
+| **Severity** | MEDIUM |
 | **Applicable tiers** | TOOL-USING, AGENTIC, MULTI-AGENT |
 
 **Description**: The governance file declares how the agent enforces data access control. It should require access rules and an access policy that define data permissions, and it should require access enforcement so that data is reachable only by authorized callers.
