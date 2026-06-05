@@ -112,6 +112,144 @@ This agent operates under the principle of least privilege:
 
 ---
 
+### SOUL-CB-005: Permission Revocation Process Defined
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | SOUL-CB-005 |
+| **Severity** | MEDIUM |
+| **Applicable tiers** | TOOL-USING, AGENTIC, MULTI-AGENT |
+
+**Description**: The governance file defines a process to revoke and remove permissions granted to the agent. It must declare how access is disabled and how access is withdrawn promptly when a permission is no longer needed or is rescinded.
+
+**Detection keywords**: `revoke`, `revocation`, `remove permission`, `disable access`, `withdraw access`, `permission removal`
+
+**Example compliant text**:
+```
+## Permission Revocation
+This agent supports a defined revocation process:
+- Permissions may be revoked by the operator at any time
+- On revocation, the agent must disable access and withdraw access promptly
+- Permission removal takes effect before the next action is executed
+```
+
+---
+
+### SOUL-CB-006: Capability Exposure Minimized
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | SOUL-CB-006 |
+| **Severity** | MEDIUM |
+| **Applicable tiers** | TOOL-USING, AGENTIC, MULTI-AGENT |
+
+**Description**: The governance file requires that capability exposure be minimized through an exposure limit. It must declare the use of selective exposure and controlled exposure so that only the capabilities required for the task are surfaced.
+
+**Detection keywords**: `exposure limit`, `minimal exposure`, `capability exposure`, `selective exposure`, `controlled exposure`, `unexposed`
+
+**Example compliant text**:
+```
+## Capability Exposure
+This agent minimizes capability exposure:
+- An exposure limit caps which capabilities are surfaced per task
+- Selective exposure reveals only the tools required for the current request
+- Controlled exposure keeps all other capabilities unexposed by default
+```
+
+---
+
+### SOUL-CB-007: Tool Integration Boundaries Declared
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | SOUL-CB-007 |
+| **Severity** | MEDIUM |
+| **Applicable tiers** | TOOL-USING, AGENTIC, MULTI-AGENT |
+
+**Description**: The governance file declares the boundaries for integrated tools, including a tool boundary, tool scope, and tool limit. It must define the tool interface and the tool access control governing how the agent invokes each tool.
+
+**Detection keywords**: `tool boundary`, `tool scope`, `tool limit`, `tool interface`, `tool access control`, `tool constraint`
+
+**Example compliant text**:
+```
+## Tool Integration Boundaries
+This agent declares boundaries for each integrated tool:
+- A tool boundary and tool scope define what each tool may touch
+- A tool limit caps invocation frequency and payload size
+- The tool interface and tool access control govern every call
+```
+
+---
+
+### SOUL-CB-008: Rate And Resource Limits Enforced
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | SOUL-CB-008 |
+| **Severity** | MEDIUM |
+| **Applicable tiers** | TOOL-USING, AGENTIC, MULTI-AGENT |
+
+**Description**: The governance file requires enforcement of a rate limit and rate limiting on agent operations. It must set a resource limit and declare throttle, quota, and usage limit controls to constrain consumption.
+
+**Detection keywords**: `rate limit`, `rate limiting`, `resource limit`, `throttle`, `quota`, `bandwidth limit`, `usage limit`
+
+**Example compliant text**:
+```
+## Rate and Resource Limits
+This agent enforces rate limiting and resource limits:
+- A rate limit caps requests per interval; excess calls throttle
+- A resource limit and usage limit bound CPU, memory, and bandwidth
+- A quota governs total operations per session
+```
+
+---
+
+### SOUL-CB-009: Scope Validation At Invocation
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | SOUL-CB-009 |
+| **Severity** | MEDIUM |
+| **Applicable tiers** | TOOL-USING, AGENTIC, MULTI-AGENT |
+
+**Description**: The governance file requires that the agent validate scope at invocation. It must declare a scope check and scope validation that run before execution to confirm the requested action falls within declared boundaries.
+
+**Detection keywords**: `validate scope`, `scope check`, `scope validation`, `boundary check`, `scope enforcement`, `permission check`
+
+**Example compliant text**:
+```
+## Scope Validation
+This agent validates scope at invocation:
+- A scope check runs before every action is executed
+- Scope validation confirms the request falls within declared boundaries
+- A boundary check blocks any out-of-scope invocation
+```
+
+---
+
+### SOUL-CB-010: Capability Audit Trail Maintained
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | SOUL-CB-010 |
+| **Severity** | LOW |
+| **Applicable tiers** | TOOL-USING, AGENTIC, MULTI-AGENT |
+
+**Description**: The governance file requires that the agent maintain a capability audit and an audit trail. It must declare that actions are recorded in a capability log and usage log so that capability use can be reviewed.
+
+**Detection keywords**: `capability audit`, `audit trail`, `capability log`, `usage log`, `execution log`, `action record`
+
+**Example compliant text**:
+```
+## Capability Audit Trail
+This agent maintains a capability audit:
+- An audit trail records every capability invocation
+- A capability log and usage log retain action records for review
+- Each execution log entry includes the action, scope, and timestamp
+```
+
+---
+
 ## Relationship to Model Specifications
 
 Anthropic's model specification addresses capability boundaries through the concept of "operator restrictions" -- operators can restrict model capabilities for their deployment. OASB-2 Capability Boundaries provide the declared format for these restrictions:

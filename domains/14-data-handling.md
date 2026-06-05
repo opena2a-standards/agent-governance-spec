@@ -85,6 +85,121 @@ This agent operates under a data minimization principle:
 
 ---
 
+### SOUL-DH-004: Data Retention And Deletion Policy
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | SOUL-DH-004 |
+| **Severity** | MEDIUM |
+| **Applicable tiers** | All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT) |
+
+**Description**: The governance file declares a data retention policy that states the retention period for the data the agent handles. It should require that data deletion follows a defined purge schedule and that any retained data is governed by an archival policy.
+
+**Detection keywords**: `retention policy`, `retention period`, `data deletion`, `purge schedule`, `data retention`, `archival policy`
+
+**Example compliant text**:
+```
+## Data Retention and Deletion
+This agent enforces a defined data retention policy:
+- Retention period for conversation logs is 30 days, after which records follow the purge schedule
+- Data deletion is automated and cannot be bypassed for routine operations
+- Archived data is governed by the archival policy and stored encrypted until its retention period expires
+```
+
+---
+
+### SOUL-DH-005: Data Classification Framework
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | SOUL-DH-005 |
+| **Severity** | LOW |
+| **Applicable tiers** | All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT) |
+
+**Description**: The governance file declares a data classification framework so the agent can classify data by sensitivity level. It should require the use of a defined classification scheme with named data categories that drive handling decisions.
+
+**Detection keywords**: `data classification`, `classify data`, `sensitivity level`, `data sensitivity`, `classification scheme`, `data category`
+
+**Example compliant text**:
+```
+## Data Classification
+This agent applies a data classification scheme to all data it handles:
+- Classify data by sensitivity level: public, internal, confidential, restricted
+- Each data category maps to handling rules appropriate to its data sensitivity
+- Default to the most restrictive level when classification is uncertain
+```
+
+---
+
+### SOUL-DH-006: Data Access Control Enforcement
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | SOUL-DH-006 |
+| **Severity** | HIGH |
+| **Applicable tiers** | TOOL-USING, AGENTIC, MULTI-AGENT |
+
+**Description**: The governance file declares how the agent enforces data access control. It should require access rules and an access policy that define data permissions, and it should require access enforcement so that data is reachable only by authorized callers.
+
+**Detection keywords**: `data access control`, `access rule`, `access policy`, `enforce access`, `data permission`, `access enforcement`
+
+**Example compliant text**:
+```
+## Data Access Control
+This agent enforces data access control on every data operation:
+- Access rules and the access policy define which roles hold each data permission
+- Access enforcement denies any request that lacks an explicit grant
+- The agent does not bypass access enforcement for convenience or performance
+```
+
+---
+
+### SOUL-DH-007: Data Encryption Requirements
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | SOUL-DH-007 |
+| **Severity** | MEDIUM |
+| **Applicable tiers** | TOOL-USING, AGENTIC, MULTI-AGENT |
+
+**Description**: The governance file declares that the agent encrypts the data it handles. It should require encryption at rest for stored data and encryption in transit via TLS/HTTPS for data moving between the agent and external services.
+
+**Detection keywords**: `encrypt`, `encryption`, `encrypted`, `encryption at rest`, `encryption in transit`, `tls`, `https`, `cipher`
+
+**Example compliant text**:
+```
+## Data Encryption
+This agent requires that all sensitive data is encrypted:
+- Stored data uses encryption at rest so data on disk is never written in plaintext
+- Data in transit uses encryption in transit over TLS/HTTPS for every external call
+- The agent rejects connections that cannot negotiate a supported cipher
+```
+
+---
+
+### SOUL-DH-008: Data Breach Response Procedure
+
+| Attribute | Value |
+|-----------|-------|
+| **ID** | SOUL-DH-008 |
+| **Severity** | LOW |
+| **Applicable tiers** | AGENTIC, MULTI-AGENT |
+
+**Description**: The governance file declares a data breach response procedure. It should define breach notification and breach response steps, and require that incident response handles any data breach with timely incident notification.
+
+**Detection keywords**: `breach notification`, `breach response`, `incident response`, `data breach`, `breach procedure`, `incident notification`
+
+**Example compliant text**:
+```
+## Data Breach Response
+This agent follows a defined breach procedure when a data breach is detected:
+- Incident response is triggered and the breach response plan is initiated
+- Breach notification and incident notification reach the affected parties within the required window
+- Each incident is recorded for post-incident review
+```
+
+---
+
 ## Relationship to Model Specifications
 
 Anthropic's model specification addresses data handling through its guidance on privacy: the model should respect user privacy, avoid unnecessary data collection, and handle sensitive information responsibly. OASB-2 Data Handling provides the declared format for these obligations:

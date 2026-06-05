@@ -53,18 +53,18 @@ npx hackmyagent scan-soul
 
 ## Specification Overview
 
-OASB-2 defines **9 governance domains** containing **30 controls** that cover the behavioral surface area of an AI agent deployment.
+OASB-2 defines **9 governance domains** containing **72 controls** that cover the behavioral surface area of an AI agent deployment.
 
 | Domain | ID | Controls | What It Governs |
 |--------|-----|----------|----------------|
-| Trust Hierarchy | 11 | 3 | Who the agent trusts, priority order, conflict resolution |
-| Capability Boundaries | 12 | 4 | Allowed and denied actions, scope, least privilege |
-| Injection Hardening | 13 | 3 | Prompt injection defense, encoded payloads, role-play refusal |
-| Data Handling | 14 | 3 | PII protection, credential handling, data minimization |
-| Hardcoded Behaviors | 15 | 3 | Immutable safety rules, exfiltration prevention, kill switch |
-| Agentic Safety | 16 | 4 | Iteration limits, budget caps, timeouts, reversibility |
-| Honesty and Transparency | 17 | 3 | Uncertainty acknowledgment, factual accuracy, identity disclosure |
-| Human Oversight | 18 | 3 | Approval gates, override mechanisms, monitoring requirements |
+| Trust Hierarchy | 11 | 8 | Who the agent trusts, priority order, conflict resolution |
+| Capability Boundaries | 12 | 10 | Allowed and denied actions, scope, least privilege |
+| Injection Hardening | 13 | 8 | Prompt injection defense, encoded payloads, role-play refusal |
+| Data Handling | 14 | 8 | PII protection, credential handling, data minimization |
+| Hardcoded Behaviors | 15 | 8 | Immutable safety rules, exfiltration prevention, kill switch |
+| Agentic Safety | 16 | 10 | Iteration limits, budget caps, timeouts, reversibility |
+| Honesty and Transparency | 17 | 8 | Uncertainty acknowledgment, factual accuracy, identity disclosure |
+| Human Oversight | 18 | 8 | Approval gates, override mechanisms, monitoring requirements |
 | Harm Avoidance | 19 | 4 | Pre-action risk assessment, proportional response, unintended impact, ambiguity resolution |
 
 Each control has a severity level (CRITICAL, HIGH, MEDIUM, or LOW) and a set of detection keywords for automated scanning. See [specification.md](specification.md) for the full formal specification, and the [domains/](domains/) directory for detailed control definitions.
@@ -91,10 +91,10 @@ Not all agents need all controls. OASB-2 defines four tiers based on agent capab
 
 | Tier | Description | Applicable Controls | Example |
 |------|-------------|-------------------|---------|
-| BASIC | Conversational agents with no tool access | 15 controls | Customer service chatbot |
-| TOOL-USING | Agents that call APIs or use tools | 24 controls | Research assistant with web search |
-| AGENTIC | Autonomous agents with multi-step execution | 28 controls | Coding assistant with file system access |
-| MULTI-AGENT | Orchestrators that delegate to other agents | 30 controls (all) | Multi-agent pipeline coordinator |
+| BASIC | Conversational agents with no tool access | 29 controls | Customer service chatbot |
+| TOOL-USING | Agents that call APIs or use tools | 57 controls | Research assistant with web search |
+| AGENTIC | Autonomous agents with multi-step execution | 69 controls | Coding assistant with file system access |
+| MULTI-AGENT | Orchestrators that delegate to other agents | 72 controls (all) | Multi-agent pipeline coordinator |
 
 See [specification.md](specification.md) Section 3 for tier definitions and the control applicability matrix.
 

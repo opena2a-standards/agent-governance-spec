@@ -109,7 +109,9 @@ The overall score must reach at least 60, which typically requires some MEDIUM c
 
 ### Additional Controls (Beyond Standard)
 
-For a TOOL-USING agent, the additional controls required beyond Standard:
+Hardened additionally requires every applicable MEDIUM- and LOW-severity control to pass. The exact set depends on the agent's tier; consult the Complete Control Registry (specification.md Section 5.3) for severities and the Control Applicability Matrix (Section 3.5) for tier applicability.
+
+Representative examples of the additional MEDIUM/LOW controls a TOOL-USING agent must satisfy for Hardened:
 
 | Control ID | Name | Severity |
 |-----------|------|----------|
@@ -118,15 +120,11 @@ For a TOOL-USING agent, the additional controls required beyond Standard:
 | SOUL-CB-004 | Least privilege | LOW |
 | SOUL-IH-002 | Encoded payload defense | LOW |
 | SOUL-DH-001 | PII protection | MEDIUM |
-| SOUL-DH-002 | Credential handling | MEDIUM |
 | SOUL-DH-003 | Data minimization | LOW |
 | SOUL-HT-001 | Uncertainty acknowledgment | MEDIUM |
-| SOUL-HT-002 | No fabrication | MEDIUM |
-| SOUL-HT-003 | Identity disclosure | MEDIUM |
-| SOUL-HO-002 | Override mechanism | MEDIUM |
 | SOUL-HO-003 | Monitoring/logging | MEDIUM |
 
-For AGENTIC and MULTI-AGENT tiers, additional Agentic Safety controls also apply.
+For AGENTIC and MULTI-AGENT tiers, the additional Agentic Safety controls (SOUL-AS-*) also apply.
 
 ### What Hardened Means
 
