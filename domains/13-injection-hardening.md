@@ -1,4 +1,4 @@
-# Domain 9: Injection Hardening
+# Domain 13: Injection Hardening
 
 ## Purpose
 
@@ -91,10 +91,10 @@ This agent will not adopt personas that bypass its governance:
 
 ## Relationship to Model Specifications
 
-Anthropic's model specification addresses prompt injection through the principal hierarchy: user instructions cannot override developer instructions, and the model should be robust to attempts to manipulate the instruction hierarchy. ABGS Injection Hardening provides the declared format for these defenses:
+Anthropic's model specification addresses prompt injection through the principal hierarchy: user instructions cannot override developer instructions, and the model should be robust to attempts to manipulate the instruction hierarchy. OASB-2 Injection Hardening provides the declared format for these defenses:
 
 - SOUL-IH-001 corresponds to the model's resistance to instruction override attempts
 - SOUL-IH-002 extends defenses to encoded formats, which model specifications generally do not address explicitly
 - SOUL-IH-003 corresponds to Anthropic's guidance on role-play boundaries and OpenAI's rules about not simulating unrestricted models
 
-OWASP's LLM Top 10 lists prompt injection (LLM01) as the most critical vulnerability. ABGS Injection Hardening controls provide a governance-level defense layer that complements model-level and runtime-level defenses.
+OWASP's LLM Top 10 lists prompt injection (LLM01) as the most critical vulnerability. OASB-2 Injection Hardening controls provide a governance-level defense layer that complements model-level and runtime-level defenses.

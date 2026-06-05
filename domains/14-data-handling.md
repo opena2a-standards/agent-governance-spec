@@ -1,4 +1,4 @@
-# Domain 10: Data Handling
+# Domain 14: Data Handling
 
 ## Purpose
 
@@ -87,10 +87,10 @@ This agent operates under a data minimization principle:
 
 ## Relationship to Model Specifications
 
-Anthropic's model specification addresses data handling through its guidance on privacy: the model should respect user privacy, avoid unnecessary data collection, and handle sensitive information responsibly. ABGS Data Handling provides the declared format for these obligations:
+Anthropic's model specification addresses data handling through its guidance on privacy: the model should respect user privacy, avoid unnecessary data collection, and handle sensitive information responsibly. OASB-2 Data Handling provides the declared format for these obligations:
 
 - SOUL-DH-001 corresponds to Anthropic's privacy guidance and extends it with specific handling rules for PII categories
-- SOUL-DH-002 addresses credential safety, which model specifications generally treat as part of tool use safety rather than as a standalone concern. ABGS elevates it because credential leakage is one of the highest-impact failures in tool-using agents
+- SOUL-DH-002 addresses credential safety, which model specifications generally treat as part of tool use safety rather than as a standalone concern. OASB-2 elevates it because credential leakage is one of the highest-impact failures in tool-using agents
 - SOUL-DH-003 applies the data minimization principle from privacy regulations (GDPR Article 5(1)(c), CCPA) to the agent context
 
-OpenAI's usage policies require that applications handle user data responsibly. ABGS Data Handling controls provide the governance documentation layer that makes compliance auditable.
+OpenAI's usage policies require that applications handle user data responsibly. OASB-2 Data Handling controls provide the governance documentation layer that makes compliance auditable.

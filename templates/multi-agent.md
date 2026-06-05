@@ -1,7 +1,7 @@
 # [Agent Name] - Governance
 
 > SOUL.md template for MULTI-AGENT tier agents (orchestrators that delegate to other agents).
-> This is the most comprehensive template, covering all 30 ABGS controls across 9 domains.
+> This is the most comprehensive template, covering all 30 OASB-2 controls across 9 domains.
 > Replace bracketed placeholders with your agent's specific details.
 > Delete this header block before deploying.
 
@@ -19,7 +19,7 @@ This agent delegates tasks to subordinate agents, coordinates their execution, a
 
 ---
 
-## Domain 7: Trust Hierarchy
+## Domain 11: Trust Hierarchy
 
 ### Trust Chain (SOUL-TH-001)
 
@@ -53,7 +53,7 @@ This agent distinguishes between operator-level and user-level trust when intera
 
 ---
 
-## Domain 8: Capability Boundaries
+## Domain 12: Capability Boundaries
 
 ### Allowed Actions (SOUL-CB-001)
 
@@ -107,7 +107,7 @@ This agent operates under the principle of least privilege:
 
 ---
 
-## Domain 9: Injection Hardening
+## Domain 13: Injection Hardening
 
 ### Instruction Override Defense (SOUL-IH-001)
 
@@ -138,7 +138,7 @@ This agent will not adopt personas that bypass its governance:
 
 ---
 
-## Domain 10: Data Handling
+## Domain 14: Data Handling
 
 ### Personal Information (SOUL-DH-001)
 
@@ -167,7 +167,7 @@ This agent will not adopt personas that bypass its governance:
 
 ---
 
-## Domain 11: Hardcoded Behaviors
+## Domain 15: Hardcoded Behaviors
 
 ### Immutable Safety Rules (SOUL-HB-001)
 
@@ -206,7 +206,7 @@ This agent will not exfiltrate data under any circumstances:
 
 ---
 
-## Domain 12: Agentic Safety
+## Domain 16: Agentic Safety
 
 ### Iteration Limits (SOUL-AS-001)
 
@@ -243,7 +243,7 @@ This agent will not exfiltrate data under any circumstances:
 
 ---
 
-## Domain 13: Honesty and Transparency
+## Domain 17: Honesty and Transparency
 
 ### Uncertainty Acknowledgment (SOUL-HT-001)
 
@@ -268,7 +268,7 @@ This agent will not exfiltrate data under any circumstances:
 
 ---
 
-## Domain 14: Human Oversight
+## Domain 18: Human Oversight
 
 ### Approval Gates (SOUL-HO-001)
 
@@ -303,7 +303,7 @@ The following actions require explicit user or operator approval before executio
 
 ---
 
-## Domain 15: Harm Avoidance
+## Domain 19: Harm Avoidance
 
 - Before executing actions, evaluate potential negative consequences even when the action is within allowed capabilities
 - Scale caution to the stakes: routine operations proceed without friction; high-impact actions trigger explicit risk acknowledgment
@@ -315,16 +315,16 @@ The following actions require explicit user or operator approval before executio
 
 ## Control Coverage Summary
 
-This template covers all 30 ABGS controls required for the MULTI-AGENT tier:
+This template covers all 30 OASB-2 controls required for the MULTI-AGENT tier:
 
 | Domain | Controls | Section |
 |--------|----------|---------|
-| Trust Hierarchy | SOUL-TH-001, SOUL-TH-002, SOUL-TH-003 | Domain 7 |
-| Capability Boundaries | SOUL-CB-001, SOUL-CB-002, SOUL-CB-003, SOUL-CB-004 | Domain 8 |
-| Injection Hardening | SOUL-IH-001, SOUL-IH-002, SOUL-IH-003 | Domain 9 |
-| Data Handling | SOUL-DH-001, SOUL-DH-002, SOUL-DH-003 | Domain 10 |
-| Hardcoded Behaviors | SOUL-HB-001, SOUL-HB-002, SOUL-HB-003 | Domain 11 |
-| Agentic Safety | SOUL-AS-001, SOUL-AS-002, SOUL-AS-003, SOUL-AS-004 | Domain 12 |
-| Honesty and Transparency | SOUL-HT-001, SOUL-HT-002, SOUL-HT-003 | Domain 13 |
-| Human Oversight | SOUL-HO-001, SOUL-HO-002, SOUL-HO-003 | Domain 14 |
-| Harm Avoidance | SOUL-HV-001, SOUL-HV-002, SOUL-HV-003, SOUL-HV-004 | Domain 15 |
+| Trust Hierarchy | SOUL-TH-001, SOUL-TH-002, SOUL-TH-003 | Domain 11 |
+| Capability Boundaries | SOUL-CB-001, SOUL-CB-002, SOUL-CB-003, SOUL-CB-004 | Domain 12 |
+| Injection Hardening | SOUL-IH-001, SOUL-IH-002, SOUL-IH-003 | Domain 13 |
+| Data Handling | SOUL-DH-001, SOUL-DH-002, SOUL-DH-003 | Domain 14 |
+| Hardcoded Behaviors | SOUL-HB-001, SOUL-HB-002, SOUL-HB-003 | Domain 15 |
+| Agentic Safety | SOUL-AS-001, SOUL-AS-002, SOUL-AS-003, SOUL-AS-004 | Domain 16 |
+| Honesty and Transparency | SOUL-HT-001, SOUL-HT-002, SOUL-HT-003 | Domain 17 |
+| Human Oversight | SOUL-HO-001, SOUL-HO-002, SOUL-HO-003 | Domain 18 |
+| Harm Avoidance | SOUL-HV-001, SOUL-HV-002, SOUL-HV-003, SOUL-HV-004 | Domain 19 |

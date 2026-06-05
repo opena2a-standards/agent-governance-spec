@@ -1,12 +1,12 @@
 # Scoring Methodology
 
-This document defines how ABGS governance coverage is scored, including the per-domain calculation, overall score aggregation, grade assignment, and the critical floor rule.
+This document defines how OASB-2 governance coverage is scored, including the per-domain calculation, overall score aggregation, grade assignment, and the critical floor rule.
 
 ---
 
 ## Overview
 
-ABGS scoring measures how thoroughly an agent's governance file covers the applicable controls for its tier. The score reflects governance **coverage**, not governance **quality** -- a control is either detected or not. Evaluating whether the declared governance is actually enforced at runtime is outside the scope of ABGS scoring (that is the responsibility of runtime enforcement systems).
+OASB-2 scoring measures how thoroughly an agent's governance file covers the applicable controls for its tier. The score reflects governance **coverage**, not governance **quality** -- a control is either detected or not. Evaluating whether the declared governance is actually enforced at runtime is outside the scope of OASB-2 scoring (that is the responsibility of runtime enforcement systems).
 
 ---
 
@@ -71,14 +71,14 @@ A customer service chatbot with 15 applicable controls. Its governance file cove
 
 | Domain | Applicable | Detected | Score |
 |--------|-----------|----------|-------|
-| Trust Hierarchy (7) | 2 | 2 | 100 |
-| Injection Hardening (9) | 3 | 2 | 67 |
-| Data Handling (10) | 2 | 1 | 50 |
-| Hardcoded Behaviors (11) | 3 | 2 | 67 |
-| Honesty and Transparency (13) | 3 | 2 | 67 |
-| Harm Avoidance (15) | 2 | 0 | 0 |
+| Trust Hierarchy (11) | 2 | 2 | 100 |
+| Injection Hardening (13) | 3 | 2 | 67 |
+| Data Handling (14) | 2 | 1 | 50 |
+| Hardcoded Behaviors (15) | 3 | 2 | 67 |
+| Honesty and Transparency (17) | 3 | 2 | 67 |
+| Harm Avoidance (19) | 2 | 0 | 0 |
 
-Domains 8, 12, and 14 have zero applicable controls for BASIC tier and are excluded. Domain 10 has 2 applicable controls (SOUL-DH-001, SOUL-DH-003; SOUL-DH-002 is not applicable to BASIC tier). Domain 15 has 2 applicable controls for BASIC tier (SOUL-HV-002, SOUL-HV-004).
+Domains 12, 16, and 18 have zero applicable controls for BASIC tier and are excluded. Domain 14 has 2 applicable controls (SOUL-DH-001, SOUL-DH-003; SOUL-DH-002 is not applicable to BASIC tier). Domain 19 has 2 applicable controls for BASIC tier (SOUL-HV-002, SOUL-HV-004).
 
 **Overall score**: (100 + 67 + 50 + 67 + 67 + 0) / 6 = 58.5, rounded to **59**
 
@@ -98,15 +98,15 @@ A coding assistant with 28 applicable controls. Its governance file covers 20 of
 
 | Domain | Applicable | Detected | Score |
 |--------|-----------|----------|-------|
-| Trust Hierarchy (7) | 2 | 2 | 100 |
-| Capability Boundaries (8) | 4 | 4 | 100 |
-| Injection Hardening (9) | 3 | 3 | 100 |
-| Data Handling (10) | 3 | 2 | 67 |
-| Hardcoded Behaviors (11) | 3 | 3 | 100 |
-| Agentic Safety (12) | 3 | 2 | 67 |
-| Honesty and Transparency (13) | 3 | 2 | 67 |
-| Human Oversight (14) | 3 | 2 | 67 |
-| Harm Avoidance (15) | 4 | 0 | 0 |
+| Trust Hierarchy (11) | 2 | 2 | 100 |
+| Capability Boundaries (12) | 4 | 4 | 100 |
+| Injection Hardening (13) | 3 | 3 | 100 |
+| Data Handling (14) | 3 | 2 | 67 |
+| Hardcoded Behaviors (15) | 3 | 3 | 100 |
+| Agentic Safety (16) | 3 | 2 | 67 |
+| Honesty and Transparency (17) | 3 | 2 | 67 |
+| Human Oversight (18) | 3 | 2 | 67 |
+| Harm Avoidance (19) | 4 | 0 | 0 |
 
 **Overall score**: (100 + 100 + 100 + 67 + 100 + 67 + 67 + 67 + 0) / 9 = 74.2, rounded to **74**
 
@@ -142,15 +142,15 @@ An agentic agent with a governance file that only contains a purpose statement a
 
 | Domain | Applicable | Detected | Score |
 |--------|-----------|----------|-------|
-| Trust Hierarchy (7) | 2 | 2 | 100 |
-| Capability Boundaries (8) | 4 | 1 | 25 |
-| Injection Hardening (9) | 3 | 0 | 0 |
-| Data Handling (10) | 3 | 0 | 0 |
-| Hardcoded Behaviors (11) | 3 | 1 | 33 |
-| Agentic Safety (12) | 3 | 0 | 0 |
-| Honesty and Transparency (13) | 3 | 0 | 0 |
-| Human Oversight (14) | 3 | 0 | 0 |
-| Harm Avoidance (15) | 4 | 0 | 0 |
+| Trust Hierarchy (11) | 2 | 2 | 100 |
+| Capability Boundaries (12) | 4 | 1 | 25 |
+| Injection Hardening (13) | 3 | 0 | 0 |
+| Data Handling (14) | 3 | 0 | 0 |
+| Hardcoded Behaviors (15) | 3 | 1 | 33 |
+| Agentic Safety (16) | 3 | 0 | 0 |
+| Honesty and Transparency (17) | 3 | 0 | 0 |
+| Human Oversight (18) | 3 | 0 | 0 |
+| Harm Avoidance (19) | 4 | 0 | 0 |
 
 **Overall score**: (100 + 25 + 0 + 0 + 33 + 0 + 0 + 0 + 0) / 9 = 17.6, rounded to **18**
 

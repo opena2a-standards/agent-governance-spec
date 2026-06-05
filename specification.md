@@ -1,4 +1,4 @@
-# Agent Behavioral Governance Specification
+# OASB-2: Agent Behavioral Governance Specification
 
 **Version**: 1.0
 **Status**: Draft
@@ -11,26 +11,26 @@
 
 ### 1.1 Purpose
 
-The Agent Behavioral Governance Specification (ABGS) defines a standard for declaring, measuring, and auditing the behavioral governance of AI agent deployments. It provides a structured format for specifying what an agent will and will not do, who it trusts, how it handles data, and when it requires human oversight.
+The Agent Behavioral Governance Specification (OASB-2) defines a standard for declaring, measuring, and auditing the behavioral governance of AI agent deployments. It provides a structured format for specifying what an agent will and will not do, who it trusts, how it handles data, and when it requires human oversight.
 
 ### 1.2 Scope
 
-ABGS governs the **deployment layer** -- the behavioral contract of a specific agent instance. It does not govern:
+OASB-2 governs the **deployment layer** -- the behavioral contract of a specific agent instance. It does not govern:
 
-- **Foundation model behavior**: That is the responsibility of model specifications (Anthropic's principal hierarchy, OpenAI's model spec). An agent can comply with ABGS regardless of which underlying model it uses.
-- **Agent persona or personality**: That is the domain of persona standards such as SoulSpec. ABGS defines safety and governance constraints, not character traits.
-- **Runtime enforcement**: That is the responsibility of runtime platforms and structural governance frameworks such as OABGS. ABGS declares intent; runtime systems enforce it.
-- **Infrastructure security**: That is covered by OASB domains 1-6 (authentication, authorization, transport security, logging, configuration, dependency management).
+- **Foundation model behavior**: That is the responsibility of model specifications (Anthropic's principal hierarchy, OpenAI's model spec). An agent can comply with OASB-2 regardless of which underlying model it uses.
+- **Agent persona or personality**: That is the domain of persona standards such as SoulSpec. OASB-2 defines safety and governance constraints, not character traits.
+- **Runtime enforcement**: That is the responsibility of runtime platforms and structural governance frameworks. OASB-2 declares intent; runtime systems enforce it.
+- **Infrastructure security**: That is covered by OASB-1, the technical security domains (1-10).
 
 ### 1.3 Relationship to OASB
 
 The Open Agent Security Benchmark (OASB) provides a comprehensive security assessment framework for AI agents:
 
-- **OASB v1** covers infrastructure security: domains 1 (Authentication) through 6 (Dependency Management).
-- **ABGS** covers behavioral governance: domains 7 (Trust Hierarchy) through 15 (Harm Avoidance).
-- **OASB v2** integrates both, providing domains 1-15 for full-stack agent security assessment.
+- **OASB-1** covers technical security: domains 1 through 10.
+- **OASB-2** (this specification) covers behavioral governance: domains 11 (Trust Hierarchy) through 19 (Harm Avoidance).
+- Together they form the unified OASB domain set: domains 1-19 for full-stack agent security assessment.
 
-ABGS can be used independently of OASB for governance-only assessment, or as part of OASB for comprehensive security benchmarking.
+OASB-2 can be used independently for governance-only assessment, or as part of the unified OASB for comprehensive security benchmarking.
 
 ### 1.4 Terminology
 
@@ -95,7 +95,7 @@ Governance files SHOULD be committed to version control alongside the agent's so
 
 ## 3. Agent Tiers
 
-ABGS defines four agent tiers based on capability. Each tier inherits all controls from lower tiers and adds tier-specific controls.
+OASB-2 defines four agent tiers based on capability. Each tier inherits all controls from lower tiers and adds tier-specific controls.
 
 ### 3.1 BASIC
 
@@ -103,7 +103,7 @@ ABGS defines four agent tiers based on capability. Each tier inherits all contro
 
 **Examples**: Customer service chatbots, FAQ bots, conversational interfaces with no integrations.
 
-**Applicable controls**: 15 (domains 7, 9, 10, 11, 13, 15; excludes SOUL-DH-002; includes SOUL-HV-002, SOUL-HV-004)
+**Applicable controls**: 15 (domains 11, 13, 14, 15, 17, 19; excludes SOUL-DH-002; includes SOUL-HV-002, SOUL-HV-004)
 
 ### 3.2 TOOL-USING
 
@@ -111,7 +111,7 @@ ABGS defines four agent tiers based on capability. Each tier inherits all contro
 
 **Examples**: Research assistants with web search, agents with database query access, agents that call third-party APIs.
 
-**Applicable controls**: 24 (all BASIC controls plus SOUL-DH-002, domains 8, 14, and SOUL-HV-001)
+**Applicable controls**: 24 (all BASIC controls plus SOUL-DH-002, domains 12, 18, and SOUL-HV-001)
 
 ### 3.3 AGENTIC
 
@@ -119,7 +119,7 @@ ABGS defines four agent tiers based on capability. Each tier inherits all contro
 
 **Examples**: Coding assistants, data analysis agents, automation agents with file system access.
 
-**Applicable controls**: 28 (all TOOL-USING controls plus domain 12, SOUL-HV-003, excluding SOUL-AS-004)
+**Applicable controls**: 28 (all TOOL-USING controls plus domain 16, SOUL-HV-003, excluding SOUL-AS-004)
 
 ### 3.4 MULTI-AGENT
 
@@ -168,19 +168,19 @@ ABGS defines four agent tiers based on capability. Each tier inherits all contro
 
 ## 4. Governance Domains
 
-ABGS defines 9 governance domains, numbered 7-15 to align with OASB domain numbering (OASB infrastructure domains are 1-6).
+OASB-2 defines 9 governance domains, numbered 11-19, extending OASB-1's technical security domains (1-10) to form the unified OASB domain set (1-19).
 
 | # | Domain | Controls | Purpose |
 |---|--------|----------|---------|
-| 7 | Trust Hierarchy | 3 | Defines who the agent trusts and how conflicts between principals are resolved |
-| 8 | Capability Boundaries | 4 | Declares what the agent is and is not allowed to do |
-| 9 | Injection Hardening | 3 | Specifies defenses against prompt injection and instruction manipulation |
-| 10 | Data Handling | 3 | Governs treatment of sensitive data, PII, and credentials |
-| 11 | Hardcoded Behaviors | 3 | Defines immutable safety rules that cannot be overridden |
-| 12 | Agentic Safety | 4 | Sets operational limits for autonomous execution |
-| 13 | Honesty and Transparency | 3 | Requires truthfulness, uncertainty acknowledgment, and identity disclosure |
-| 14 | Human Oversight | 3 | Establishes approval gates, override mechanisms, and monitoring |
-| 15 | Harm Avoidance | 4 | Pre-action risk assessment, proportional response, unintended impact, ambiguity resolution |
+| 11 | Trust Hierarchy | 3 | Defines who the agent trusts and how conflicts between principals are resolved |
+| 12 | Capability Boundaries | 4 | Declares what the agent is and is not allowed to do |
+| 13 | Injection Hardening | 3 | Specifies defenses against prompt injection and instruction manipulation |
+| 14 | Data Handling | 3 | Governs treatment of sensitive data, PII, and credentials |
+| 15 | Hardcoded Behaviors | 3 | Defines immutable safety rules that cannot be overridden |
+| 16 | Agentic Safety | 4 | Sets operational limits for autonomous execution |
+| 17 | Honesty and Transparency | 3 | Requires truthfulness, uncertainty acknowledgment, and identity disclosure |
+| 18 | Human Oversight | 3 | Establishes approval gates, override mechanisms, and monitoring |
+| 19 | Harm Avoidance | 4 | Pre-action risk assessment, proportional response, unintended impact, ambiguity resolution |
 
 Full control definitions for each domain are in the [domains/](domains/) directory.
 
@@ -328,18 +328,18 @@ See [conformance.md](conformance.md) for the full conformance audit procedure an
 
 ## 8. Versioning
 
-ABGS follows semantic versioning (MAJOR.MINOR.PATCH):
+OASB-2 follows semantic versioning (MAJOR.MINOR.PATCH):
 
 - **MAJOR**: Breaking changes to domain structure, scoring algorithm, or conformance level definitions
 - **MINOR**: New controls, severity changes, new agent tiers (backward-compatible)
 - **PATCH**: Clarifications, typo fixes, example improvements (no specification changes)
 
-This document defines ABGS **v1.0**.
+This document defines OASB-2 **v1.0**.
 
 ### 8.1 Stability Guarantees
 
 - Control IDs (SOUL-XX-NNN) are permanent. A control ID is never reassigned to a different control.
-- Domain numbers (7-15) are permanent. New domains receive the next available number.
+- Domain numbers (11-19) are permanent. New domains receive the next available number.
 - Severity changes are treated as MINOR version changes and require the process defined in CONTRIBUTING.md.
 
 ---
@@ -385,11 +385,11 @@ This structure is a recommendation, not a requirement. Scanners detect controls 
 
 ## Appendix B: Relationship to Model Specifications
 
-Model specifications (such as Anthropic's principal hierarchy or OpenAI's model spec) define how the foundation model should behave across all deployments. ABGS defines how a specific agent deployment should behave.
+Model specifications (such as Anthropic's principal hierarchy or OpenAI's model spec) define how the foundation model should behave across all deployments. OASB-2 defines how a specific agent deployment should behave.
 
 Key distinctions:
 
-| Aspect | Model Specification | ABGS |
+| Aspect | Model Specification | OASB-2 |
 |--------|-------------------|-----|
 | Scope | All uses of the model | One specific agent deployment |
 | Author | Model provider | Agent developer or operator |
@@ -397,4 +397,4 @@ Key distinctions:
 | Portability | Tied to one model | Model-agnostic |
 | Auditability | Opaque (training-time) | Transparent (file in repository) |
 
-ABGS governance files can reference and build on model-level specifications. For example, an ABGS trust hierarchy might state "Follow the Anthropic principal hierarchy: developer > operator > user" while adding deployment-specific constraints.
+OASB-2 governance files can reference and build on model-level specifications. For example, an OASB-2 trust hierarchy might state "Follow the Anthropic principal hierarchy: developer > operator > user" while adding deployment-specific constraints.

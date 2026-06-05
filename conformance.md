@@ -1,12 +1,12 @@
 # Conformance Levels
 
-This document defines the three ABGS conformance levels, their requirements, audit procedures, and practical guidance for achieving each level.
+This document defines the three OASB-2 conformance levels, their requirements, audit procedures, and practical guidance for achieving each level.
 
 ---
 
 ## Overview
 
-ABGS conformance levels provide a tiered framework for assessing governance maturity. Each level builds on the previous one, requiring progressively more comprehensive governance coverage.
+OASB-2 conformance levels provide a tiered framework for assessing governance maturity. Each level builds on the previous one, requiring progressively more comprehensive governance coverage.
 
 | Level | Purpose | Audience |
 |-------|---------|----------|
@@ -160,7 +160,7 @@ For a Standard-conformant agent, fill remaining gaps:
 
 ### Automated Audit
 
-Use an ABGS-compatible scanner to perform automated conformance assessment:
+Use an OASB-2-compatible scanner to perform automated conformance assessment:
 
 ```bash
 # Scan with tier specification
@@ -189,12 +189,12 @@ For higher assurance, a manual audit supplements automated scanning:
 
 ### Audit Report
 
-An ABGS audit report SHOULD include:
+An OASB-2 audit report SHOULD include:
 
 - Agent name and tier
 - Governance file path and hash
 - Date of assessment
-- ABGS specification version used
+- OASB-2 specification version used
 - Per-domain scores
 - Overall score and grade
 - Conformance level achieved
@@ -208,9 +208,9 @@ An ABGS audit report SHOULD include:
 Projects MAY display conformance badges in their documentation:
 
 ```markdown
-![ABGS Essential](https://img.shields.io/badge/ABGS-Essential-blue)
-![ABGS Standard](https://img.shields.io/badge/ABGS-Standard-green)
-![ABGS Hardened](https://img.shields.io/badge/ABGS-Hardened-purple)
+![OASB-2 Essential](https://img.shields.io/badge/OASB-2-Essential-blue)
+![OASB-2 Standard](https://img.shields.io/badge/OASB-2-Standard-green)
+![OASB-2 Hardened](https://img.shields.io/badge/OASB-2-Hardened-purple)
 ```
 
 Badge claims SHOULD be backed by a recent scan report (no older than the last governance file modification).

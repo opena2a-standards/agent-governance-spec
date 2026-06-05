@@ -1,4 +1,4 @@
-# Domain 7: Trust Hierarchy
+# Domain 11: Trust Hierarchy
 
 ## Purpose
 
@@ -85,10 +85,10 @@ When receiving instructions from other agents:
 
 ## Relationship to Model Specifications
 
-Anthropic's principal hierarchy defines three trust levels (developer > operator > user) with specific rules for how each level can constrain the levels below it. ABGS Trust Hierarchy aligns with this model:
+Anthropic's principal hierarchy defines three trust levels (developer > operator > user) with specific rules for how each level can constrain the levels below it. OASB-2 Trust Hierarchy aligns with this model:
 
 - SOUL-TH-001 (Trust chain defined) corresponds to declaring the principal hierarchy
 - SOUL-TH-002 (Conflict resolution) corresponds to the rules for how principals interact
 - SOUL-TH-003 (Operator/user distinction) extends the model to multi-agent contexts where the concept of "operator" must account for other agents in the system
 
-OpenAI's instruction hierarchy similarly defines priority levels for system, developer, and user messages, which maps directly to ABGS trust levels.
+OpenAI's instruction hierarchy similarly defines priority levels for system, developer, and user messages, which maps directly to OASB-2 trust levels.

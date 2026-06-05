@@ -1,4 +1,4 @@
-# Domain 15: Harm Avoidance
+# Domain 19: Harm Avoidance
 
 ## Purpose
 
@@ -6,7 +6,7 @@ The Harm Avoidance domain governs the agent's obligation to evaluate potential n
 
 ## Rationale
 
-The other ABGS domains define what the agent can do (Capability Boundaries), what it must never do (Hardcoded Behaviors), and when to ask a human (Human Oversight). But there is a gap between "permitted" and "advisable." An action can be within the agent's declared capabilities, not on any denylist, and not flagged for human approval -- and still cause harm.
+The other OASB-2 domains define what the agent can do (Capability Boundaries), what it must never do (Hardcoded Behaviors), and when to ask a human (Human Oversight). But there is a gap between "permitted" and "advisable." An action can be within the agent's declared capabilities, not on any denylist, and not flagged for human approval -- and still cause harm.
 
 A coding agent asked to refactor a function might technically have permission to modify the file, but if that function is called by 200 other modules, the refactor could break production in ways the agent didn't anticipate. A research agent asked to summarize a person's online presence might have permission to search the web, but aggregating scattered personal information into a single document creates a privacy harm that no individual search caused.
 
@@ -117,7 +117,7 @@ When instructions are ambiguous, this agent defaults to safety:
 
 ## Relationship to Model Specifications
 
-Anthropic's model specification addresses harm avoidance extensively through several mechanisms that ABGS Harm Avoidance formalizes:
+Anthropic's model specification addresses harm avoidance extensively through several mechanisms that OASB-2 Harm Avoidance formalizes:
 
 - SOUL-HV-001 (Pre-action risk assessment) corresponds to Anthropic's cost-benefit reasoning framework, which instructs the model to weigh the probability of harm, the counterfactual impact (would the harm occur without the agent's action?), the severity and breadth of harm, and whether the agent is the proximate cause. It also corresponds to the "1000 users test": if 1000 different users sent this exact request, what is the best action to take considering the full range of intentions?
 
@@ -129,12 +129,12 @@ Anthropic's model specification addresses harm avoidance extensively through sev
 
 OpenAI's model specification addresses similar concerns through its guidance on "following the spirit of instructions" and applying judgment when literal compliance would produce harmful outcomes. Both specifications treat harm avoidance as a judgment-level capability that operates above explicit rules -- the governance layer that handles the cases rules alone cannot anticipate.
 
-## Relationship to Other ABGS Domains
+## Relationship to Other OASB-2 Domains
 
-Harm Avoidance occupies a distinct position in the ABGS domain structure:
+Harm Avoidance occupies a distinct position in the OASB-2 domain structure:
 
-- **Capability Boundaries (8)** define what the agent _can_ do. **Harm Avoidance (15)** governs whether it _should_ in a specific context.
-- **Hardcoded Behaviors (11)** define absolute prohibitions. **Harm Avoidance (15)** governs the gray area between permitted and prohibited.
-- **Human Oversight (14)** defines when to ask a human. **Harm Avoidance (15)** governs the agent's own judgment before the question of human approval arises.
-- **Agentic Safety (12)** limits operational scope (iterations, budget, time). **Harm Avoidance (15)** assesses the qualitative risk of individual actions within those operational limits.
-- **Honesty and Transparency (13)** governs truthfulness. **Harm Avoidance (15)** governs the broader question of whether an honest, accurate, permitted action could still cause harm.
+- **Capability Boundaries (12)** define what the agent _can_ do. **Harm Avoidance (19)** governs whether it _should_ in a specific context.
+- **Hardcoded Behaviors (15)** define absolute prohibitions. **Harm Avoidance (19)** governs the gray area between permitted and prohibited.
+- **Human Oversight (18)** defines when to ask a human. **Harm Avoidance (19)** governs the agent's own judgment before the question of human approval arises.
+- **Agentic Safety (16)** limits operational scope (iterations, budget, time). **Harm Avoidance (19)** assesses the qualitative risk of individual actions within those operational limits.
+- **Honesty and Transparency (17)** governs truthfulness. **Harm Avoidance (19)** governs the broader question of whether an honest, accurate, permitted action could still cause harm.

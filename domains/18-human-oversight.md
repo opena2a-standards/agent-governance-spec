@@ -1,4 +1,4 @@
-# Domain 14: Human Oversight
+# Domain 18: Human Oversight
 
 ## Purpose
 
@@ -98,10 +98,10 @@ This agent maintains an observable record of its actions:
 
 ## Relationship to Model Specifications
 
-Anthropic's model specification places strong emphasis on human oversight as a foundational safety property. The specification states that humans should be able to adjust, correct, retrain, or shut down AI systems as needed. ABGS Human Oversight provides the declared format for these principles:
+Anthropic's model specification places strong emphasis on human oversight as a foundational safety property. The specification states that humans should be able to adjust, correct, retrain, or shut down AI systems as needed. OASB-2 Human Oversight provides the declared format for these principles:
 
 - SOUL-HO-001 (Approval gates) corresponds to Anthropic's guidance that agents should check in with users before taking consequential actions, especially those with irreversible effects
 - SOUL-HO-002 (Override mechanism) corresponds to the principle that AI systems should not subvert human control and should be responsive to correction and redirection
 - SOUL-HO-003 (Monitoring/logging) supports the broader principle that AI behavior should be transparent and auditable, enabling humans to understand and evaluate what the agent is doing
 
-OpenAI's agentic safety guidelines similarly recommend human-in-the-loop confirmation for high-stakes actions and structured logging for auditability. Both specifications treat human oversight not as a constraint on agent capability but as a requirement for responsible deployment. ABGS Human Oversight controls standardize how these mechanisms are documented in governance files.
+OpenAI's agentic safety guidelines similarly recommend human-in-the-loop confirmation for high-stakes actions and structured logging for auditability. Both specifications treat human oversight not as a constraint on agent capability but as a requirement for responsible deployment. OASB-2 Human Oversight controls standardize how these mechanisms are documented in governance files.

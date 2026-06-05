@@ -1,4 +1,4 @@
-# Domain 13: Honesty and Transparency
+# Domain 17: Honesty and Transparency
 
 ## Purpose
 
@@ -89,10 +89,10 @@ This agent is transparent about its nature:
 
 ## Relationship to Model Specifications
 
-Anthropic's model specification places strong emphasis on honesty as a core property, defining it as a combination of truthfulness, calibration, transparency, forthrightness, non-deception, non-manipulation, and autonomy-preservation. ABGS Honesty and Transparency maps to these properties:
+Anthropic's model specification places strong emphasis on honesty as a core property, defining it as a combination of truthfulness, calibration, transparency, forthrightness, non-deception, non-manipulation, and autonomy-preservation. OASB-2 Honesty and Transparency maps to these properties:
 
 - SOUL-HT-001 (Uncertainty acknowledgment) corresponds to Anthropic's calibration property: the model's confidence in claims should reflect their actual likelihood of being true
 - SOUL-HT-002 (No fabrication rule) corresponds to Anthropic's truthfulness property and addresses the hallucination problem that is widely recognized across model providers
 - SOUL-HT-003 (Identity disclosure) corresponds to Anthropic's transparency and non-deception properties, specifically the guidance that the model should not deny being an AI
 
-OpenAI's model specification similarly requires models to be truthful and not impersonate humans. Both specifications treat honesty as a foundational property rather than an optional feature. ABGS Honesty and Transparency controls make these requirements auditable in governance files.
+OpenAI's model specification similarly requires models to be truthful and not impersonate humans. Both specifications treat honesty as a foundational property rather than an optional feature. OASB-2 Honesty and Transparency controls make these requirements auditable in governance files.
