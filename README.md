@@ -1,9 +1,9 @@
 > **[OpenA2A](https://github.com/opena2a-org/opena2a)**: [CLI](https://github.com/opena2a-org/opena2a) · [HackMyAgent](https://github.com/opena2a-org/hackmyagent) · [Secretless](https://github.com/opena2a-org/secretless-ai) · [AIM](https://github.com/opena2a-org/agent-identity-management) · [Browser Guard](https://github.com/opena2a-org/AI-BrowserGuard) · [DVAA](https://github.com/opena2a-org/damn-vulnerable-ai-agent)
-# Agent Behavioral Governance Specification (ABGS)
+# OASB-2: Agent Behavioral Governance Specification
 
 The first open specification for AI agent behavioral governance.
 
-ABGS defines what goes in a governance file (SOUL.md), how to measure governance coverage across nine behavioral domains, and three conformance levels for auditing agent deployments. It is maintained by [OpenA2A](https://opena2a.org) and licensed under Apache-2.0.
+OASB-2 defines what goes in a governance file (SOUL.md), how to measure governance coverage across nine behavioral domains, and three conformance levels for auditing agent deployments. It is maintained by [OpenA2A](https://opena2a.org) and licensed under Apache-2.0.
 
 ---
 
@@ -18,9 +18,9 @@ The AI agent ecosystem has standards for several layers of the stack, but behavi
 | Agent capabilities | [Agent Skills](https://agentskills.io) | Procedural knowledge and tools |
 | Infrastructure | [NIST AI Agent Standards](https://www.nist.gov/artificial-intelligence) | Identity, interoperability, and infrastructure |
 | Coding instructions | [AGENTS.md](https://agents.md) | Instructions for AI coding agents |
-| **Behavioral governance** | **ABGS (this specification)** | **Per-agent safety constraints, scope boundaries, oversight requirements** |
+| **Behavioral governance** | **OASB-2 (this specification)** | **Per-agent safety constraints, scope boundaries, oversight requirements** |
 
-ABGS fills the layer between model specifications (what the model can do) and deployment behavior (what the agent actually does). It is the agent's own declared behavioral contract: what it will and will not do, who it trusts, how it handles sensitive data, and when it requires human approval. ABGS also provides runtime enforcement through automated scanning and CI/CD integration.
+OASB-2 fills the layer between model specifications (what the model can do) and deployment behavior (what the agent actually does). It is the agent's own declared behavioral contract: what it will and will not do, who it trusts, how it handles sensitive data, and when it requires human approval. OASB-2 also provides runtime enforcement through automated scanning and CI/CD integration.
 
 ---
 
@@ -53,19 +53,19 @@ npx hackmyagent scan-soul
 
 ## Specification Overview
 
-ABGS defines **9 governance domains** containing **30 controls** that cover the behavioral surface area of an AI agent deployment.
+OASB-2 defines **9 governance domains** containing **30 controls** that cover the behavioral surface area of an AI agent deployment.
 
 | Domain | ID | Controls | What It Governs |
 |--------|-----|----------|----------------|
-| Trust Hierarchy | 7 | 3 | Who the agent trusts, priority order, conflict resolution |
-| Capability Boundaries | 8 | 4 | Allowed and denied actions, scope, least privilege |
-| Injection Hardening | 9 | 3 | Prompt injection defense, encoded payloads, role-play refusal |
-| Data Handling | 10 | 3 | PII protection, credential handling, data minimization |
-| Hardcoded Behaviors | 11 | 3 | Immutable safety rules, exfiltration prevention, kill switch |
-| Agentic Safety | 12 | 4 | Iteration limits, budget caps, timeouts, reversibility |
-| Honesty and Transparency | 13 | 3 | Uncertainty acknowledgment, factual accuracy, identity disclosure |
-| Human Oversight | 14 | 3 | Approval gates, override mechanisms, monitoring requirements |
-| Harm Avoidance | 15 | 4 | Pre-action risk assessment, proportional response, unintended impact, ambiguity resolution |
+| Trust Hierarchy | 11 | 3 | Who the agent trusts, priority order, conflict resolution |
+| Capability Boundaries | 12 | 4 | Allowed and denied actions, scope, least privilege |
+| Injection Hardening | 13 | 3 | Prompt injection defense, encoded payloads, role-play refusal |
+| Data Handling | 14 | 3 | PII protection, credential handling, data minimization |
+| Hardcoded Behaviors | 15 | 3 | Immutable safety rules, exfiltration prevention, kill switch |
+| Agentic Safety | 16 | 4 | Iteration limits, budget caps, timeouts, reversibility |
+| Honesty and Transparency | 17 | 3 | Uncertainty acknowledgment, factual accuracy, identity disclosure |
+| Human Oversight | 18 | 3 | Approval gates, override mechanisms, monitoring requirements |
+| Harm Avoidance | 19 | 4 | Pre-action risk assessment, proportional response, unintended impact, ambiguity resolution |
 
 Each control has a severity level (CRITICAL, HIGH, MEDIUM, or LOW) and a set of detection keywords for automated scanning. See [specification.md](specification.md) for the full formal specification, and the [domains/](domains/) directory for detailed control definitions.
 
@@ -73,7 +73,7 @@ Each control has a severity level (CRITICAL, HIGH, MEDIUM, or LOW) and a set of 
 
 ## Conformance Levels
 
-ABGS defines three conformance levels for auditing governance coverage:
+OASB-2 defines three conformance levels for auditing governance coverage:
 
 | Level | Requirements | Typical Use Case |
 |-------|-------------|-----------------|
@@ -87,7 +87,7 @@ See [conformance.md](conformance.md) for detailed requirements and audit procedu
 
 ## Agent Tiers
 
-Not all agents need all controls. ABGS defines four tiers based on agent capability:
+Not all agents need all controls. OASB-2 defines four tiers based on agent capability:
 
 | Tier | Description | Applicable Controls | Example |
 |------|-------------|-------------------|---------|
@@ -115,14 +115,14 @@ See [scoring.md](scoring.md) for the full scoring methodology with worked exampl
 
 ## Related Work
 
-ABGS is designed to complement, not compete with, existing specifications:
+OASB-2 is designed to complement, not compete with, existing specifications:
 
-- **Anthropic Soul / OpenAI Model Spec**: These govern the foundation model's behavior. ABGS governs the deployed agent built on top of that model. An agent can comply with ABGS regardless of which model it uses.
-- **SoulSpec (soulspec.org)**: Defines agent persona and personality. ABGS defines agent governance. A SOUL.md can coexist with a SoulSpec persona file -- they address different concerns.
-- **Agent Skills (agentskills.io)**: Defines agent capabilities and procedural knowledge. ABGS defines behavioral constraints. Skills say what the agent can do; ABGS says what it must not do.
-- **NIST AI Agent Standards**: Covers infrastructure, identity, and interoperability. ABGS covers behavioral safety. They are complementary layers.
-- **AGENTS.md**: Instructions for AI coding agents about how to work with a codebase. ABGS defines safety and governance boundaries. An agent can follow both AGENTS.md (for coding conventions) and SOUL.md (for safety constraints).
-- **OASB (Open Agent Security Benchmark)**: OASB v1 covers infrastructure security (domains 1-6). ABGS covers behavioral governance (domains 7-15). Together they provide full-stack agent security assessment.
+- **Anthropic Soul / OpenAI Model Spec**: These govern the foundation model's behavior. OASB-2 governs the deployed agent built on top of that model. An agent can comply with OASB-2 regardless of which model it uses.
+- **SoulSpec (soulspec.org)**: Defines agent persona and personality. OASB-2 defines agent governance. A SOUL.md can coexist with a SoulSpec persona file -- they address different concerns.
+- **Agent Skills (agentskills.io)**: Defines agent capabilities and procedural knowledge. OASB-2 defines behavioral constraints. Skills say what the agent can do; OASB-2 says what it must not do.
+- **NIST AI Agent Standards**: Covers infrastructure, identity, and interoperability. OASB-2 covers behavioral safety. They are complementary layers.
+- **AGENTS.md**: Instructions for AI coding agents about how to work with a codebase. OASB-2 defines safety and governance boundaries. An agent can follow both AGENTS.md (for coding conventions) and SOUL.md (for safety constraints).
+- **OASB (Open Agent Security Benchmark)**: OASB-1 covers technical security (domains 1-10). OASB-2 covers behavioral governance (domains 11-19). Together they form the unified OASB (domains 1-19) for full-stack agent security assessment.
 - **Awesome Agent Souls**: A [curated collection of 100+ SOUL.md templates](https://github.com/opena2a-org/awesome-agent-souls) organized by role, industry, organization type, and fleet. Use these as starting points instead of writing governance files from scratch.
 
 ---
@@ -131,7 +131,7 @@ ABGS is designed to complement, not compete with, existing specifications:
 
 ### HackMyAgent
 
-[HackMyAgent](https://github.com/opena2a-org/hackmyagent) provides automated scanning and hardening for ABGS governance files:
+[HackMyAgent](https://github.com/opena2a-org/hackmyagent) provides automated scanning and hardening for OASB-2 governance files:
 
 ```bash
 # Scan an existing governance file
@@ -144,9 +144,9 @@ npx hackmyagent harden-soul
 npx hackmyagent scan-soul --json
 ```
 
-### OASB v2
+### OASB
 
-[OASB](https://github.com/opena2a-org/oasb) v2 integrates ABGS domains 7-15 alongside infrastructure domains 1-6 for comprehensive agent security benchmarking.
+[OASB](https://github.com/opena2a-org/oasb) integrates OASB-2 behavioral domains 11-19 alongside OASB-1 technical domains 1-10 for comprehensive agent security benchmarking.
 
 ---
 
@@ -180,14 +180,14 @@ jobs:
 Show your governance conformance:
 
 ```markdown
-[![ABGS Conformant](https://img.shields.io/badge/ABGS-Standard-teal)](https://github.com/opena2a-org/agent-governance-spec)
+[![OASB-2 Conformant](https://img.shields.io/badge/OASB--2-Standard-teal)](https://github.com/opena2a-org/agent-governance-spec)
 ```
 
 | Level | Badge |
 |-------|-------|
-| Essential | ![ABGS Essential](https://img.shields.io/badge/ABGS-Essential-blue) |
-| Standard | ![ABGS Standard](https://img.shields.io/badge/ABGS-Standard-teal) |
-| Hardened | ![ABGS Hardened](https://img.shields.io/badge/ABGS-Hardened-green) |
+| Essential | ![OASB-2 Essential](https://img.shields.io/badge/OASB--2-Essential-blue) |
+| Standard | ![OASB-2 Standard](https://img.shields.io/badge/OASB--2-Standard-teal) |
+| Hardened | ![OASB-2 Hardened](https://img.shields.io/badge/OASB--2-Hardened-green) |
 
 ---
 
@@ -206,7 +206,7 @@ Show your governance conformance:
 3. Raise threshold over time: 40 (Essential) -> 60 (Standard) -> 75 (Hardened)
 
 **For organizations**:
-1. Set minimum ABGS conformance level per agent risk tier
+1. Set minimum OASB-2 conformance level per agent risk tier
 2. Use JSON output (`--format json`) for compliance dashboards
 3. Integrate with existing GRC tooling via structured scan results
 
@@ -224,15 +224,15 @@ agent-governance-spec/
   conformance.md              Conformance levels
   domains/
     README.md                 Domain overview
-    07-trust-hierarchy.md     Domain 7: Trust Hierarchy
-    08-capability-boundaries.md  Domain 8: Capability Boundaries
-    09-injection-hardening.md    Domain 9: Injection Hardening
-    10-data-handling.md          Domain 10: Data Handling
-    11-hardcoded-behaviors.md    Domain 11: Hardcoded Behaviors
-    12-agentic-safety.md         Domain 12: Agentic Safety
-    13-honesty-transparency.md   Domain 13: Honesty and Transparency
-    14-human-oversight.md        Domain 14: Human Oversight
-    15-harm-avoidance.md         Domain 15: Harm Avoidance
+    11-trust-hierarchy.md     Domain 11: Trust Hierarchy
+    12-capability-boundaries.md  Domain 12: Capability Boundaries
+    13-injection-hardening.md    Domain 13: Injection Hardening
+    14-data-handling.md          Domain 14: Data Handling
+    15-hardcoded-behaviors.md    Domain 15: Hardcoded Behaviors
+    16-agentic-safety.md         Domain 16: Agentic Safety
+    17-honesty-transparency.md   Domain 17: Honesty and Transparency
+    18-human-oversight.md        Domain 18: Human Oversight
+    19-harm-avoidance.md         Domain 19: Harm Avoidance
   templates/
     basic.md                  Minimal SOUL.md for chatbots
     tool-using.md             SOUL.md for tool-using agents

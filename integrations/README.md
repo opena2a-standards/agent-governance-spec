@@ -1,4 +1,4 @@
-# ABGS Integrations
+# OASB-2 Integrations
 
 Ready-to-use integrations for enforcing the Agent Behavioral Governance Specification in your CI/CD pipeline.
 
@@ -13,7 +13,7 @@ Features:
 - Updates existing comments instead of creating duplicates
 
 ```yaml
-# Minimal setup — just copy the file:
+# Minimal setup -- just copy the file:
 cp integrations/github-action.yml .github/workflows/governance.yml
 ```
 
@@ -41,16 +41,16 @@ variables:
 Add a governance badge to your README:
 
 ```markdown
-[![Agent Governance](https://img.shields.io/badge/ABGS-Conformant-teal)](https://github.com/opena2a-org/agent-governance-spec)
+[![Agent Governance](https://img.shields.io/badge/OASB-2-Conformant-teal)](https://github.com/opena2a-org/agent-governance-spec)
 ```
 
 After running `scan-soul`, use the appropriate badge for your conformance level:
 
 | Level | Badge |
 |-------|-------|
-| Essential | `![ABGS Essential](https://img.shields.io/badge/ABGS-Essential-blue)` |
-| Standard | `![ABGS Standard](https://img.shields.io/badge/ABGS-Standard-teal)` |
-| Hardened | `![ABGS Hardened](https://img.shields.io/badge/ABGS-Hardened-green)` |
+| Essential | `![OASB-2 Essential](https://img.shields.io/badge/OASB-2-Essential-blue)` |
+| Standard | `![OASB-2 Standard](https://img.shields.io/badge/OASB-2-Standard-teal)` |
+| Hardened | `![OASB-2 Hardened](https://img.shields.io/badge/OASB-2-Hardened-green)` |
 
 ## Pre-commit Hook
 
@@ -109,6 +109,6 @@ The JSON output includes:
 ```
 
 Exit codes:
-- `0` — Scan completed (check score for pass/fail)
-- `1` — Score below `--fail-below` threshold
-- `2` — No governance file found
+- `0` -- Scan completed (check score for pass/fail)
+- `1` -- Score below `--fail-below` threshold
+- `2` -- No governance file found

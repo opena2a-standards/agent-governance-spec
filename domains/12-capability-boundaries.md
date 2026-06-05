@@ -1,4 +1,4 @@
-# Domain 8: Capability Boundaries
+# Domain 12: Capability Boundaries
 
 ## Purpose
 
@@ -114,10 +114,10 @@ This agent operates under the principle of least privilege:
 
 ## Relationship to Model Specifications
 
-Anthropic's model specification addresses capability boundaries through the concept of "operator restrictions" -- operators can restrict model capabilities for their deployment. ABGS Capability Boundaries provide the declared format for these restrictions:
+Anthropic's model specification addresses capability boundaries through the concept of "operator restrictions" -- operators can restrict model capabilities for their deployment. OASB-2 Capability Boundaries provide the declared format for these restrictions:
 
 - SOUL-CB-001 and SOUL-CB-002 correspond to operator allowlists and denylists
 - SOUL-CB-003 extends boundary definitions to filesystem and network scope, which model specifications do not typically address (they operate at a higher level of abstraction)
 - SOUL-CB-004 applies the traditional security principle of least privilege to the agent context
 
-OpenAI's function calling and tool use specifications define which tools are available to an agent, but do not standardize how the governance rationale is documented. ABGS provides that documentation layer.
+OpenAI's function calling and tool use specifications define which tools are available to an agent, but do not standardize how the governance rationale is documented. OASB-2 provides that documentation layer.

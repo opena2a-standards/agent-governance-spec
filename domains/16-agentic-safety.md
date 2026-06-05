@@ -1,4 +1,4 @@
-# Domain 12: Agentic Safety
+# Domain 16: Agentic Safety
 
 ## Purpose
 
@@ -113,11 +113,11 @@ This agent prefers reversible actions:
 
 ## Relationship to Model Specifications
 
-Anthropic's model specification addresses agentic safety through its guidance on autonomous operation: agents should operate with appropriate caution, maintain human oversight, and avoid taking actions with large irreversible consequences. ABGS Agentic Safety provides the declared format for these principles:
+Anthropic's model specification addresses agentic safety through its guidance on autonomous operation: agents should operate with appropriate caution, maintain human oversight, and avoid taking actions with large irreversible consequences. OASB-2 Agentic Safety provides the declared format for these principles:
 
 - SOUL-AS-001 corresponds to Anthropic's guidance that agents should not take unbounded sequences of actions without human oversight
 - SOUL-AS-002 extends the concept to resource consumption, which model specifications generally do not address because they operate at the behavioral level rather than the operational level
 - SOUL-AS-003 complements SOUL-AS-001 with time-based limits in addition to iteration-based limits
 - SOUL-AS-004 corresponds directly to Anthropic's principle of preferring reversible actions, which is explicitly called out in the model specification as a key agentic safety property
 
-OpenAI's best practices for agentic systems recommend similar guardrails: bounded execution, human-in-the-loop for high-stakes actions, and graceful degradation when limits are reached. ABGS Agentic Safety controls standardize how these guardrails are documented.
+OpenAI's best practices for agentic systems recommend similar guardrails: bounded execution, human-in-the-loop for high-stakes actions, and graceful degradation when limits are reached. OASB-2 Agentic Safety controls standardize how these guardrails are documented.

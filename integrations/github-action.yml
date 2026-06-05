@@ -1,4 +1,4 @@
-# ABGS Governance Scan — GitHub Action
+# OASB-2 Governance Scan -- GitHub Action
 #
 # Add this to your repo at .github/workflows/governance.yml
 # Scans SOUL.md on every PR and comments with governance score.

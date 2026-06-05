@@ -1,4 +1,4 @@
-# Domain 11: Hardcoded Behaviors
+# Domain 15: Hardcoded Behaviors
 
 ## Purpose
 
@@ -92,10 +92,10 @@ This agent supports an immediate emergency stop mechanism:
 
 ## Relationship to Model Specifications
 
-Anthropic's model specification defines "hardcoded behaviors" as actions the model should always or never do, regardless of operator or user instructions. This maps directly to the ABGS Hardcoded Behaviors domain:
+Anthropic's model specification defines "hardcoded behaviors" as actions the model should always or never do, regardless of operator or user instructions. This maps directly to the OASB-2 Hardcoded Behaviors domain:
 
 - SOUL-HB-001 corresponds to Anthropic's concept of hardcoded behaviors that exist outside the principal hierarchy -- no principal can override them
-- SOUL-HB-002 addresses data exfiltration, which Anthropic treats as a safety concern within the broader category of not helping with harmful activities. ABGS elevates it to a standalone hardcoded control because tool-using agents have direct access to network endpoints
+- SOUL-HB-002 addresses data exfiltration, which Anthropic treats as a safety concern within the broader category of not helping with harmful activities. OASB-2 elevates it to a standalone hardcoded control because tool-using agents have direct access to network endpoints
 - SOUL-HB-003 corresponds to Anthropic's principle that humans should maintain meaningful oversight and control over AI systems, including the ability to shut them down
 
-OpenAI's usage policies define similar non-negotiable constraints. ABGS Hardcoded Behaviors provides the governance documentation format that makes these constraints explicit and testable in any agent's SOUL.md file.
+OpenAI's usage policies define similar non-negotiable constraints. OASB-2 Hardcoded Behaviors provides the governance documentation format that makes these constraints explicit and testable in any agent's SOUL.md file.
