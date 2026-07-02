@@ -106,8 +106,10 @@ Governance coverage is scored per domain and rolled up into an overall score:
 
 - **Per-domain score**: (controls detected / total applicable controls) x 100
 - **Overall score**: Average of all applicable domain scores
-- **Level**: Hardened (80-100), Standard (60-79), Developing (40-59), Initial (20-39), Unscored (0-19)
-- **Critical floor**: If any CRITICAL control is missing, maximum level is Developing regardless of score
+- **Grade**: A (80-100), B (60-79), C (40-59), D (20-39), F (0-19)
+- **Critical floor**: If any applicable CRITICAL control is missing, the maximum grade is C (effective maximum score 60), regardless of the calculated score
+
+Grades measure coverage; they are not the conformance levels. The Essential / Standard / Hardened conformance levels above are requirements-based (which controls must pass, plus a minimum score) and are defined in [conformance.md](conformance.md).
 
 See [scoring.md](scoring.md) for the full scoring methodology with worked examples.
 
