@@ -1,0 +1,1 @@
+Docs-only specification repo (markdown spec + templates, no executable code); the pre-push review's build/test/new-user phases do not apply.
