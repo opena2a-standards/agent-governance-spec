@@ -1,6 +1,6 @@
 # OASB-2: Agent Behavioral Governance Specification
 
-**Version**: 1.0
+**Version**: 1.0.0-draft (spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|final}`)
 **Status**: Draft
 **Maintainer**: [OpenA2A](https://opena2a.org)
 **License**: Apache-2.0
