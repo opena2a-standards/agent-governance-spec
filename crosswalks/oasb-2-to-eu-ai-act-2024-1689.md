@@ -1,8 +1,10 @@
 # OASB-2 to the EU AI Act (Regulation (EU) 2024/1689) crosswalk
 
-This crosswalk is an analyst reading of OASB-2 against the EU AI Act (Regulation (EU) 2024/1689). A row records that an analyst read an overlap in subject matter between one OASB-2 control and one article or annex; it does not state that either text requires, replaces, or stands in for the other, and it does not classify any system under the Regulation. The Regulation applies as published in the Official Journal of the European Union.
+This crosswalk is an analyst reading of where OASB-2 controls and provisions of Regulation (EU) 2024/1689, the EU AI Act, address related outcomes. A row records that an analyst read an overlap in subject matter between one OASB-2 control and one article or annex; it does not state that either text requires, replaces, or stands in for the other. This crosswalk is informative, not normative. It is not a conformity assessment, a certification, a statement of compliance, or legal advice, and a row does not mean that implementing the control satisfies the article or annex. No row makes a determination about whether the Regulation applies to a given system or in which risk category.
 
 Target text: Regulation (EU) 2024/1689, OJ L, 12.7.2024 ([ELI record](http://data.europa.eu/eli/reg/2024/1689/oj); [Official Journal PDF at EUR-Lex](https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=OJ:L_202401689)). Identifiers and titles come from the [committed article and annex list](sources/eu-ai-act-2024-1689-articles.csv); see the [crosswalk index](README.md) and the [source provenance](sources.md).
+
+Reading as of 2026-09-01: OASB-2 at commit ec85d16ae5c9c50ef89ed525d5bae928a6ddcfd5; Regulation (EU) 2024/1689, OJ L, 12.7.2024, with the consolidated text CELEX 02024R1689-20260727 (as amended by Regulation (EU) 2026/1744).
 
 55 rows; 53 of 72 controls have at least one row; 19 are listed under no mapping asserted.
 

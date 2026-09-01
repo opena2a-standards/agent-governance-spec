@@ -9,9 +9,14 @@ The two crosswalk CSV files are canonical. This script:
   * enforces the closed basis vocabulary, the note rules, the sort order,
     the exact header, and the file encoding (UTF-8 without BOM, LF line
     endings, RFC 4180 with minimal quoting);
-  * scans every authored file under crosswalks/ (the frozen source
-    allowlists under crosswalks/sources/ are excluded) for the banned
-    vocabulary and for percentage, ratio, grade, or score wording;
+  * requires the ruled statements, basis definitions, scope block, and
+    Related Work bullet verbatim in crosswalks/README.md and README.md;
+  * scans authored text for the banned vocabulary and for percentage,
+    ratio, grade, or score wording: the basis and note cells of each
+    crosswalk CSV, plus the authored files under crosswalks/ other than
+    the two rendered .md files and the frozen source allowlists under
+    crosswalks/sources/, with the ruled constants subtracted from the
+    text before the scan;
   * re-renders each crosswalk .md from its CSV and requires the committed
     file to match byte for byte.
 
@@ -43,6 +48,22 @@ BANNED_WORDS = (
     "compliant", "compliance", "conforms", "conformity", "certified", "meets",
     "satisfies", "fulfils", "covers", "coverage", "aligned", "alignment",
     "audit-ready", "regulator-ready", "approved", "ensures", "guarantees",
+    "accepted by",
+    # Inflection families of the words above. A string rule needs a rule per
+    # spelling: "complies with", "conform to" and "meeting the requirements"
+    # each state the claim the ban exists to keep out. approval/approves are
+    # deliberately absent: they describe control mechanics ("Requires approval
+    # before defined categories of action"), not a claim about a framework.
+    "complies", "comply", "complying",
+    "conform", "conforming", "conformance", "conformant",
+    "certify", "certifies", "certification", "certifications",
+    "meet", "met", "meeting",
+    "satisfy", "satisfied", "satisfying",
+    "fulfil", "fulfill", "fulfills", "fulfilled", "fulfilling",
+    "cover", "covering", "covered",
+    "align", "aligns", "aligning",
+    "ensure", "ensured", "ensuring",
+    "guarantee", "guaranteed", "guaranteeing",
 )
 QUANTITY_WORDS = (
     "percentage", "percentages", "percent", "ratio", "ratios",
@@ -53,20 +74,79 @@ BANNED_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# The ruled texts. Each is REQUIRED verbatim in the file named beside it, and
+# each is SUBTRACTED from the text the banned scan reads. The statements are the
+# denial of the banned claims, so a scanner that cannot tell negation from
+# assertion would otherwise forbid the file from denying anything. Subtraction,
+# not word allowlisting: a one-word edit to any constant below fails its own
+# verbatim check AND re-exposes the drifted text to the scan.
+
 NIST_STATEMENT = (
-    "This crosswalk is an analyst reading of OASB-2 against NIST AI RMF 1.0. "
-    "A row records that an analyst read an overlap in subject matter between one "
-    "OASB-2 control and one framework subcategory; it does not state that either "
-    "text requires, replaces, or stands in for the other. "
-    "NIST AI RMF 1.0 is a voluntary framework."
+    "This crosswalk is an analyst reading of where OASB-2 controls and NIST AI RMF 1.0 "
+    "subcategories address related outcomes. A row records that an analyst read an overlap "
+    "in subject matter between one OASB-2 control and one subcategory; it does not state "
+    "that either text requires, replaces, or stands in for the other. This crosswalk is "
+    "informative, not normative. It is not a conformity assessment, a certification, a "
+    "statement of compliance, or legal advice, and a row does not mean that implementing "
+    "the control satisfies the subcategory. NIST AI RMF 1.0 is a voluntary framework."
 )
 EU_STATEMENT = (
-    "This crosswalk is an analyst reading of OASB-2 against the EU AI Act "
-    "(Regulation (EU) 2024/1689). A row records that an analyst read an overlap in "
-    "subject matter between one OASB-2 control and one article or annex; it does not "
-    "state that either text requires, replaces, or stands in for the other, and it "
-    "does not classify any system under the Regulation. The Regulation applies as "
-    "published in the Official Journal of the European Union."
+    "This crosswalk is an analyst reading of where OASB-2 controls and provisions of "
+    "Regulation (EU) 2024/1689, the EU AI Act, address related outcomes. A row records that "
+    "an analyst read an overlap in subject matter between one OASB-2 control and one article "
+    "or annex; it does not state that either text requires, replaces, or stands in for the "
+    "other. This crosswalk is informative, not normative. It is not a conformity assessment, "
+    "a certification, a statement of compliance, or legal advice, and a row does not mean "
+    "that implementing the control satisfies the article or annex. No row makes a "
+    "determination about whether the Regulation applies to a given system or in which risk "
+    "category."
+)
+NIST_READING_LINE = (
+    "Reading as of 2026-09-01: OASB-2 at commit "
+    "ec85d16ae5c9c50ef89ed525d5bae928a6ddcfd5; NIST AI 100-1, January 2023."
+)
+EU_READING_LINE = (
+    "Reading as of 2026-09-01: OASB-2 at commit "
+    "ec85d16ae5c9c50ef89ed525d5bae928a6ddcfd5; Regulation (EU) 2024/1689, OJ L, 12.7.2024, "
+    "with the consolidated text CELEX 02024R1689-20260727 (as amended by Regulation (EU) "
+    "2026/1744)."
+)
+INDEX_STATEMENT = (
+    "These crosswalks are an analyst reading of where OASB-2 controls and two target "
+    "frameworks address related outcomes: NIST AI RMF 1.0 subcategories in one file, and "
+    "articles and annexes of Regulation (EU) 2024/1689, the EU AI Act, in the other. A row "
+    "records that an analyst read an overlap in subject matter between one OASB-2 control "
+    "and one subcategory, article, or annex; it does not state that either text requires, "
+    "replaces, or stands in for the other. These crosswalks are informative, not normative. "
+    "They are not a conformity assessment, a certification, a statement of compliance, or "
+    "legal advice, and a row does not mean that implementing the control satisfies the "
+    "target. No row makes a determination about whether Regulation (EU) 2024/1689 applies to "
+    "a given system or in which risk category. NIST AI RMF 1.0 is a voluntary framework."
+)
+BASIS_DEFINITIONS = (
+    "- `partially-addresses`: what the control requires forms part of what the target "
+    "describes; the control does not do everything the target describes.\n"
+    "- `evidence-for`: the artifact the control requires (a governance file section, record, "
+    "or log) is the kind of documentation the target asks an organization to be able to "
+    "produce.\n"
+    "- `related`: topical overlap only, without either relationship above; not to be cited "
+    "as evidence."
+)
+SCOPE_BLOCK = (
+    "These crosswalks read OASB-2 (agent-governance-spec, domains 11-19, 72 controls). They "
+    "do not read OASB-1 (oasb.ai, domains 1-10, 46 controls). They are not part of the "
+    "OASB-2 specification and change nothing in it: no control, requirement, scoring rule, "
+    "or conformance level is added, removed, or interpreted by these files. Every "
+    "subcategory in the committed NIST list (the GOVERN, MAP, MEASURE, and MANAGE functions) "
+    "and every article and annex in the committed EU list was read as a candidate target; a "
+    "row was written only where the analyst read an overlap, and each control without a row "
+    'appears under the heading "Controls with no mapping asserted" in its crosswalk.'
+)
+README_BULLET = (
+    "- **NIST AI RMF 1.0 and the EU AI Act**: an informative "
+    "[crosswalk](crosswalks/README.md) lists which OASB-2 controls relate to which AI RMF "
+    "subcategories and AI Act articles, with the relationship type stated per row. It is not "
+    "a conformity assessment."
 )
 NIST_SOURCE_LINE = (
     "Target text: NIST AI 100-1, January 2023 "
@@ -93,6 +173,7 @@ CROSSWALK_SET = (
         "h1": "OASB-2 to NIST AI RMF 1.0 crosswalk",
         "statement": NIST_STATEMENT,
         "source_line": NIST_SOURCE_LINE,
+        "reading_line": NIST_READING_LINE,
     },
     {
         "csv": "oasb-2-to-eu-ai-act-2024-1689.csv",
@@ -101,7 +182,30 @@ CROSSWALK_SET = (
         "h1": "OASB-2 to the EU AI Act (Regulation (EU) 2024/1689) crosswalk",
         "statement": EU_STATEMENT,
         "source_line": EU_SOURCE_LINE,
+        "reading_line": EU_READING_LINE,
     },
+)
+
+# Prose that must appear verbatim in an authored file. The two statements and the
+# two reading lines are not listed here: they reach their .md files through the
+# render, which is already byte-equality checked against the CSV.
+REQUIRED_PROSE = (
+    ("crosswalks/README.md", "index statement", INDEX_STATEMENT),
+    ("crosswalks/README.md", "basis definitions", BASIS_DEFINITIONS),
+    ("crosswalks/README.md", "scope block", SCOPE_BLOCK),
+    ("README.md", "Related Work crosswalk bullet", README_BULLET),
+)
+
+# Every ruled constant, subtracted from authored text before the banned scan.
+RULED_CONSTANTS = (
+    NIST_STATEMENT,
+    EU_STATEMENT,
+    NIST_READING_LINE,
+    EU_READING_LINE,
+    INDEX_STATEMENT,
+    BASIS_DEFINITIONS,
+    SCOPE_BLOCK,
+    README_BULLET,
 )
 
 
@@ -231,6 +335,7 @@ def render_md(spec, rows, controls, domain_order):
     lines = [f"# {spec['h1']}", ""]
     lines += [spec["statement"], ""]
     lines += [spec["source_line"], ""]
+    lines += [spec["reading_line"], ""]
     lines += [
         f"{n_rows} rows; {n_mapped} of {n_total} controls have at least one row; "
         f"{len(unmapped)} are listed under no mapping asserted.",
@@ -255,19 +360,74 @@ def render_md(spec, rows, controls, domain_order):
     return "\n".join(lines) + "\n"
 
 
+def check_required_prose(errors):
+    for rel, name, text in REQUIRED_PROSE:
+        path = ROOT / rel
+        if not path.is_file():
+            fail(errors, rel, "file is missing")
+            continue
+        if text not in path.read_text(encoding="utf-8"):
+            fail(errors, rel, f"the ruled {name} is missing or altered; it is required verbatim")
+
+
+def subtract_constants(text):
+    """Blank out every ruled constant, keeping line and column offsets intact."""
+    for const in RULED_CONSTANTS:
+        blanked = "".join("\n" if ch == "\n" else " " for ch in const)
+        start = 0
+        while True:
+            pos = text.find(const, start)
+            if pos < 0:
+                break
+            text = text[:pos] + blanked + text[pos + len(const):]
+            start = pos + len(const)
+    return text
+
+
+def scan_text(errors, location, text):
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        m = BANNED_PATTERN.search(line)
+        if m:
+            fail(errors, f"{location}:{lineno}", f"banned word {m.group(1)!r}")
+        if "%" in line:
+            fail(errors, f"{location}:{lineno}", "percent sign found")
+
+
+def scan_cells(errors, rel, rows):
+    """Scan the authored cells of a crosswalk CSV: basis and note.
+
+    control_title and target_title are verbatim quotes of the two canonical
+    sources, held to the allowlists and the domain headings by equality, so they
+    are not ours to reword: scanning them forbade citing provisions whose own
+    names carry a banned word (EU Articles 8, 29, 32, 39, 42-44, 46-47, 82-83,
+    Annexes V-VII, NIST MAP 3.4, and the control title "Constraint Immutability
+    Guarantee"), which is a guard distorting the content it guards.
+    """
+    for i, row in enumerate(rows, start=2):
+        for column, value in (("basis", row[4]), ("note", row[5])):
+            m = BANNED_PATTERN.search(value)
+            if m:
+                fail(errors, f"{rel}:{i}", f"banned word {m.group(1)!r} in the {column} cell")
+            if "%" in value:
+                fail(errors, f"{rel}:{i}", f"percent sign in the {column} cell")
+
+
 def scan_banned(errors):
+    rendered = {spec["md"] for spec in CROSSWALK_SET}
+    canonical = {spec["csv"] for spec in CROSSWALK_SET}
     for path in sorted(CROSSWALKS.rglob("*")):
         if not path.is_file():
             continue
         if CROSSWALKS / "sources" in path.parents:
             continue
+        # The two rendered .md files are byte-tied to renders of inputs already
+        # scanned here (the CSV cells) and of ruled constants; the two CSVs are
+        # scanned by cell in scan_cells.
+        if path.name in rendered or path.name in canonical:
+            continue
         rel = path.relative_to(ROOT)
-        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-            m = BANNED_PATTERN.search(line)
-            if m:
-                fail(errors, f"{rel}:{lineno}", f"banned word {m.group(1)!r}")
-            if "%" in line:
-                fail(errors, f"{rel}:{lineno}", "percent sign found")
+        text = subtract_constants(path.read_text(encoding="utf-8"))
+        scan_text(errors, str(rel), text)
 
 
 def main(argv):
@@ -287,6 +447,8 @@ def main(argv):
         if not rows:
             continue
         validate_rows(errors, csv_path.relative_to(ROOT), rows, controls, targets)
+        if not write:
+            scan_cells(errors, csv_path.relative_to(ROOT), rows)
         rendered = render_md(spec, rows, controls, domain_order)
         if write:
             md_path.write_text(rendered, encoding="utf-8")
@@ -314,6 +476,7 @@ def main(argv):
             f"{len(controls)} controls mapped, {len(controls) - len(mapped)} with no mapping asserted"
         )
     if not write:
+        check_required_prose(errors)
         scan_banned(errors)
     if errors:
         print()

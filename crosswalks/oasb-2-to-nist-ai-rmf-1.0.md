@@ -1,8 +1,10 @@
 # OASB-2 to NIST AI RMF 1.0 crosswalk
 
-This crosswalk is an analyst reading of OASB-2 against NIST AI RMF 1.0. A row records that an analyst read an overlap in subject matter between one OASB-2 control and one framework subcategory; it does not state that either text requires, replaces, or stands in for the other. NIST AI RMF 1.0 is a voluntary framework.
+This crosswalk is an analyst reading of where OASB-2 controls and NIST AI RMF 1.0 subcategories address related outcomes. A row records that an analyst read an overlap in subject matter between one OASB-2 control and one subcategory; it does not state that either text requires, replaces, or stands in for the other. This crosswalk is informative, not normative. It is not a conformity assessment, a certification, a statement of compliance, or legal advice, and a row does not mean that implementing the control satisfies the subcategory. NIST AI RMF 1.0 is a voluntary framework.
 
 Target text: NIST AI 100-1, January 2023 ([DOI 10.6028/NIST.AI.100-1](https://doi.org/10.6028/NIST.AI.100-1); [NIST AI 100-1 PDF at nvlpubs](https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf)). Identifiers and titles come from the [committed subcategory list](sources/nist-ai-rmf-1.0-subcategories.csv); see the [crosswalk index](README.md) and the [source provenance](sources.md).
+
+Reading as of 2026-09-01: OASB-2 at commit ec85d16ae5c9c50ef89ed525d5bae928a6ddcfd5; NIST AI 100-1, January 2023.
 
 77 rows; 67 of 72 controls have at least one row; 5 are listed under no mapping asserted.
 
