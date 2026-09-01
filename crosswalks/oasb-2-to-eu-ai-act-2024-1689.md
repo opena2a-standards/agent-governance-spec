@@ -1,12 +1,12 @@
 # OASB-2 to the EU AI Act (Regulation (EU) 2024/1689) crosswalk
 
-This crosswalk is an analyst reading of where OASB-2 controls and provisions of Regulation (EU) 2024/1689, the EU AI Act, address related outcomes. A row records that an analyst read an overlap in subject matter between one OASB-2 control and one article or annex; it does not state that either text requires, replaces, or stands in for the other. This crosswalk is informative, not normative. It is not a conformity assessment, a certification, a statement of compliance, or legal advice, and a row does not mean that implementing the control satisfies the article or annex. No row makes a determination about whether the Regulation applies to a given system or in which risk category.
+This crosswalk is an analyst reading of where OASB-2 controls and provisions of Regulation (EU) 2024/1689, the EU AI Act, address related outcomes. A row records that an analyst read an overlap in subject matter between one OASB-2 control and one article or annex; it does not state that either text requires, replaces, or stands in for the other. This crosswalk is informative, not normative. It is not a conformity assessment, a certification, a statement of compliance, or legal advice, and a row does not mean that implementing the control satisfies the article or annex. No row makes a determination about whether the Regulation applies to a given system or in which risk category. Except for Article 50, the provisions cited in this crosswalk are obligations that Regulation (EU) 2024/1689 places on high-risk AI systems and their providers. Whether a given system is in that category is determined under Article 6 and Annex III of the Regulation.
 
 Target text: Regulation (EU) 2024/1689, OJ L, 12.7.2024 ([ELI record](http://data.europa.eu/eli/reg/2024/1689/oj); [Official Journal PDF at EUR-Lex](https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=OJ:L_202401689)). Identifiers and titles come from the [committed article and annex list](sources/eu-ai-act-2024-1689-articles.csv); see the [crosswalk index](README.md) and the [source provenance](sources.md).
 
 Reading as of 2026-09-01: OASB-2 at commit ec85d16ae5c9c50ef89ed525d5bae928a6ddcfd5; Regulation (EU) 2024/1689, OJ L, 12.7.2024, with the consolidated text CELEX 02024R1689-20260727 (as amended by Regulation (EU) 2026/1744).
 
-55 rows; 53 of 72 controls have at least one row; 19 are listed under no mapping asserted.
+53 rows; 51 of 72 controls have at least one row; 21 are listed under no mapping asserted.
 
 ## Domain 11: Trust Hierarchy
 
@@ -45,10 +45,8 @@ Reading as of 2026-09-01: OASB-2 at commit ec85d16ae5c9c50ef89ed525d5bae928a6ddc
 
 | Control | Target | Basis | Note |
 | --- | --- | --- | --- |
-| SOUL-DH-001: PII Protection | Article 10: Data and data governance | related | Declares handling rules for personal information; the article conditions processing of personal data on safeguards within data governance. |
+| SOUL-DH-001: PII Protection | Article 10: Data and data governance | related | Declares handling rules for personal information; the article's data governance practices address data collection processes and, for personal data, the original purpose of the collection. |
 | SOUL-DH-002: Credential Handling | Article 15: Accuracy, robustness and cybersecurity | related | Requires that credentials never appear in output or logs; the article concerns cybersecurity of AI systems. |
-| SOUL-DH-003: Data Minimization | Article 10: Data and data governance | related | Requires collecting only data the task needs; the article conditions personal data processing on necessity and safeguards. |
-| SOUL-DH-004: Data Retention And Deletion Policy | Article 10: Data and data governance | related | Requires declared retention periods and deletion procedures; the article includes deletion of personal data once its purpose is served. |
 | SOUL-DH-006: Data Access Control Enforcement | Article 15: Accuracy, robustness and cybersecurity | related | Requires enforced access rules for data operations; the article concerns cybersecurity of AI systems. |
 | SOUL-DH-007: Data Encryption Requirements | Article 15: Accuracy, robustness and cybersecurity | related | Requires encryption of stored data and data in transit; the article concerns cybersecurity of AI systems. |
 | SOUL-DH-008: Data Breach Response Procedure | Article 73: Reporting of serious incidents | related | Declares breach notification and response steps; the article concerns reporting of serious incidents to authorities. |
@@ -120,6 +118,8 @@ Reading as of 2026-09-01: OASB-2 at commit ec85d16ae5c9c50ef89ed525d5bae928a6ddc
 - SOUL-CB-006: Capability Exposure Minimized
 - SOUL-CB-008: Rate And Resource Limits Enforced
 - SOUL-CB-009: Scope Validation At Invocation
+- SOUL-DH-003: Data Minimization
+- SOUL-DH-004: Data Retention And Deletion Policy
 - SOUL-DH-005: Data Classification Framework
 - SOUL-HB-005: Constraint Immutability Guarantee
 - SOUL-HT-001: Uncertainty Acknowledgment

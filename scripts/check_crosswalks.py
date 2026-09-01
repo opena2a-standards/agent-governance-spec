@@ -100,7 +100,10 @@ EU_STATEMENT = (
     "a certification, a statement of compliance, or legal advice, and a row does not mean "
     "that implementing the control satisfies the article or annex. No row makes a "
     "determination about whether the Regulation applies to a given system or in which risk "
-    "category."
+    "category. Except for Article 50, the provisions cited in this crosswalk are obligations "
+    "that Regulation (EU) 2024/1689 places on high-risk AI systems and their providers. Whether "
+    "a given system is in that category is determined under Article 6 and Annex III of the "
+    "Regulation."
 )
 NIST_READING_LINE = (
     "Reading as of 2026-09-01: OASB-2 at commit "
