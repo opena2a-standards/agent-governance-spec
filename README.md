@@ -126,6 +126,7 @@ OASB-2 is designed to complement, not compete with, existing specifications:
 - **AGENTS.md**: Instructions for AI coding agents about how to work with a codebase. OASB-2 defines safety and governance boundaries. An agent can follow both AGENTS.md (for coding conventions) and SOUL.md (for safety constraints).
 - **OASB (Open Agent Security Benchmark)**: OASB-1 covers technical security (domains 1-10). OASB-2 covers behavioral governance (domains 11-19). Together they form the unified OASB (domains 1-19) for full-stack agent security assessment.
 - **Awesome Agent Souls**: A [curated collection of 100+ SOUL.md templates](https://github.com/opena2a-org/awesome-agent-souls) organized by role, industry, organization type, and fleet. Use these as starting points instead of writing governance files from scratch.
+- **NIST AI RMF 1.0 and EU AI Act crosswalks**: Static, non-normative analyst readings from OASB-2 controls to [NIST AI RMF 1.0 subcategories](crosswalks/oasb-2-to-nist-ai-rmf-1.0.md) and to [EU AI Act articles](crosswalks/oasb-2-to-eu-ai-act-2024-1689.md). See [crosswalks/README.md](crosswalks/README.md) for scope, sources, and how to verify a row.
 
 ---
 
@@ -224,6 +225,7 @@ agent-governance-spec/
   specification.md            Full formal specification (v1.0)
   scoring.md                  Scoring methodology
   conformance.md              Conformance levels
+  crosswalks/                 Static crosswalks to NIST AI RMF 1.0 and the EU AI Act
   domains/
     README.md                 Domain overview
     11-trust-hierarchy.md     Domain 11: Trust Hierarchy
