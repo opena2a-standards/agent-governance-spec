@@ -8,6 +8,9 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
 
 ### Added
 
+- Static crosswalks from OASB-2 controls to NIST AI RMF 1.0 and to the EU AI
+  Act (Regulation (EU) 2024/1689) under `crosswalks/`, rendered from canonical
+  CSV files and checked by the stdlib validator `scripts/check_crosswalks.py`.
 - This changelog; version qualified to the spec-family ladder (1.0.0-draft).
 
 ### Changed

@@ -1,0 +1,127 @@
+target_id,target_title
+Article 1,Subject matter
+Article 2,Scope
+Article 3,Definitions
+Article 4,AI literacy
+Article 5,Prohibited AI practices
+Article 6,Classification rules for high-risk AI systems
+Article 7,Amendments to Annex III
+Article 8,Compliance with the requirements
+Article 9,Risk management system
+Article 10,Data and data governance
+Article 11,Technical documentation
+Article 12,Record-keeping
+Article 13,Transparency and provision of information to deployers
+Article 14,Human oversight
+Article 15,"Accuracy, robustness and cybersecurity"
+Article 16,Obligations of providers of high-risk AI systems
+Article 17,Quality management system
+Article 18,Documentation keeping
+Article 19,Automatically generated logs
+Article 20,Corrective actions and duty of information
+Article 21,Cooperation with competent authorities
+Article 22,Authorised representatives of providers of high-risk AI systems
+Article 23,Obligations of importers
+Article 24,Obligations of distributors
+Article 25,Responsibilities along the AI value chain
+Article 26,Obligations of deployers of high-risk AI systems
+Article 27,Fundamental rights impact assessment for high-risk AI systems
+Article 28,Notifying authorities
+Article 29,Application of a conformity assessment body for notification
+Article 30,Notification procedure
+Article 31,Requirements relating to notified bodies
+Article 32,Presumption of conformity with requirements relating to notified bodies
+Article 33,Subsidiaries of notified bodies and subcontracting
+Article 34,Operational obligations of notified bodies
+Article 35,Identification numbers and lists of notified bodies
+Article 36,Changes to notifications
+Article 37,Challenge to the competence of notified bodies
+Article 38,Coordination of notified bodies
+Article 39,Conformity assessment bodies of third countries
+Article 40,Harmonised standards and standardisation deliverables
+Article 41,Common specifications
+Article 42,Presumption of conformity with certain requirements
+Article 43,Conformity assessment
+Article 44,Certificates
+Article 45,Information obligations of notified bodies
+Article 46,Derogation from conformity assessment procedure
+Article 47,EU declaration of conformity
+Article 48,CE marking
+Article 49,Registration
+Article 50,Transparency obligations for providers and deployers of certain AI systems
+Article 51,Classification of general-purpose AI models as general-purpose AI models with systemic risk
+Article 52,Procedure
+Article 53,Obligations for providers of general-purpose AI models
+Article 54,Authorised representatives of providers of general-purpose AI models
+Article 55,Obligations of providers of general-purpose AI models with systemic risk
+Article 56,Codes of practice
+Article 57,AI regulatory sandboxes
+Article 58,"Detailed arrangements for, and functioning of, AI regulatory sandboxes"
+Article 59,Further processing of personal data for developing certain AI systems in the public interest in the AI regulatory sandbox
+Article 60,Testing of high-risk AI systems in real world conditions outside AI regulatory sandboxes
+Article 61,Informed consent to participate in testing in real world conditions outside AI regulatory sandboxes
+Article 62,"Measures for providers and deployers, in particular SMEs, including start-ups"
+Article 63,Derogations for specific operators
+Article 64,AI Office
+Article 65,Establishment and structure of the European Artificial Intelligence Board
+Article 66,Tasks of the Board
+Article 67,Advisory forum
+Article 68,Scientific panel of independent experts
+Article 69,Access to the pool of experts by the Member States
+Article 70,Designation of national competent authorities and single points of contact
+Article 71,EU database for high-risk AI systems listed in Annex III
+Article 72,Post-market monitoring by providers and post-market monitoring plan for high-risk AI systems
+Article 73,Reporting of serious incidents
+Article 74,Market surveillance and control of AI systems in the Union market
+Article 75,"Mutual assistance, market surveillance and control of general-purpose AI systems"
+Article 76,Supervision of testing in real world conditions by market surveillance authorities
+Article 77,Powers of authorities protecting fundamental rights
+Article 78,Confidentiality
+Article 79,Procedure at national level for dealing with AI systems presenting a risk
+Article 80,Procedure for dealing with AI systems classified by the provider as non-high-risk in application of Annex III
+Article 81,Union safeguard procedure
+Article 82,Compliant AI systems which present a risk
+Article 83,Formal non-compliance
+Article 84,Union AI testing support structures
+Article 85,Right to lodge a complaint with a market surveillance authority
+Article 86,Right to explanation of individual decision-making
+Article 87,Reporting of infringements and protection of reporting persons
+Article 88,Enforcement of the obligations of providers of general-purpose AI models
+Article 89,Monitoring actions
+Article 90,Alerts of systemic risks by the scientific panel
+Article 91,Power to request documentation and information
+Article 92,Power to conduct evaluations
+Article 93,Power to request measures
+Article 94,Procedural rights of economic operators of the general-purpose AI model
+Article 95,Codes of conduct for voluntary application of specific requirements
+Article 96,Guidelines from the Commission on the implementation of this Regulation
+Article 97,Exercise of the delegation
+Article 98,Committee procedure
+Article 99,Penalties
+Article 100,"Administrative fines on Union institutions, bodies, offices and agencies"
+Article 101,Fines for providers of general-purpose AI models
+Article 102,Amendment to Regulation (EC) No 300/2008
+Article 103,Amendment to Regulation (EU) No 167/2013
+Article 104,Amendment to Regulation (EU) No 168/2013
+Article 105,Amendment to Directive 2014/90/EU
+Article 106,Amendment to Directive (EU) 2016/797
+Article 107,Amendment to Regulation (EU) 2018/858
+Article 108,Amendments to Regulation (EU) 2018/1139
+Article 109,Amendment to Regulation (EU) 2019/2144
+Article 110,Amendment to Directive (EU) 2020/1828
+Article 111,AI systems already placed on the market or put into service and general-purpose AI models already placed on the marked
+Article 112,Evaluation and review
+Article 113,Entry into force and application
+Annex I,List of Union harmonisation legislation
+Annex II,"List of criminal offences referred to in Article 5(1), first subparagraph, point (h)(iii)"
+Annex III,High-risk AI systems referred to in Article 6(2)
+Annex IV,Technical documentation referred to in Article 11(1)
+Annex V,EU declaration of conformity
+Annex VI,Conformity assessment procedure based on internal control
+Annex VII,Conformity based on an assessment of the quality management system and an assessment of the technical documentation
+Annex VIII,Information to be submitted upon the registration of high-risk AI systems in accordance with Article 49
+Annex IX,Information to be submitted upon the registration of high-risk AI systems listed in Annex III in relation to testing in real world conditions in accordance with Article 60
+Annex X,"Union legislative acts on large-scale IT systems in the area of Freedom, Security and Justice"
+Annex XI,"Technical documentation referred to in Article 53(1), point (a) — technical documentation for providers of general-purpose AI models"
+Annex XII,"Transparency information referred to in Article 53(1), point (b) — technical documentation for providers of general-purpose AI models to downstream providers that integrate the model into their AI system"
+Annex XIII,Criteria for the designation of general-purpose AI models with systemic risk referred to in Article 51
