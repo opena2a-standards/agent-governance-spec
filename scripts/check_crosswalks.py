@@ -28,6 +28,7 @@ each red line names the file and the row or line concerned.
 """
 
 import csv
+import hashlib
 import io
 import re
 import sys
@@ -196,17 +197,21 @@ REQUIRED_PROSE = (
     ("README.md", "Related Work crosswalk bullet", README_BULLET),
 )
 
-# Every ruled constant, subtracted from authored text before the banned scan.
-RULED_CONSTANTS = (
-    NIST_STATEMENT,
-    EU_STATEMENT,
-    NIST_READING_LINE,
-    EU_READING_LINE,
-    INDEX_STATEMENT,
-    BASIS_DEFINITIONS,
-    SCOPE_BLOCK,
-    README_BULLET,
+# The ruled texts by name, held to committed digests (see check_ruled_digests).
+RULED_TEXTS = (
+    ("NIST_STATEMENT", NIST_STATEMENT),
+    ("EU_STATEMENT", EU_STATEMENT),
+    ("NIST_READING_LINE", NIST_READING_LINE),
+    ("EU_READING_LINE", EU_READING_LINE),
+    ("INDEX_STATEMENT", INDEX_STATEMENT),
+    ("BASIS_DEFINITIONS", BASIS_DEFINITIONS),
+    ("SCOPE_BLOCK", SCOPE_BLOCK),
+    ("README_BULLET", README_BULLET),
 )
+RULED_DIGEST_FILE = "ruled-texts.sha256"
+
+# Every ruled constant, subtracted from authored text before the banned scan.
+RULED_CONSTANTS = tuple(text for _, text in RULED_TEXTS)
 
 
 def fail(errors, location, message):
@@ -360,6 +365,42 @@ def render_md(spec, rows, controls, domain_order):
     return "\n".join(lines) + "\n"
 
 
+def check_ruled_digests(errors):
+    """Hold each ruled constant to the digest committed beside the crosswalks.
+
+    Render equality cannot detect an edit to a constant that the render itself
+    emits: change NIST_STATEMENT and the rendered .md changes with it, so both
+    sides of the comparison move together and the gate stays green while the
+    published file asserts something nobody ruled. The committed digest is the
+    fixed point that does not move when the constant does. Editing a ruled text
+    is then a two-file diff a reviewer sees, rather than a silent regeneration.
+    """
+    path = CROSSWALKS / RULED_DIGEST_FILE
+    if not path.is_file():
+        fail(errors, f"crosswalks/{RULED_DIGEST_FILE}", "file is missing; the ruled texts have no fixed point")
+        return
+    committed = {}
+    for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        digest, _, name = line.partition("  ")
+        if not name:
+            fail(errors, f"crosswalks/{RULED_DIGEST_FILE}:{lineno}", "expected '<sha256>  <name>'")
+            continue
+        committed[name] = digest
+    for name, text in RULED_TEXTS:
+        actual = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        if name not in committed:
+            fail(errors, f"crosswalks/{RULED_DIGEST_FILE}", f"no digest committed for the ruled text {name}")
+        elif committed[name] != actual:
+            fail(errors, f"crosswalks/{RULED_DIGEST_FILE}",
+                 f"{name} does not match its committed digest; the ruled text was edited "
+                 f"(committed {committed[name][:12]}…, found {actual[:12]}…)")
+    for name in sorted(set(committed) - {n for n, _ in RULED_TEXTS}):
+        fail(errors, f"crosswalks/{RULED_DIGEST_FILE}", f"digest committed for unknown ruled text {name}")
+
+
 def check_required_prose(errors):
     for rel, name, text in REQUIRED_PROSE:
         path = ROOT / rel
@@ -447,8 +488,7 @@ def main(argv):
         if not rows:
             continue
         validate_rows(errors, csv_path.relative_to(ROOT), rows, controls, targets)
-        if not write:
-            scan_cells(errors, csv_path.relative_to(ROOT), rows)
+        scan_cells(errors, csv_path.relative_to(ROOT), rows)
         rendered = render_md(spec, rows, controls, domain_order)
         if write:
             md_path.write_text(rendered, encoding="utf-8")
@@ -475,9 +515,9 @@ def main(argv):
             f"crosswalks/{spec['csv']}: {len(rows)} rows, {len(mapped)} of "
             f"{len(controls)} controls mapped, {len(controls) - len(mapped)} with no mapping asserted"
         )
-    if not write:
-        check_required_prose(errors)
-        scan_banned(errors)
+    check_ruled_digests(errors)
+    check_required_prose(errors)
+    scan_banned(errors)
     if errors:
         print()
         for line in errors:

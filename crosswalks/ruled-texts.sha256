@@ -1,0 +1,16 @@
+# SHA-256 of each ruled text as a constant in scripts/check_crosswalks.py.
+# These texts were ruled on 2026-09-01 and are required verbatim in the files
+# the validator names. Render equality cannot detect an edit to a text that the
+# render itself emits, so this file is the fixed point: editing a ruled text
+# without editing this file fails the gate, and editing both is a diff a
+# reviewer sees. Regenerating this file to silence a red is the one thing it
+# exists to prevent.
+
+9f9aadfa8594d211554fd228e34ec7767fd7d591a291b8c43fdfd83e5c0ad914  NIST_STATEMENT
+3b9c9dd4c786273cb8dd82515ce63b852c8ba902ba7b9fb51c7c6db9fed7e6fc  EU_STATEMENT
+d1878515f43d098f59d19cb511c3855cff21d7f5c889d5cc7c125d8026530c59  NIST_READING_LINE
+1281c8955a175eb88c497e3c9b831838f53defe0b0bbfe60efd51fb35bc5e026  EU_READING_LINE
+7384e9e4856ccd4ad24daf1f12c52b4d1d51e3a02bc0f7525f65e1dd77e7786c  INDEX_STATEMENT
+3bf3157676250b6a88d4b65441a62375570987003577717331a2f6938e87c717  BASIS_DEFINITIONS
+bfb9ebba2c9fe03c27b13da8eff32ec985e24a446605bfca13161e37addb147e  SCOPE_BLOCK
+2e159046fad5df68810688f48d3b1137d32ee60c1738c9e9a4cde774a1b6b32d  README_BULLET

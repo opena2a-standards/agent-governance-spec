@@ -11,7 +11,7 @@ GOVERN 2.2,"The organization’s personnel and partners receive AI risk manageme
 GOVERN 2.3,Executive leadership of the organization takes responsibility for decisions about risks associated with AI system development and deployment.
 GOVERN 3.1,"Decision-making related to mapping, measuring, and managing AI risks throughout the lifecycle is informed by a diverse team (e.g., diversity of demographics, disciplines, experience, expertise, and backgrounds)."
 GOVERN 3.2,Policies and procedures are in place to define and differentiate roles and responsibilities for human-AI configurations and oversight of AI systems.
-GOVERN 4.1,"Organizational policies and practices are in place to foster a critical thinking and safety-first mindset in the design, potential negative impacts."
+GOVERN 4.1,"Organizational policies and practices are in place to foster a critical thinking and safety-first mindset in the design, development, deployment, and uses of AI systems to minimize potential negative impacts."
 GOVERN 4.2,"Organizational teams document the risks and potential impacts of the AI technology they design, develop, deploy, evaluate, and use, and they communicate about the impacts more broadly."
 GOVERN 4.3,"Organizational practices are in place to enable AI testing, identification of incidents, and information sharing."
 GOVERN 5.1,"Organizational policies and practices are in place to collect, consider, prioritize, and integrate feedback from those external to the team that developed or deployed the AI system regarding the potential individual and societal impacts related to AI risks."
