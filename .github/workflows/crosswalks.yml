@@ -16,3 +16,4 @@ jobs:
           persist-credentials: false
       - run: python3 --version
       - run: python3 scripts/check_crosswalks.py
+# gate-file approval control (AGS-02 step 4)
