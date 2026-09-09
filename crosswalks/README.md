@@ -26,14 +26,14 @@ Reading as of 2026-09-01: OASB-2 at commit ec85d16ae5c9c50ef89ed525d5bae928a6ddc
 The two crosswalk CSV files are the machine readable export of these crosswalks; the .md files are renders of them and carry nothing the CSV does not.
 
 - Header, exactly: `control_id,control_title,target_id,target_title,basis,note`.
-- `control_id` is a `SOUL-XX-NNN` id that resolves to a `### SOUL-XX-NNN:` heading under the [domains directory](../domains/), and `control_title` is that heading's title verbatim.
+- `control_id` is a `SOUL-XX-NNN` ID that resolves to a `### SOUL-XX-NNN:` heading under the [domains directory](../domains/), and `control_title` is that heading's title verbatim.
 - `target_id` and `target_title` are one row of the committed source list for that crosswalk, verbatim.
-- `basis` is one of `partially-addresses`, `evidence-for`, `related`, defined above.
-- `note` is one sentence of at most 200 characters ending in a single full stop, free of the vocabulary the validator lists as banned.
+- `basis` is one of `partially-addresses`, `evidence-for`, `related`, defined under Basis definitions above.
+- `note` is one sentence of at most 200 characters ending in a single full stop, free of the words in `BANNED_WORDS` and `QUANTITY_WORDS` in `scripts/check_crosswalks.py`.
 - Encoding: UTF-8 without a byte order mark, LF line endings, RFC 4180 with minimal quoting, rows sorted by `control_id` then `target_id`, one row per (control, target) pair.
 - Column names in these files are snake case; a JSON rendering of the same rows uses camelCase members (`controlId`, `controlTitle`, `targetId`, `targetTitle`, `basis`, `note`).
 
-Deprecated control ids. A control id is never reused or renumbered (specification.md, section 8.2). When a control is deprecated, its heading stays in its domain file with status `deprecated` and a `replacedBy` id, so its rows here stay valid and are kept; rows for the successor control are added under the successor's id. The pairing is exported in a third canonical file, `deprecated-controls.csv`, with the header `control_id,control_title,replaced_by,deprecated_in`, where `deprecated_in` is the specification version that deprecated the control. That file does not exist while no control is deprecated, which is the case at the reading above; the commit that deprecates the first control creates it and adds its validation rule. The validator holds the number of control headings to a constant (72 at this reading) that counts every published id, active or deprecated, and that moves only in a commit that adds a control.
+Deprecated control IDs. A control ID is never reused or renumbered (specification.md, section 8.2). When a control is deprecated, its heading stays in its domain file with status `deprecated` and a `replacedBy` ID, so its rows here stay valid and are kept; rows for the successor control are added under the successor's ID. The pairing is exported in a third canonical file, `deprecated-controls.csv`, with the header `control_id,control_title,replaced_by,deprecated_in`, where `deprecated_in` is the specification version that deprecated the control. That file does not exist while no control is deprecated (no control is deprecated as of 2026-09-09); the commit that deprecates the first control creates it and adds its validation rule. The validator holds the number of control headings to a constant (72 at this reading) that counts every published ID, active or deprecated, and that moves only in a commit that adds a control.
 
 ## Sources
 
