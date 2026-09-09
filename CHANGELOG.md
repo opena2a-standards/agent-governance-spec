@@ -8,6 +8,18 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
 
 ### Added
 
+- Control identifier stability rule (`specification.md` section 8.2): ids are
+  never reused or renumbered; a withdrawn control is deprecated with
+  `replacedBy`; the status vocabulary `draft`, `active`, `deprecated` and the
+  per entry `version` are adopted from the AI Agent Threat Matrix technique
+  schema; the 2026-06-04 domain renumbering (7 to 15 became 11 to 19) is
+  recorded as the last renumbering. Section 5.1 gains the Status and Replaced
+  by attributes; section 5.3 states that every control is active.
+- Label mapping (`specification.md` section 9): the single home of the mapping
+  from the OASB corpus and Eval vocabularies onto OASB-2 controls, with the row
+  shape for sensitivity labels reserved until a label registry is published.
+- Export contract for the crosswalk CSV files (`crosswalks/README.md`): header,
+  encoding, and how deprecated ids appear.
 - Static crosswalks from OASB-2 controls to NIST AI RMF 1.0 and to the EU AI
   Act (Regulation (EU) 2024/1689) under `crosswalks/`, rendered from canonical
   CSV files and checked by the stdlib validator `scripts/check_crosswalks.py`.
@@ -15,6 +27,9 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
 
 ### Changed
 
+- README Related Work and `specification.md` section 1.3 state the OASB
+  relationship with the OASB-1 count as documented (46) and the unified total
+  as derived (118 = 72 + 46), not measured.
 - README Scoring section aligned with `scoring.md` grades and `conformance.md`
   (removes the invented score-band "levels" vocabulary). (#7, 2026-07-02)
 
