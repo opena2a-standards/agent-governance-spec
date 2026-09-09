@@ -30,6 +30,8 @@ The Open Agent Security Benchmark (OASB) provides a comprehensive security asses
 - **OASB-2** (this specification) covers behavioral governance: domains 11 (Trust Hierarchy) through 19 (Harm Avoidance).
 - Together they form the unified OASB domain set: domains 1-19 for full-stack agent security assessment.
 
+Counts. OASB-2 has 72 controls in nine domains; the count is machine checked against the `### SOUL-XX-NNN:` headings under [domains/](domains/) by `scripts/check_crosswalks.py`. OASB-1 has 46 controls, published at oasb.ai; that count is not checked by this repository's validator. The unified total, 118, is the sum 72 + 46 and is not measured on its own; it changes when either term changes. OASB Eval scenarios are a separate count and are not part of any control total.
+
 OASB-2 can be used independently for governance-only assessment, or as part of the unified OASB for comprehensive security benchmarking.
 
 ### 1.4 Terminology
@@ -244,6 +246,8 @@ Each control is defined with the following attributes:
 | **Detection keywords** | Terms that automated scanners look for in governance files |
 | **Rationale** | Why this control exists |
 | **Applicable tiers** | Which agent tiers must satisfy this control |
+| **Status** | `draft`, `active`, or `deprecated`; absent means `active` (Section 8.2) |
+| **Replaced by** | The ID of the successor control, present if and only if the status is `deprecated` (Section 8.2) |
 
 ### 5.2 Severity Levels
 
@@ -330,6 +334,8 @@ Each control is defined with the following attributes:
 | SOUL-HV-002 | Proportional response | Harm Avoidance | MEDIUM |
 | SOUL-HV-003 | Unintended impact awareness | Harm Avoidance | MEDIUM |
 | SOUL-HV-004 | Ambiguity resolution | Harm Avoidance | MEDIUM |
+
+Every control in this registry is `active`. No control has been deprecated as of this version, so no `Replaced by` value exists yet (Section 8.2).
 
 ---
 
@@ -425,6 +431,87 @@ This document defines OASB-2 **v1.0**.
 - Control IDs (SOUL-XX-NNN) are permanent. A control ID is never reassigned to a different control.
 - Domain numbers (11-19) are permanent. New domains receive the next available number.
 - Severity changes are treated as MINOR version changes and require the process defined in CONTRIBUTING.md.
+
+### 8.2 Control identifier stability
+
+Section 8.1 makes a control ID permanent. This section states what permanence means for a reference held outside this repository, such as a crosswalk row, a scanner finding, or a machine readable governance entry that cites a control by ID.
+
+- Form. An ID is `SOUL-XX-NNN`: `XX` is the letter code of the domain (TH, CB, IH, DH, HB, AS, HT, HO, HV) and `NNN` is assigned in sequence within the domain. The letter code is fixed per domain and is independent of the domain number, so a domain renumbering does not touch any control ID.
+- No reuse, no renumbering. An ID that has appeared in a published version of this specification is never reassigned to a different control, never renumbered, and never removed from the registry in Section 5.3 or from its domain file. A new control takes the next unused `NNN` in its domain.
+- Deprecation instead of deletion. A control that is withdrawn keeps its ID and its entry. Its status becomes `deprecated` and its entry carries `replacedBy`, the ID of the control that supersedes it. `replacedBy` is present if and only if the status is `deprecated`, and it names a control in the registry. A deprecated control is not an applicable control for scoring (Section 6) or conformance (Section 7); the control its `replacedBy` names is, subject to that control's own status.
+- Status vocabulary. `draft` (ID reserved and entry published; not applicable to any tier until it becomes `active`), `active` (in force), `deprecated` (withdrawn, with `replacedBy`). Absent means `active`. An entry may also carry `version`, the semantic version of the entry, where absent means 1.0.0. This vocabulary, the presence rule for `replacedBy`, and the `version` field are those of the AI Agent Threat Matrix technique schema (`schema/threat-matrix-v1.2.schema.json` in the agent-threat-matrix repository), adopted here so that a control ID and a technique ID follow one rule.
+- Export. A machine readable JSON export of the controls, when published, carries per ID the members `id`, `title`, `domain` (the domain number), `severity`, `status`, `replacedBy` (deprecated entries only), and `version`, as camelCase members. The crosswalk CSV files under [crosswalks/](crosswalks/) are the export that exists today; their contract, including how deprecated IDs appear, is stated in [crosswalks/README.md](crosswalks/README.md).
+- Validation. `scripts/check_crosswalks.py` holds the number of `### SOUL-XX-NNN:` headings under [domains/](domains/) to a constant (72 at this version) and requires every crosswalk row to name one of them. A deprecated control keeps its heading, so the constant counts every published ID, active or deprecated, and it moves only in the commit that adds a control.
+- Record of renumberings. The behavioral domains were numbered 7 to 15 until pull request #4 (merged 2026-06-05), which made them domains 11 to 19 and adopted the OASB-2 name; no control heading changed in that commit, because the letter codes carried every ID across unchanged. The control set grew from 30 to 72 in pull request #5 (merged the same day) by adding IDs; none was removed or reassigned. The renumbering in pull request #4 is the last one on record. Section 8.1 makes domain numbers and control IDs permanent; a structural change is expressed by adding domains or controls and deprecating old ones, never by renumbering.
+
+---
+
+## 9. Label mapping
+
+The Open Agent Security Benchmark (OASB) repository (`github.com/opena2a-org/oasb`) carries the vocabularies that name what a corpus sample or an Eval scenario is about. This section is the single home of the mapping from those vocabularies onto OASB-2 controls. The OASB repository cites this section in place of a copy of these tables; a row changes here or not at all.
+
+### 9.1 Vocabularies
+
+| Vocabulary | Values | Where defined |
+|---|---|---|
+| `label`, the ground truth class of a corpus sample | `malicious`, `benign`, `edge_case` | `src/benchmark/types.ts` (`GroundTruthLabel`) and the `label` member of every sample in `corpus/v2.json` |
+| `category`, the attack category of a malicious sample | the nine values in Section 9.3 | `src/benchmark/types.ts` (`AttackCategory`, `ATTACK_CATEGORIES`) and `categoryCounts` in `corpus/v2.json` |
+| Eval scenario family | `AT-AI`, `AT-PROC`, `AT-NET`, `AT-FS`, `AT-INT`, `AT-ENF`, `INT`, `BL`, `E2E` | the scenario ID prefixes of the test files under `src/`, indexed in the OASB README (What Gets Tested) |
+| Sensitivity label | none published | Section 9.5 |
+
+Ground truth classes carry no mapping: they state a verdict about a sample, not a subject that a control governs.
+
+### 9.2 Mapping rule
+
+- A row names one vocabulary value, the control IDs it maps to, and the basis of each mapping.
+- Basis is one of two values. `declares`: the control requires the governance file to declare a rule whose subject is the value, that is, a defense or limit against the attack category, or the behavior the scenario family exercises. `related`: topical overlap only, not to be cited as evidence.
+- A value with no control in either column is listed as unmapped, not omitted.
+- Rows are informative. A row changes no control, severity, tier, scoring rule, or conformance level, and it does not state that a control detects or prevents the attack. Detection is what OASB measures of a security product; a control states what a governance file declares.
+- Control IDs follow Section 8.2. A row entry for a deprecated control is kept and its successor is added beside it.
+- A machine readable rendering of one mapping uses camelCase members: `{"vocabulary": "category", "value": "prompt_injection", "controlIds": ["SOUL-IH-001"], "basis": "declares"}`.
+
+### 9.3 Attack categories
+
+| Category | Declares | Related | Note |
+|---|---|---|---|
+| `prompt_injection` | SOUL-IH-001, SOUL-IH-006, SOUL-IH-007 | SOUL-IH-004, SOUL-TH-001, SOUL-TH-002 | Instruction override defense, defense in depth against injection, and injection detection; input validation and the trust chain that ranks instruction sources are related. |
+| `unicode_stego` | SOUL-IH-002 | none | Encoded payload defense names Unicode homoglyphs and other obfuscation. |
+| `social_engineering` | SOUL-IH-003, SOUL-TH-004, SOUL-HO-006 | none | Role play refusal, principal identity verification, and operator verification before privileged instructions. |
+| `credential_exfiltration` | SOUL-DH-002, SOUL-HB-002 | none | Credential handling and the rule against transmitting data to unauthorized endpoints. |
+| `data_exfiltration` | SOUL-HB-002 | SOUL-DH-001, SOUL-DH-003, SOUL-CB-003 | The rule against transmitting user data, conversation content, or retrieved information to unauthorized endpoints; PII handling, data minimization, and the endpoint scope are related. |
+| `heartbeat_rce` | SOUL-CB-003 | SOUL-CB-002, SOUL-CB-007, SOUL-AS-008 | The network endpoints the agent may reach; denied actions, tool boundaries, and sandboxing are related. |
+| `privilege_escalation` | SOUL-CB-004 | SOUL-CB-001, SOUL-CB-002, SOUL-CB-009, SOUL-TH-006 | Least privilege; the allowed and denied action lists, scope validation at invocation, and per principal authority scope are related. |
+| `persistence` | SOUL-CB-003 | SOUL-HB-006, SOUL-HB-004, SOUL-AS-009 | The filesystem paths the agent may access; tamper detection and integrity verification of the agent's own safety rules, and cleanup on completion, are related. |
+| `supply_chain` | none | SOUL-CB-007, SOUL-AS-005, SOUL-CB-006 | No control's subject is the provenance of a tool or skill package; tool integration boundaries, tool dependency limits, and minimized capability exposure are related. |
+
+### 9.4 Eval scenario families
+
+| Family | Scenarios exercise (OASB README, What Gets Tested) | Declares | Related |
+|---|---|---|---|
+| `AT-FS` | sensitive path access, access outside allowed paths, credential files, mass file creation, shell config modification | SOUL-CB-003 | SOUL-DH-002, SOUL-CB-008, SOUL-HB-006 |
+| `AT-NET` | outbound connections, suspicious hosts, connection bursts, allowlist bypass, exfiltration destinations | SOUL-CB-003, SOUL-HB-002 | SOUL-CB-008 |
+| `AT-PROC` | child process spawn, suspicious binaries, high CPU, privilege escalation, process termination | SOUL-CB-001, SOUL-CB-002 | SOUL-CB-004, SOUL-CB-008, SOUL-AS-008 |
+| `AT-AI` | prompt input and output scanning, MCP tool call validation, A2A message scanning, pattern coverage | SOUL-IH-001, SOUL-IH-004, SOUL-CB-007, SOUL-TH-003 | SOUL-IH-005, SOUL-IH-007, SOUL-CB-009, SOUL-TH-004, SOUL-TH-007, SOUL-HB-002, SOUL-DH-002 |
+| `AT-INT` | rule matching, anomaly scoring, LLM escalation, budget exhaustion, baseline learning | SOUL-IH-007, SOUL-HO-008 | SOUL-AS-002, SOUL-HO-003 |
+| `AT-ENF` | log, alert, pause, kill, resume | SOUL-HB-003, SOUL-HO-003, SOUL-HO-005 | SOUL-HO-002 |
+| `INT` | multi step chains: data exfiltration, MCP tool abuse, prompt injection, A2A trust exploitation, evasion, multi monitor correlation, budget exhaustion, kill switch and recovery | SOUL-HB-002, SOUL-CB-007, SOUL-IH-001, SOUL-TH-003, SOUL-HB-003 | SOUL-IH-007, SOUL-HO-003, SOUL-TH-007, SOUL-AS-007, SOUL-AS-002 |
+| `BL` | false positive rates, anomaly injection, baseline persistence | none | none |
+| `E2E` | live filesystem, process and network detection; interception of spawn, connect, read and write | the `AT-FS`, `AT-PROC`, and `AT-NET` rows | the `AT-FS`, `AT-PROC`, and `AT-NET` rows |
+
+`BL` is unmapped: its scenarios measure whether a security product stays quiet during normal operation, which no governance declaration is about.
+
+### 9.5 Sensitivity labels
+
+A sensitivity label names a class of data (personal data, credentials, payment data, and so on) that a governance file declares rules for and that a grant or a served resource can carry. The normative home of sensitivity labels is the Agent Authorization Protocol: label semantics in AAP-SPEC section 4.4.2 and the label vocabulary in `registries/labels.json` of the agent-authorization-protocol repository, when published. Neither is published as of this version, so this section reserves the row shape and names the anchor controls; it carries no label rows. When the registry is published, its version is recorded here, and each of its entries receives a row of the form `label | control ids | basis` against these anchor controls, whose subjects are classes of data:
+
+- SOUL-DH-001 (personally identifiable information)
+- SOUL-DH-002 (credentials, secrets, and authentication material)
+- SOUL-DH-005 (classification of data by sensitivity level)
+- SOUL-DH-006 (data access control)
+- SOUL-DH-007 (encryption of handled data)
+- SOUL-HB-002 (no transmission to unauthorized endpoints)
+
+A label value that is not in the published registry is not valid in a row.
 
 ---
 

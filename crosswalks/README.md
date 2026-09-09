@@ -21,6 +21,20 @@ Reading as of 2026-09-01: OASB-2 at commit ec85d16ae5c9c50ef89ed525d5bae928a6ddc
 - [Source provenance](sources.md), with the committed identifier lists for [NIST AI RMF 1.0 subcategories](sources/nist-ai-rmf-1.0-subcategories.csv) and for [EU AI Act articles and annexes](sources/eu-ai-act-2024-1689-articles.csv).
 - [Validator and renderer](../scripts/check_crosswalks.py), run as `python3 scripts/check_crosswalks.py` from the repository root.
 
+## Export contract
+
+The two crosswalk CSV files are the machine readable export of these crosswalks; the .md files are renders of them and carry nothing the CSV does not.
+
+- Header, exactly: `control_id,control_title,target_id,target_title,basis,note`.
+- `control_id` is a `SOUL-XX-NNN` ID that resolves to a `### SOUL-XX-NNN:` heading under the [domains directory](../domains/), and `control_title` is that heading's title verbatim.
+- `target_id` and `target_title` are one row of the committed source list for that crosswalk, verbatim.
+- `basis` is one of `partially-addresses`, `evidence-for`, `related`, defined under Basis definitions above.
+- `note` is one sentence of at most 200 characters ending in a single full stop, free of the words in `BANNED_WORDS` and `QUANTITY_WORDS` in `scripts/check_crosswalks.py`.
+- Encoding: UTF-8 without a byte order mark, LF line endings, RFC 4180 with minimal quoting, rows sorted by `control_id` then `target_id`, one row per (control, target) pair.
+- Column names in these files are snake case; a JSON rendering of the same rows uses camelCase members (`controlId`, `controlTitle`, `targetId`, `targetTitle`, `basis`, `note`).
+
+Deprecated control IDs. A control ID is never reused or renumbered (specification.md, section 8.2). When a control is deprecated, its heading stays in its domain file with status `deprecated` and a `replacedBy` ID, so its rows here stay valid and are kept; rows for the successor control are added under the successor's ID. The deprecated to successor pairing is carried by the control's entry in its domain file (the Status and Replaced by attributes, specification.md section 5.1) and by the `replacedBy` member of the JSON control export (specification.md section 8.2); these files carry no status column and are read together with that export. No control is deprecated as of 2026-09-09; the commit that deprecates the first control adds the validator rule that every Replaced by value resolves to a control heading. The validator holds the number of control headings to a constant (72 at this reading) that counts every published ID, active or deprecated, and that moves only in a commit that adds a control.
+
 ## Sources
 
 | Source | Version | Links |
