@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 """Tests for scripts/check_crosswalks.py: the JSON control export, the render
-comparison, the attribute tables, and the section 5.3 registry table.
+comparison, the attribute tables, the section 5.3 registry table, and the
+.gitattributes line-ending pins of the files it compares byte for byte.
 
 Run from anywhere:  python3 scripts/test_check_crosswalks.py
 
 Standard library only. The tests read the committed domain files,
-controls.json, and specification.md, and write no tracked file: the synthetic
-domain files and the repository copy that main() runs against are written to a
-temporary directory, and bytecode caching is turned off before the import.
+controls.json, and specification.md, ask git for the eol attribute of the
+byte-checked files, and write no tracked file: the synthetic domain files and
+the repository copy that main() runs against are written to a temporary
+directory, and bytecode caching is turned off before the import.
 """
 
 import contextlib
 import io
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -392,10 +395,31 @@ class RegistryTable(unittest.TestCase):
             "| SOUL-TH-001 | First Control | Trust Hierarchy | HIGH |",
         ]), ["RED specification.md: the registry rows under section 5.3 are not in domain order then NNN"])
 
+    def test_row_with_the_wrong_number_of_cells_is_red(self):
+        self.assertEqual(self.check([
+            "| SOUL-TH-001 | First Control | Trust Hierarchy |",
+            "| SOUL-TH-002 | Second Control | Trust Hierarchy | LOW |",
+        ]), [
+            "RED specification.md:7: registry row has 3 cells; expected 4",
+            "RED specification.md: the registry table under section 5.3 has no row for SOUL-TH-001",
+        ])
+
     def test_missing_heading_is_red(self):
         errors = []
         cc.check_registry_table(errors, "specification.md", "# Spec\n", self.ENTRIES, self.DOMAINS)
         self.assertEqual(errors, ["RED specification.md: heading '### 5.3 Complete Control Registry' not found"])
+
+
+class LineEndingPins(unittest.TestCase):
+    def test_the_byte_checked_files_are_pinned_to_lf(self):
+        paths = [f"crosswalks/{spec[kind]}" for spec in cc.CROSSWALK_SET for kind in ("csv", "md")]
+        paths.append(cc.CONTROLS_EXPORT)
+        try:
+            result = subprocess.run(["git", "-C", str(cc.ROOT), "check-attr", "eol", "--"] + paths,
+                                    capture_output=True, text=True, check=True)
+        except (OSError, subprocess.CalledProcessError):
+            self.skipTest("git, or a git work tree, is not available")
+        self.assertEqual(result.stdout.splitlines(), [f"{p}: eol: lf" for p in paths])
 
 
 class MainRun(unittest.TestCase):
@@ -430,6 +454,20 @@ class MainRun(unittest.TestCase):
         self.assertEqual(code, 1, out)
         self.assertIn("RED controls.json:5: committed file differs from the render of the domain files; "
                       "run python3 scripts/check_crosswalks.py --write\n", out)
+        self.assertIn("\n1 problem(s) found", out)
+
+    def test_drifted_registry_table_is_red(self):
+        row = "| SOUL-TH-001 | Trust Chain Defined | Trust Hierarchy | HIGH |"
+        lineno = (cc.ROOT / cc.SPECIFICATION).read_text(encoding="utf-8").splitlines().index(row) + 1
+
+        def drift(root):
+            path = root / cc.SPECIFICATION
+            path.write_text(path.read_text(encoding="utf-8").replace(row, row.replace("Trust Chain", "Trust chain"), 1),
+                            encoding="utf-8")
+        code, out, _ = self.run_main([], drift)
+        self.assertEqual(code, 1, out)
+        self.assertIn(f"RED specification.md:{lineno}: Name 'Trust chain Defined' of SOUL-TH-001 differs from the "
+                      "domain heading 'Trust Chain Defined'\n", out)
         self.assertIn("\n1 problem(s) found", out)
 
     def test_write_restores_controls_json(self):
