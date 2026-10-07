@@ -46,6 +46,34 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
 
 ### Fixed
 
+- `scripts/check_crosswalks.py` reports a carriage return or a UTF-8 BOM in
+  `controls.json` or a rendered crosswalk `.md` file at its line, in the
+  words it uses for the CSV files, and a byte that is not UTF-8 in those
+  files at its line; a file that matched its render once CRLF and CR were
+  read as LF was reported as a length difference with no line, a BOM as a
+  difference at line 1, and a byte that is not UTF-8 stopped the run with a
+  traceback. It reports a length difference only when the lengths differ.
+  For `controls.json` and the rendered `.md` files, the reports that a file
+  differs from its render, is shorter or longer than it, or holds a byte
+  that is not UTF-8 name `python3 scripts/check_crosswalks.py --write`, and
+  the BOM and carriage-return reports do not. A control in a
+  domain file with no `# Domain N:` heading is reported instead of stopping
+  the run with a TypeError. An attribute table row outside ID, Severity,
+  Applicable tiers, Status, Replaced by, and Version, a table row that is not
+  an attribute row, and an attribute row separated from its table are now
+  red where they were dropped. A version takes ASCII digits without leading
+  zeros. A `Replaced by` chain must end at an active control, so a cycle of
+  deprecated controls is red (`specification.md` section 8.2). The attribute
+  row pattern no longer backtracks quadratically on a long row.
+- The registry table in `specification.md` section 5.3 gives each control's
+  heading title as its Name, as `controls.json` does; it differed for all 72
+  controls: in wording for SOUL-HB-003, SOUL-AS-001, SOUL-AS-002,
+  SOUL-AS-003, and SOUL-HT-002, and in letter case alone for the other 67.
+  The validator now holds the table to the domain files.
+- `.gitattributes` pins LF line endings for the crosswalk CSV and `.md` files
+  and `controls.json`, so a checkout with `core.autocrlf=true` is green.
+- README Repository Structure lists `CHANGELOG.md`, `controls.json`,
+  `scripts/`, and `integrations/`.
 - `scripts/check_crosswalks.py` compares a committed rendered file with its
   render byte for byte, as documented: a crosswalk `.md` file or
   `controls.json` whose line endings are CRLF or CR is now reported, where it

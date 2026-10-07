@@ -1,0 +1,5 @@
+# scripts/check_crosswalks.py requires these files byte for byte with LF line
+# endings. Pin LF so a checkout with core.autocrlf=true keeps them unchanged.
+crosswalks/*.csv text eol=lf
+crosswalks/*.md text eol=lf
+controls.json text eol=lf

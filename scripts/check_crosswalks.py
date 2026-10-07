@@ -23,7 +23,10 @@ The two crosswalk CSV files are canonical. This script:
   * validates the attribute table of each control heading (ID, Severity,
     Status, Replaced by, Version; specification.md sections 5.1 and 8.2),
     renders controls.json from the domain files, and requires the committed
-    file to match byte for byte.
+    file to match byte for byte;
+  * requires the registry table in specification.md section 5.3 to give, for
+    each control, the ID, heading title, domain name, and severity of the
+    domain files, in the order of controls.json.
 
 Run from anywhere:  python3 scripts/check_crosswalks.py
 Re-render the .md files and controls.json:  python3 scripts/check_crosswalks.py --write
@@ -36,6 +39,7 @@ import csv
 import hashlib
 import io
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -44,6 +48,8 @@ ROOT = Path(__file__).resolve().parent.parent
 CROSSWALKS = ROOT / "crosswalks"
 DOMAINS = ROOT / "domains"
 CONTROLS_EXPORT = "controls.json"
+SPECIFICATION = "specification.md"
+WRITE_HINT = "run python3 scripts/check_crosswalks.py --write"
 
 HEADER = ["control_id", "control_title", "target_id", "target_title", "basis", "note"]
 BASIS_VOCABULARY = ("partially-addresses", "evidence-for", "related")
@@ -51,14 +57,24 @@ NOTE_MAX_CHARS = 200
 
 CONTROL_HEADING = re.compile(r"^### (SOUL-[A-Z]{2}-\d{3}): (.+?)\s*$")
 DOMAIN_HEADING = re.compile(r"^# Domain (\d+): (.+?)\s*$")
-ATTRIBUTE_ROW = re.compile(r"^\| \*\*(.+?)\*\* \| (.*?) \|\s*$")
+# [^*]+ and one greedy value group keep a long row that does not match linear;
+# the earlier (.+?) ... (.*?) form backtracked quadratically on such a row.
+ATTRIBUTE_ROW = re.compile(r"^\| \*\*([^*]+)\*\* \| (.*) \|\s*$")
+TABLE_HEADER = re.compile(r"^\| Attribute \| Value \|\s*$")
+TABLE_RULE = re.compile(r"^\|(\s*:?-+:?\s*\|)+\s*$")
+# The rows an attribute table may carry. The other attributes of section 5.1
+# (name, domain, description, detection keywords, rationale) are given by the
+# heading, the domain file, and the paragraphs under the table.
+ATTRIBUTES = ("ID", "Severity", "Applicable tiers", "Status", "Replaced by", "Version")
 
 # Every published control ID, active or deprecated (specification.md section 8.2).
 # It moves only in a commit that adds a control.
 CONTROL_COUNT = 72
 SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW")
 STATUSES = ("draft", "active", "deprecated")
-ENTRY_VERSION = re.compile(r"^\d+\.\d+\.\d+$")
+# ASCII digits without leading zeros; \d would also accept other scripts' digits.
+ENTRY_VERSION = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
+REGISTRY_HEADING = "### 5.3 Complete Control Registry"
 
 BANNED_WORDS = (
     "compliant", "compliance", "conforms", "conformity", "certified", "meets",
@@ -257,10 +273,13 @@ def display(path):
 def load_domains(errors, domains_dir=DOMAINS):
     """Read the domain and control headings, and each control's attribute table.
 
-    The attribute table is the first table after a control heading; it ends at
-    the first line that is not a table row, so table-shaped lines in a later
-    example block are not read as attributes. attributes maps each control ID
-    to (location of its heading, {attribute name: value}), with surrounding
+    The attribute table is the first table after a control heading. Its rows
+    are the header, the rule, and one row per name in ATTRIBUTES; any other row
+    is red. The table ends at the first line that is not a table row. An
+    attribute-shaped row after that and before the next control heading is red
+    as separated from its table, unless it is inside a fenced code block, so an
+    example block can show attribute rows. attributes maps each control ID to
+    (location of its heading, {attribute name: value}), with surrounding
     backticks stripped from each value.
     """
     controls = {}
@@ -271,7 +290,8 @@ def load_domains(errors, domains_dir=DOMAINS):
         number = None
         name = None
         table = None
-        in_table = False
+        phase = None
+        fenced = False
         for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
             m = DOMAIN_HEADING.match(line)
             if m:
@@ -287,22 +307,39 @@ def load_domains(errors, domains_dir=DOMAINS):
                     fail(errors, rel, f"control {cid} before domain heading")
                 controls[cid] = (title, number)
                 table = {}
-                in_table = False
+                phase = "before"
                 attributes[cid] = (f"{rel}:{lineno}", table)
                 continue
-            if table is None:
+            if line.startswith("```"):
+                fenced = not fenced
+                if phase == "in":
+                    phase = "after"
                 continue
-            if line.startswith("|"):
-                in_table = True
-                a = ATTRIBUTE_ROW.match(line)
-                if a:
-                    key, value = a.group(1), a.group(2).strip().strip("`")
-                    if key in table:
-                        fail(errors, f"{rel}:{lineno}", f"attribute {key} repeated for {cid}")
-                    else:
-                        table[key] = value
-            elif in_table:
-                table = None
+            if table is None or fenced:
+                continue
+            if not line.startswith("|"):
+                if phase == "in":
+                    phase = "after"
+                continue
+            if phase == "after":
+                if ATTRIBUTE_ROW.match(line):
+                    fail(errors, f"{rel}:{lineno}",
+                         f"attribute row separated from the attribute table of {cid}; it is not read")
+                continue
+            phase = "in"
+            if TABLE_HEADER.match(line) or TABLE_RULE.match(line):
+                continue
+            a = ATTRIBUTE_ROW.match(line)
+            if not a:
+                fail(errors, f"{rel}:{lineno}", f"row of the attribute table of {cid} is not an attribute row")
+                continue
+            key, value = a.group(1), a.group(2).strip().strip("`")
+            if key not in ATTRIBUTES:
+                fail(errors, f"{rel}:{lineno}", f"attribute {key!r} of {cid} is outside {ATTRIBUTES}")
+            elif key in table:
+                fail(errors, f"{rel}:{lineno}", f"attribute {key} repeated for {cid}")
+            else:
+                table[key] = value
     return controls, domain_order, attributes
 
 
@@ -311,10 +348,14 @@ def control_entries(errors, controls, attributes):
 
     Members per specification.md section 8.2. status and version are written on
     every entry: an absent Status is active and an absent Version is 1.0.0.
-    replacedBy is written on deprecated entries only.
+    replacedBy is written on deprecated entries only. A control with no domain
+    heading above it (already red) sorts after the others.
     """
     entries = []
-    for cid in sorted(controls, key=lambda c: (controls[c][1], int(c.rsplit("-", 1)[1]))):
+    statuses = {}
+    links = {}
+    order = sorted(controls, key=lambda c: (controls[c][1] is None, controls[c][1] or 0, int(c.rsplit("-", 1)[1])))
+    for cid in order:
         title, number = controls[cid]
         where, table = attributes[cid]
         if table.get("ID") != cid:
@@ -325,6 +366,7 @@ def control_entries(errors, controls, attributes):
         status = table.get("Status", "active")
         if status not in STATUSES:
             fail(errors, where, f"Status {status!r} of {cid} is outside {STATUSES}")
+        statuses[cid] = status
         replaced_by = table.get("Replaced by")
         if status == "deprecated":
             if replaced_by is None:
@@ -333,6 +375,8 @@ def control_entries(errors, controls, attributes):
                 fail(errors, where, f"Replaced by of {cid} names the control itself")
             elif replaced_by not in controls:
                 fail(errors, where, f"Replaced by {replaced_by!r} of {cid} is not a control heading in domains/")
+            else:
+                links[cid] = (where, replaced_by)
         elif replaced_by is not None:
             fail(errors, where, f"{cid} has a Replaced by attribute but its status is {status!r}, not 'deprecated'")
         version = table.get("Version", "1.0.0")
@@ -343,7 +387,81 @@ def control_entries(errors, controls, attributes):
             entry["replacedBy"] = replaced_by
         entry["version"] = version
         entries.append(entry)
+    check_replacement_chains(errors, statuses, links)
     return entries
+
+
+def check_replacement_chains(errors, statuses, links):
+    """Require each Replaced by chain to end at an active control (specification.md section 8.2).
+
+    links maps each deprecated control whose Replaced by names another control
+    heading to (location, successor). The chain follows deprecated successors
+    until it reaches a control that is not deprecated. A link already red at its
+    own entry (no Replaced by, the control itself, an unknown ID, a status
+    outside the vocabulary) ends the walk without a second report here.
+    """
+    for cid, (where, successor) in links.items():
+        chain = [cid]
+        while successor not in chain and successor in links:
+            chain.append(successor)
+            successor = links[successor][1]
+        path = " -> ".join(chain + [successor])
+        if successor in chain:
+            fail(errors, where, f"Replaced by chain {path} returns to {successor} without reaching an active control")
+        elif statuses[successor] == "draft":
+            fail(errors, where, f"Replaced by chain {path} ends at a draft control; it must end at an active control")
+
+
+def check_registry_table(errors, rel, text, entries, domain_names):
+    """Require the registry table of specification.md section 5.3 to match the domain files.
+
+    One row per control, in the order of controls.json, giving the ID, the
+    heading title as Name, the domain heading name as Domain, and the Severity
+    of the attribute table.
+    """
+    lines = text.splitlines()
+    if REGISTRY_HEADING not in lines:
+        fail(errors, rel, f"heading {REGISTRY_HEADING!r} not found")
+        return
+    rows = []
+    for lineno, line in enumerate(lines[lines.index(REGISTRY_HEADING) + 1:], start=lines.index(REGISTRY_HEADING) + 2):
+        if line.startswith("|"):
+            rows.append((lineno, [cell.strip() for cell in line.strip()[1:-1].split("|")]))
+        elif rows:
+            break
+    if len(rows) < 2 or rows[0][1] != ["ID", "Name", "Domain", "Severity"]:
+        fail(errors, rel, "the registry table under section 5.3 must have the header | ID | Name | Domain | Severity |")
+        return
+    expected = {e["id"]: e for e in entries}
+    order = [e["id"] for e in entries]
+    seen = []
+    for lineno, cells in rows[2:]:
+        where = f"{rel}:{lineno}"
+        if len(cells) != 4:
+            fail(errors, where, f"registry row has {len(cells)} cells; expected 4")
+            continue
+        cid, name, domain, severity = cells
+        if cid not in expected:
+            fail(errors, where, f"registry row {cid!r} is not a control heading in domains/")
+            continue
+        if cid in seen:
+            fail(errors, where, f"registry row {cid} is repeated")
+            continue
+        seen.append(cid)
+        entry = expected[cid]
+        if name != entry["title"]:
+            fail(errors, where, f"Name {name!r} of {cid} differs from the domain heading {entry['title']!r}")
+        if domain != domain_names.get(entry["domain"]):
+            fail(errors, where, f"Domain {domain!r} of {cid} differs from the domain heading "
+                                f"{domain_names.get(entry['domain'])!r}")
+        if severity != entry["severity"]:
+            fail(errors, where, f"Severity {severity!r} of {cid} differs from the attribute table "
+                                f"{entry['severity']!r}")
+    for cid in order:
+        if cid not in seen:
+            fail(errors, rel, f"the registry table under section 5.3 has no row for {cid}")
+    if seen != [cid for cid in order if cid in seen]:
+        fail(errors, rel, "the registry rows under section 5.3 are not in domain order then NNN")
 
 
 def render_controls_json(entries):
@@ -351,22 +469,49 @@ def render_controls_json(entries):
 
 
 def compare_render(errors, rel, committed, rendered, source):
-    """Fail unless the committed text equals its render; committed is None for a missing file."""
+    """Fail unless the committed bytes equal the UTF-8 of the render; committed is None for a missing file.
+
+    A UTF-8 BOM, a carriage return, or a byte that is not UTF-8 is reported
+    first, the BOM and the carriage return in the words check_bytes uses for
+    the CSV files. The text is then compared with the BOM removed and CRLF or
+    CR read as LF, so a file whose only difference is its line endings gets
+    the carriage-return line alone, and a length difference is reported only
+    when the lengths differ.
+    """
     if committed is None:
         fail(errors, rel, "file is missing")
         return
-    if committed == rendered:
+    if committed == rendered.encode("utf-8"):
         return
-    for lineno, (a, b) in enumerate(zip(committed.splitlines() + [""], rendered.splitlines() + [""]), start=1):
-        if a != b:
-            fail(errors, f"{rel}:{lineno}", f"committed file differs from the render of {source}")
-            return
-    fail(errors, rel, "committed file length differs from its render")
+    data = committed
+    if data.startswith(b"\xef\xbb\xbf"):
+        fail(errors, f"{rel}:1", "file starts with a UTF-8 BOM")
+        data = data[3:]
+    if b"\r" in data:
+        line = data[: data.index(b"\r")].count(b"\n") + 1
+        fail(errors, f"{rel}:{line}", "carriage return found; LF line endings required")
+        data = data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        line = data[: exc.start].count(b"\n") + 1
+        fail(errors, f"{rel}:{line}", f"byte 0x{data[exc.start]:02X} is not UTF-8; {WRITE_HINT}")
+        return
+    if text == rendered:
+        return
+    pos = len(os.path.commonprefix([text, rendered]))
+    where = f"{rel}:{text.count(chr(10), 0, pos) + 1}"
+    if pos == len(text):
+        fail(errors, where, f"committed file is shorter than its render of {source}, which continues here; {WRITE_HINT}")
+    elif pos == len(rendered):
+        fail(errors, where, f"committed file is longer than its render of {source}, which ends here; {WRITE_HINT}")
+    else:
+        fail(errors, where, f"committed file differs from the render of {source}; {WRITE_HINT}")
 
 
 def read_committed(path):
-    """The committed text decoded from its bytes, so CRLF or CR line endings stay a difference."""
-    return path.read_bytes().decode("utf-8") if path.is_file() else None
+    """The committed bytes, or None for a missing file; compare_render reads the encoding."""
+    return path.read_bytes() if path.is_file() else None
 
 
 def load_allowlist(errors, rel_path):
@@ -591,7 +736,7 @@ def scan_banned(errors):
 def main(argv):
     write = "--write" in argv
     errors = []
-    controls, domain_order, attributes = load_domains(errors)
+    controls, domain_order, attributes = load_domains(errors, DOMAINS)
     if len(controls) != CONTROL_COUNT:
         fail(errors, "domains/", f"expected {CONTROL_COUNT} control headings, found {len(controls)}")
     for spec in CROSSWALK_SET:
@@ -626,6 +771,12 @@ def main(argv):
     else:
         compare_render(errors, CONTROLS_EXPORT, read_committed(export_path), export, "the domain files")
     print(f"{CONTROLS_EXPORT}: {len(entries)} controls")
+    spec_path = ROOT / SPECIFICATION
+    if spec_path.is_file():
+        check_registry_table(errors, SPECIFICATION, spec_path.read_text(encoding="utf-8"), entries,
+                             dict(domain_order))
+    else:
+        fail(errors, SPECIFICATION, "file is missing")
     check_ruled_digests(errors)
     check_required_prose(errors)
     scan_banned(errors)
