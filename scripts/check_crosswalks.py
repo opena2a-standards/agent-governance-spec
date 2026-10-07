@@ -474,9 +474,11 @@ def compare_render(errors, rel, committed, rendered, source):
     A UTF-8 BOM, a carriage return, or a byte that is not UTF-8 is reported
     first, the BOM and the carriage return in the words check_bytes uses for
     the CSV files. The text is then compared with the BOM removed and CRLF or
-    CR read as LF, so a file whose only difference is its line endings gets
-    the carriage-return line alone, and a length difference is reported only
-    when the lengths differ.
+    CR read as LF, so a file that matches its render once CRLF and CR are read
+    as LF gets the carriage-return line alone, and a length difference is
+    reported only when the lengths differ. A CR that replaced the LF before an
+    LF is read with that LF as one CRLF, so the line it ended is lost and that
+    file also gets a difference report.
     """
     if committed is None:
         fail(errors, rel, "file is missing")

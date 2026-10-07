@@ -150,6 +150,15 @@ class RenderComparison(unittest.TestCase):
             "run python3 scripts/check_crosswalks.py --write",
         ])
 
+    def test_cr_in_place_of_an_lf_before_a_blank_line_is_also_a_difference(self):
+        rendered = '{\n  "a": 1,\n\n  "b": 2\n}\n'
+        errors = self.compare_committed_bytes(b'{\n  "a": 1,\r\n  "b": 2\n}\n', rendered)
+        self.assertEqual(errors, [
+            "RED controls.json:2: carriage return found; LF line endings required",
+            "RED controls.json:3: committed file differs from the render of the domain files; "
+            "run python3 scripts/check_crosswalks.py --write",
+        ])
+
     def test_utf8_byte_order_mark_is_red(self):
         rendered = '{\n  "a": 1\n}\n'
         errors = self.compare_committed_bytes(b"\xef\xbb\xbf" + rendered.encode("utf-8"), rendered)
