@@ -8,6 +8,16 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
 
 ### Added
 
+- `controls.json` at the repository root: the JSON control export named in
+  `specification.md` section 8.2, one entry per control ID with `id`,
+  `title`, `domain`, `severity`, `status`, `replacedBy` (deprecated entries
+  only), and `version`. It is generated from the domain files by
+  `scripts/check_crosswalks.py --write`, and the plain run requires the
+  committed file to equal that render byte for byte. The validator also
+  checks each control's attribute table: the ID matches its heading, the
+  severity and status are in their vocabularies, `Replaced by` is present on
+  deprecated entries only and names another control, and a version is
+  `MAJOR.MINOR.PATCH`. Tests in `scripts/test_check_crosswalks.py`.
 - Control identifier stability rule (`specification.md` section 8.2): IDs are
   never reused or renumbered; a withdrawn control is deprecated with
   `replacedBy`; the status vocabulary `draft`, `active`, `deprecated` and the
