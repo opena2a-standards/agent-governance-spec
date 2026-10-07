@@ -46,12 +46,14 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
 
 ### Fixed
 
-- `scripts/check_crosswalks.py` reports a carriage return, a UTF-8 BOM, or a
-  byte that is not UTF-8 in `controls.json` or a rendered crosswalk `.md`
-  file at its line, in the words it uses for the CSV files, instead of a
-  length difference with no line or a traceback; it reports a length
-  difference only when the lengths differ, and a file that differs from its
-  render names `python3 scripts/check_crosswalks.py --write`. A control in a
+- `scripts/check_crosswalks.py` reports a carriage return or a UTF-8 BOM in
+  `controls.json` or a rendered crosswalk `.md` file at its line, in the
+  words it uses for the CSV files, and a byte that is not UTF-8 in those
+  files at its line; a carriage return was reported as a length difference
+  with no line, a BOM as a difference at line 1, and a byte that is not
+  UTF-8 stopped the run with a traceback. It reports a length difference
+  only when the lengths differ, and a file that differs from its render
+  names `python3 scripts/check_crosswalks.py --write`. A control in a
   domain file with no `# Domain N:` heading is reported instead of stopping
   the run with a TypeError. An attribute table row outside ID, Severity,
   Applicable tiers, Status, Replaced by, and Version, a table row that is not
@@ -61,10 +63,10 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   deprecated controls is red (`specification.md` section 8.2). The attribute
   row pattern no longer backtracks quadratically on a long row.
 - The registry table in `specification.md` section 5.3 gives each control's
-  heading title as its Name, as `controls.json` does; it differed in letter
-  case for all 72 controls and in wording for SOUL-HB-003, SOUL-AS-001,
-  SOUL-AS-002, SOUL-AS-003, and SOUL-HT-002. The validator now holds the table
-  to the domain files.
+  heading title as its Name, as `controls.json` does; it differed for all 72
+  controls: in wording for SOUL-HB-003, SOUL-AS-001, SOUL-AS-002,
+  SOUL-AS-003, and SOUL-HT-002, and in letter case alone for the other 67.
+  The validator now holds the table to the domain files.
 - `.gitattributes` pins LF line endings for the crosswalk CSV and `.md` files
   and `controls.json`, so a checkout with `core.autocrlf=true` is green.
 - README Repository Structure lists `CHANGELOG.md`, `controls.json`,

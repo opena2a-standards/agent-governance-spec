@@ -472,10 +472,11 @@ def compare_render(errors, rel, committed, rendered, source):
     """Fail unless the committed bytes equal the UTF-8 of the render; committed is None for a missing file.
 
     A UTF-8 BOM, a carriage return, or a byte that is not UTF-8 is reported
-    first, in the words check_bytes uses for the CSV files. The text is then
-    compared with the BOM removed and CRLF or CR read as LF, so a file whose
-    only difference is its line endings gets the carriage-return line alone,
-    and a length difference is reported only when the lengths differ.
+    first, the BOM and the carriage return in the words check_bytes uses for
+    the CSV files. The text is then compared with the BOM removed and CRLF or
+    CR read as LF, so a file whose only difference is its line endings gets
+    the carriage-return line alone, and a length difference is reported only
+    when the lengths differ.
     """
     if committed is None:
         fail(errors, rel, "file is missing")
