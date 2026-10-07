@@ -477,8 +477,10 @@ def compare_render(errors, rel, committed, rendered, source):
     CR read as LF, so a file that matches its render once CRLF and CR are read
     as LF gets the carriage-return line alone, and a length difference is
     reported only when the lengths of that text differ. A CR that replaced the
-    LF before an LF is read with that LF as one CRLF, so the line it ended is
-    lost and that file also gets a difference report. A shorter or longer
+    LF ending a line followed by a blank line is read with the LF of that blank
+    line as one CRLF, so the line the CR ended is kept, the blank line is lost,
+    and that file also gets a differs report, or a shorter report when nothing
+    but blank lines follows the CR to the end of the file. A shorter or longer
     report on a file that had a BOM or a carriage return names how its text
     was read.
     """
@@ -544,6 +546,11 @@ def canonical_csv_bytes(rows):
 
 
 def load_rows(errors, csv_path):
+    """The data rows of a crosswalk CSV, or None when the file cannot be read as one.
+
+    A CSV with the header and no rows gives an empty list, not None, so its
+    .md is still rendered, compared, and written.
+    """
     data = csv_path.read_bytes()
     rel = csv_path.relative_to(ROOT)
     check_bytes(errors, csv_path, data)
@@ -553,15 +560,15 @@ def load_rows(errors, csv_path):
         table = list(reader)
     except csv.Error as exc:
         fail(errors, f"{rel}:{reader.line_num}", f"CSV parse error: {exc}")
-        return []
+        return None
     if not table or table[0] != HEADER:
         fail(errors, f"{rel}:1", f"header must be exactly {','.join(HEADER)}")
-        return []
+        return None
     rows = table[1:]
     for i, row in enumerate(rows, start=2):
         if len(row) != len(HEADER):
             fail(errors, f"{rel}:{i}", f"expected {len(HEADER)} fields, found {len(row)}")
-            return []
+            return None
     if canonical_csv_bytes(rows) != data:
         fail(errors, str(rel), "file is not in canonical RFC 4180 form (minimal quoting, LF)")
     return rows
@@ -755,7 +762,7 @@ def main(argv):
             continue
         targets = load_allowlist(errors, spec["allowlist"])
         rows = load_rows(errors, csv_path)
-        if not rows:
+        if rows is None:
             continue
         validate_rows(errors, csv_path.relative_to(ROOT), rows, controls, targets)
         scan_cells(errors, csv_path.relative_to(ROOT), rows)

@@ -159,6 +159,15 @@ class RenderComparison(unittest.TestCase):
             "run python3 scripts/check_crosswalks.py --write",
         ])
 
+    def test_cr_in_place_of_an_lf_before_a_final_blank_line_is_shorter(self):
+        rendered = '{\n  "a": 1\n}\n\n'
+        errors = self.compare_committed_bytes(b'{\n  "a": 1\n}\r\n', rendered)
+        self.assertEqual(errors, [
+            "RED controls.json:3: carriage return found; LF line endings required",
+            "RED controls.json:4: committed file, with line endings read as LF, is shorter than its "
+            "render of the domain files, which continues here; run python3 scripts/check_crosswalks.py --write",
+        ])
+
     def test_utf8_byte_order_mark_is_red(self):
         rendered = '{\n  "a": 1\n}\n'
         errors = self.compare_committed_bytes(b"\xef\xbb\xbf" + rendered.encode("utf-8"), rendered)
@@ -461,7 +470,8 @@ class LineEndingPins(unittest.TestCase):
 class MainRun(unittest.TestCase):
     """main() against a copy of the repository files it reads, in a temporary directory."""
 
-    def run_main(self, argv, edit=None):
+    def run_main(self, argv, edit=None, keep=cc.CONTROLS_EXPORT):
+        """Run main() on the copy; return its exit code, its output, and the bytes left at keep."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             shutil.copytree(cc.DOMAINS, root / "domains")
@@ -474,8 +484,8 @@ class MainRun(unittest.TestCase):
             with mock.patch.multiple(cc, ROOT=root, CROSSWALKS=root / "crosswalks", DOMAINS=root / "domains"), \
                     contextlib.redirect_stdout(out):
                 code = cc.main(argv)
-            export = (root / cc.CONTROLS_EXPORT).read_bytes()
-        return code, out.getvalue(), export
+            kept = (root / keep).read_bytes()
+        return code, out.getvalue(), kept
 
     def test_unmodified_copy_is_green(self):
         code, out, _ = self.run_main([])
@@ -514,6 +524,46 @@ class MainRun(unittest.TestCase):
         code, out, export = self.run_main(["--write"], drift)
         self.assertEqual(code, 0, out)
         self.assertEqual(export, rendered)
+
+    def header_only(self, spec, md):
+        def edit(root):
+            path = root / "crosswalks" / spec["csv"]
+            path.write_bytes(path.read_bytes().split(b"\n", 1)[0] + b"\n")
+            (root / "crosswalks" / spec["md"]).write_bytes(md)
+        return edit
+
+    def test_header_only_crosswalk_csv_still_compares_its_md(self):
+        spec = cc.CROSSWALK_SET[0]
+        code, out, _ = self.run_main([], self.header_only(spec, b"anything at all\r\n"))
+        self.assertEqual(code, 1, out)
+        self.assertIn(f"RED crosswalks/{spec['md']}:1: carriage return found; LF line endings required\n", out)
+        self.assertIn(f"RED crosswalks/{spec['md']}:1: committed file differs from the render of its CSV; "
+                      "run python3 scripts/check_crosswalks.py --write\n", out)
+        self.assertIn("\n2 problem(s) found", out)
+
+    def test_write_renders_the_md_of_a_header_only_crosswalk_csv(self):
+        spec = cc.CROSSWALK_SET[0]
+        controls, domain_order, _ = cc.load_domains([], cc.DOMAINS)
+        code, out, md = self.run_main(["--write"], self.header_only(spec, b"anything at all\r\n"),
+                                      keep=f"crosswalks/{spec['md']}")
+        self.assertEqual(code, 0, out)
+        self.assertIn(f"wrote crosswalks/{spec['md']}\n", out)
+        self.assertIn(f"crosswalks/{spec['csv']}: 0 rows, 0 of {cc.CONTROL_COUNT} controls mapped, "
+                      f"{cc.CONTROL_COUNT} with no mapping asserted\n", out)
+        self.assertEqual(md, cc.render_md(spec, [], controls, domain_order).encode("utf-8"))
+        self.assertIn(f"\n0 rows; 0 of {cc.CONTROL_COUNT} controls have at least one row; "
+                      f"{cc.CONTROL_COUNT} are listed under no mapping asserted.\n", md.decode("utf-8"))
+
+    def test_unreadable_crosswalk_csv_is_red_without_a_render(self):
+        spec = cc.CROSSWALK_SET[0]
+
+        def drift(root):
+            (root / "crosswalks" / spec["csv"]).write_bytes(b"control_id,control_title\n")
+        code, out, _ = self.run_main([], drift)
+        self.assertEqual(code, 1, out)
+        self.assertIn(f"RED crosswalks/{spec['csv']}:1: header must be exactly {','.join(cc.HEADER)}\n", out)
+        self.assertNotIn(f"crosswalks/{spec['csv']}: ", out)
+        self.assertIn("\n1 problem(s) found", out)
 
 
 if __name__ == "__main__":

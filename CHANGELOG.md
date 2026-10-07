@@ -43,7 +43,11 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   CSV files and checked by the stdlib validator `scripts/check_crosswalks.py`.
   The plain run requires each rendered crosswalk `.md` file, and
   `controls.json`, to equal its render byte for byte, and `--write` writes
-  them with LF line endings on every platform. A carriage return or a UTF-8
+  them with LF line endings on every platform; a crosswalk CSV with the
+  header and no rows is rendered, compared, and written like any other.
+  `.gitattributes` pins LF line endings for the crosswalk CSV and `.md`
+  files and `controls.json`, so a checkout with `core.autocrlf=true` is
+  green. A carriage return or a UTF-8
   BOM in one of these files is reported at its line in the words used for
   the CSV files, a byte that is not UTF-8 at its line, and a length
   difference only when the text, read with the BOM removed and CRLF and CR
@@ -70,8 +74,6 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   controls: in wording for SOUL-HB-003, SOUL-AS-001, SOUL-AS-002,
   SOUL-AS-003, and SOUL-HT-002, and in letter case alone for the other 67.
   The validator now holds the table to the domain files.
-- `.gitattributes` pins LF line endings for the crosswalk CSV and `.md` files
-  and `controls.json`, so a checkout with `core.autocrlf=true` is green.
 - README Repository Structure lists `CHANGELOG.md`, `controls.json`,
   `scripts/`, and `integrations/`.
 
