@@ -262,78 +262,78 @@ Each control is defined with the following attributes:
 
 | ID | Name | Domain | Severity |
 |----|------|--------|----------|
-| SOUL-TH-001 | Trust chain defined | Trust Hierarchy | HIGH |
-| SOUL-TH-002 | Conflict resolution | Trust Hierarchy | MEDIUM |
-| SOUL-TH-003 | Operator/user distinction | Trust Hierarchy | LOW |
-| SOUL-TH-004 | Principal identity verification | Trust Hierarchy | MEDIUM |
-| SOUL-TH-005 | Trust hierarchy documentation complete | Trust Hierarchy | LOW |
-| SOUL-TH-006 | Principal authority scope defined | Trust Hierarchy | MEDIUM |
-| SOUL-TH-007 | Trust boundary enforcement | Trust Hierarchy | MEDIUM |
-| SOUL-TH-008 | Trust policy update protocol | Trust Hierarchy | LOW |
-| SOUL-CB-001 | Allowed actions declared | Capability Boundaries | HIGH |
-| SOUL-CB-002 | Denied actions declared | Capability Boundaries | HIGH |
-| SOUL-CB-003 | Filesystem/network scope | Capability Boundaries | MEDIUM |
-| SOUL-CB-004 | Least privilege | Capability Boundaries | LOW |
-| SOUL-CB-005 | Permission revocation process defined | Capability Boundaries | MEDIUM |
-| SOUL-CB-006 | Capability exposure minimized | Capability Boundaries | MEDIUM |
-| SOUL-CB-007 | Tool integration boundaries declared | Capability Boundaries | MEDIUM |
-| SOUL-CB-008 | Rate and resource limits enforced | Capability Boundaries | MEDIUM |
-| SOUL-CB-009 | Scope validation at invocation | Capability Boundaries | MEDIUM |
-| SOUL-CB-010 | Capability audit trail maintained | Capability Boundaries | LOW |
-| SOUL-IH-001 | Instruction override defense | Injection Hardening | HIGH |
-| SOUL-IH-002 | Encoded payload defense | Injection Hardening | LOW |
-| SOUL-IH-003 | Role-play refusal | Injection Hardening | CRITICAL |
-| SOUL-IH-004 | Input validation and sanitization | Injection Hardening | HIGH |
-| SOUL-IH-005 | Output encoding and escaping | Injection Hardening | MEDIUM |
-| SOUL-IH-006 | Multi-layer injection defense | Injection Hardening | MEDIUM |
-| SOUL-IH-007 | Injection detection and alerting | Injection Hardening | MEDIUM |
-| SOUL-IH-008 | Adversarial input testing | Injection Hardening | LOW |
-| SOUL-DH-001 | PII protection | Data Handling | MEDIUM |
-| SOUL-DH-002 | Credential handling | Data Handling | MEDIUM |
-| SOUL-DH-003 | Data minimization | Data Handling | LOW |
-| SOUL-DH-004 | Data retention and deletion policy | Data Handling | MEDIUM |
-| SOUL-DH-005 | Data classification framework | Data Handling | LOW |
-| SOUL-DH-006 | Data access control enforcement | Data Handling | MEDIUM |
-| SOUL-DH-007 | Data encryption requirements | Data Handling | MEDIUM |
-| SOUL-DH-008 | Data breach response procedure | Data Handling | LOW |
-| SOUL-HB-001 | Safety immutables defined | Hardcoded Behaviors | CRITICAL |
-| SOUL-HB-002 | No data exfiltration | Hardcoded Behaviors | HIGH |
-| SOUL-HB-003 | Kill switch | Hardcoded Behaviors | HIGH |
-| SOUL-HB-004 | Behavior integrity verification | Hardcoded Behaviors | MEDIUM |
-| SOUL-HB-005 | Constraint immutability guarantee | Hardcoded Behaviors | HIGH |
-| SOUL-HB-006 | Tamper detection mechanism | Hardcoded Behaviors | MEDIUM |
-| SOUL-HB-007 | Safety behavior audit | Hardcoded Behaviors | LOW |
-| SOUL-HB-008 | Enforcement resilience under pressure | Hardcoded Behaviors | HIGH |
-| SOUL-AS-001 | Iteration limits | Agentic Safety | MEDIUM |
-| SOUL-AS-002 | Budget caps | Agentic Safety | LOW |
-| SOUL-AS-003 | Timeout | Agentic Safety | LOW |
-| SOUL-AS-004 | Reversibility preference | Agentic Safety | LOW |
-| SOUL-AS-005 | Tool dependency limits | Agentic Safety | MEDIUM |
-| SOUL-AS-006 | State management limits | Agentic Safety | MEDIUM |
-| SOUL-AS-007 | Error recovery protocol | Agentic Safety | MEDIUM |
-| SOUL-AS-008 | Task isolation and sandboxing | Agentic Safety | MEDIUM |
-| SOUL-AS-009 | Resource cleanup on completion | Agentic Safety | LOW |
-| SOUL-AS-010 | Concurrent execution coordination | Agentic Safety | LOW |
-| SOUL-HT-001 | Uncertainty acknowledgment | Honesty and Transparency | MEDIUM |
-| SOUL-HT-002 | No fabrication | Honesty and Transparency | MEDIUM |
-| SOUL-HT-003 | Identity disclosure | Honesty and Transparency | MEDIUM |
-| SOUL-HT-004 | Knowledge boundaries documented | Honesty and Transparency | MEDIUM |
-| SOUL-HT-005 | Confidence level disclosure | Honesty and Transparency | LOW |
-| SOUL-HT-006 | Training data recency disclosed | Honesty and Transparency | LOW |
-| SOUL-HT-007 | Limitations acknowledged in responses | Honesty and Transparency | MEDIUM |
-| SOUL-HT-008 | Source verification practices | Honesty and Transparency | MEDIUM |
-| SOUL-HO-001 | Approval gates | Human Oversight | HIGH |
-| SOUL-HO-002 | Override mechanism | Human Oversight | MEDIUM |
-| SOUL-HO-003 | Monitoring/logging | Human Oversight | MEDIUM |
-| SOUL-HO-004 | Approval workflow and escalation | Human Oversight | MEDIUM |
-| SOUL-HO-005 | Action notification protocol | Human Oversight | MEDIUM |
-| SOUL-HO-006 | Operator identity verification | Human Oversight | MEDIUM |
-| SOUL-HO-007 | Audit log retention and access | Human Oversight | LOW |
-| SOUL-HO-008 | Escalation triggers for runaway detection | Human Oversight | HIGH |
-| SOUL-HV-001 | Pre-action risk assessment | Harm Avoidance | HIGH |
-| SOUL-HV-002 | Proportional response | Harm Avoidance | MEDIUM |
-| SOUL-HV-003 | Unintended impact awareness | Harm Avoidance | MEDIUM |
-| SOUL-HV-004 | Ambiguity resolution | Harm Avoidance | MEDIUM |
+| SOUL-TH-001 | Trust Chain Defined | Trust Hierarchy | HIGH |
+| SOUL-TH-002 | Conflict Resolution | Trust Hierarchy | MEDIUM |
+| SOUL-TH-003 | Operator/User Distinction | Trust Hierarchy | LOW |
+| SOUL-TH-004 | Principal Identity Verification | Trust Hierarchy | MEDIUM |
+| SOUL-TH-005 | Trust Hierarchy Documentation Complete | Trust Hierarchy | LOW |
+| SOUL-TH-006 | Principal Authority Scope Defined | Trust Hierarchy | MEDIUM |
+| SOUL-TH-007 | Trust Boundary Enforcement | Trust Hierarchy | MEDIUM |
+| SOUL-TH-008 | Trust Policy Update Protocol | Trust Hierarchy | LOW |
+| SOUL-CB-001 | Allowed Actions Declared | Capability Boundaries | HIGH |
+| SOUL-CB-002 | Denied Actions Declared | Capability Boundaries | HIGH |
+| SOUL-CB-003 | Filesystem/Network Scope | Capability Boundaries | MEDIUM |
+| SOUL-CB-004 | Least Privilege | Capability Boundaries | LOW |
+| SOUL-CB-005 | Permission Revocation Process Defined | Capability Boundaries | MEDIUM |
+| SOUL-CB-006 | Capability Exposure Minimized | Capability Boundaries | MEDIUM |
+| SOUL-CB-007 | Tool Integration Boundaries Declared | Capability Boundaries | MEDIUM |
+| SOUL-CB-008 | Rate And Resource Limits Enforced | Capability Boundaries | MEDIUM |
+| SOUL-CB-009 | Scope Validation At Invocation | Capability Boundaries | MEDIUM |
+| SOUL-CB-010 | Capability Audit Trail Maintained | Capability Boundaries | LOW |
+| SOUL-IH-001 | Instruction Override Defense | Injection Hardening | HIGH |
+| SOUL-IH-002 | Encoded Payload Defense | Injection Hardening | LOW |
+| SOUL-IH-003 | Role-Play Refusal | Injection Hardening | CRITICAL |
+| SOUL-IH-004 | Input Validation And Sanitization | Injection Hardening | HIGH |
+| SOUL-IH-005 | Output Encoding And Escaping | Injection Hardening | MEDIUM |
+| SOUL-IH-006 | Multi-Layer Injection Defense | Injection Hardening | MEDIUM |
+| SOUL-IH-007 | Injection Detection And Alerting | Injection Hardening | MEDIUM |
+| SOUL-IH-008 | Adversarial Input Testing | Injection Hardening | LOW |
+| SOUL-DH-001 | PII Protection | Data Handling | MEDIUM |
+| SOUL-DH-002 | Credential Handling | Data Handling | MEDIUM |
+| SOUL-DH-003 | Data Minimization | Data Handling | LOW |
+| SOUL-DH-004 | Data Retention And Deletion Policy | Data Handling | MEDIUM |
+| SOUL-DH-005 | Data Classification Framework | Data Handling | LOW |
+| SOUL-DH-006 | Data Access Control Enforcement | Data Handling | MEDIUM |
+| SOUL-DH-007 | Data Encryption Requirements | Data Handling | MEDIUM |
+| SOUL-DH-008 | Data Breach Response Procedure | Data Handling | LOW |
+| SOUL-HB-001 | Safety Immutables Defined | Hardcoded Behaviors | CRITICAL |
+| SOUL-HB-002 | No Data Exfiltration | Hardcoded Behaviors | HIGH |
+| SOUL-HB-003 | Kill Switch / Emergency Stop | Hardcoded Behaviors | HIGH |
+| SOUL-HB-004 | Behavior Integrity Verification | Hardcoded Behaviors | MEDIUM |
+| SOUL-HB-005 | Constraint Immutability Guarantee | Hardcoded Behaviors | HIGH |
+| SOUL-HB-006 | Tamper Detection Mechanism | Hardcoded Behaviors | MEDIUM |
+| SOUL-HB-007 | Safety Behavior Audit | Hardcoded Behaviors | LOW |
+| SOUL-HB-008 | Enforcement Resilience Under Pressure | Hardcoded Behaviors | HIGH |
+| SOUL-AS-001 | Iteration/Loop Limits | Agentic Safety | MEDIUM |
+| SOUL-AS-002 | Budget/Cost Caps | Agentic Safety | LOW |
+| SOUL-AS-003 | Timeout Defined | Agentic Safety | LOW |
+| SOUL-AS-004 | Reversibility Preference | Agentic Safety | LOW |
+| SOUL-AS-005 | Tool Dependency Limits | Agentic Safety | MEDIUM |
+| SOUL-AS-006 | State Management Limits | Agentic Safety | MEDIUM |
+| SOUL-AS-007 | Error Recovery Protocol | Agentic Safety | MEDIUM |
+| SOUL-AS-008 | Task Isolation And Sandboxing | Agentic Safety | MEDIUM |
+| SOUL-AS-009 | Resource Cleanup On Completion | Agentic Safety | LOW |
+| SOUL-AS-010 | Concurrent Execution Coordination | Agentic Safety | LOW |
+| SOUL-HT-001 | Uncertainty Acknowledgment | Honesty and Transparency | MEDIUM |
+| SOUL-HT-002 | No Fabrication Rule | Honesty and Transparency | MEDIUM |
+| SOUL-HT-003 | Identity Disclosure | Honesty and Transparency | MEDIUM |
+| SOUL-HT-004 | Knowledge Boundaries Documented | Honesty and Transparency | MEDIUM |
+| SOUL-HT-005 | Confidence Level Disclosure | Honesty and Transparency | LOW |
+| SOUL-HT-006 | Training Data Recency Disclosed | Honesty and Transparency | LOW |
+| SOUL-HT-007 | Limitations Acknowledged In Responses | Honesty and Transparency | MEDIUM |
+| SOUL-HT-008 | Source Verification Practices | Honesty and Transparency | MEDIUM |
+| SOUL-HO-001 | Approval Gates | Human Oversight | HIGH |
+| SOUL-HO-002 | Override Mechanism | Human Oversight | MEDIUM |
+| SOUL-HO-003 | Monitoring/Logging | Human Oversight | MEDIUM |
+| SOUL-HO-004 | Approval Workflow And Escalation | Human Oversight | MEDIUM |
+| SOUL-HO-005 | Action Notification Protocol | Human Oversight | MEDIUM |
+| SOUL-HO-006 | Operator Identity Verification | Human Oversight | MEDIUM |
+| SOUL-HO-007 | Audit Log Retention And Access | Human Oversight | LOW |
+| SOUL-HO-008 | Escalation Triggers For Runaway Detection | Human Oversight | HIGH |
+| SOUL-HV-001 | Pre-Action Risk Assessment | Harm Avoidance | HIGH |
+| SOUL-HV-002 | Proportional Response | Harm Avoidance | MEDIUM |
+| SOUL-HV-003 | Unintended Impact Awareness | Harm Avoidance | MEDIUM |
+| SOUL-HV-004 | Ambiguity Resolution | Harm Avoidance | MEDIUM |
 
 Every control in this registry is `active`. No control has been deprecated as of this version, so no `Replaced by` value exists yet (Section 8.2).
 
@@ -438,10 +438,10 @@ Section 8.1 makes a control ID permanent. This section states what permanence me
 
 - Form. An ID is `SOUL-XX-NNN`: `XX` is the letter code of the domain (TH, CB, IH, DH, HB, AS, HT, HO, HV) and `NNN` is assigned in sequence within the domain. The letter code is fixed per domain and is independent of the domain number, so a domain renumbering does not touch any control ID.
 - No reuse, no renumbering. An ID that has appeared in a published version of this specification is never reassigned to a different control, never renumbered, and never removed from the registry in Section 5.3 or from its domain file. A new control takes the next unused `NNN` in its domain.
-- Deprecation instead of deletion. A control that is withdrawn keeps its ID and its entry. Its status becomes `deprecated` and its entry carries `replacedBy`, the ID of the control that supersedes it. `replacedBy` is present if and only if the status is `deprecated`, and it names a control in the registry. A deprecated control is not an applicable control for scoring (Section 6) or conformance (Section 7); the control its `replacedBy` names is, subject to that control's own status.
+- Deprecation instead of deletion. A control that is withdrawn keeps its ID and its entry. Its status becomes `deprecated` and its entry carries `replacedBy`, the ID of the control that supersedes it. `replacedBy` is present if and only if the status is `deprecated`, and it names a control in the registry. Following `replacedBy` from a deprecated control, through any successor that is itself deprecated, ends at an `active` control: a chain that returns to a control already on it, or that ends at a `draft` control, is invalid. A deprecated control is not an applicable control for scoring (Section 6) or conformance (Section 7); the control its `replacedBy` names is, subject to that control's own status.
 - Status vocabulary. `draft` (ID reserved and entry published; not applicable to any tier until it becomes `active`), `active` (in force), `deprecated` (withdrawn, with `replacedBy`). Absent means `active`. An entry may also carry `version`, the semantic version of the entry, where absent means 1.0.0. This vocabulary, the presence rule for `replacedBy`, and the `version` field are those of the AI Agent Threat Matrix technique schema (`schema/threat-matrix-v1.2.schema.json` in the agent-threat-matrix repository), adopted here so that a control ID and a technique ID follow one rule.
 - Export. The machine readable JSON export of the controls is [controls.json](controls.json) at the repository root. Its `controls` array carries one entry per ID, in domain order and then by `NNN`, with the members `id`, `title` (the heading title), `domain` (the domain number), `severity`, `status`, `replacedBy` (deprecated entries only), and `version`, as camelCase members. `status` and `version` are written on every entry: an entry whose domain file gives no Status is written as `active`, and one that gives no version as `1.0.0`. The file is generated from the control headings and attribute tables of the domain files by `python3 scripts/check_crosswalks.py --write` and is not edited by hand. The crosswalk CSV files under [crosswalks/](crosswalks/) are the export of the crosswalk rows; their contract, including how deprecated IDs appear, is stated in [crosswalks/README.md](crosswalks/README.md).
-- Validation. `scripts/check_crosswalks.py` holds the number of `### SOUL-XX-NNN:` headings under [domains/](domains/) to a constant (72 at this version) and requires every crosswalk row to name one of them. A deprecated control keeps its heading, so the constant counts every published ID, active or deprecated, and it moves only in the commit that adds a control. The same script requires each heading's attribute table to give its ID, a severity, a status from the vocabulary above, and a version in `MAJOR.MINOR.PATCH` form where it gives one, requires `replacedBy` on every deprecated entry and on no other, naming another control heading, and requires the committed [controls.json](controls.json) to equal its render from the domain files byte for byte.
+- Validation. `scripts/check_crosswalks.py` holds the number of `### SOUL-XX-NNN:` headings under [domains/](domains/) to a constant (72 at this version) and requires every crosswalk row to name one of them. A deprecated control keeps its heading, so the constant counts every published ID, active or deprecated, and it moves only in the commit that adds a control. The same script requires each heading's attribute table to give its ID and a severity, a status from the vocabulary above where it gives one, and a version in `MAJOR.MINOR.PATCH` form where it gives one, and to carry no row other than ID, Severity, Applicable tiers, Status, Replaced by, and Version; requires `replacedBy` on every deprecated entry and on no other, naming another control heading, with the chain of successors ending at an `active` control; requires the registry table in Section 5.3 to give each control's ID, heading title, domain name, and severity as the domain files do, in the order of the export; and requires the committed [controls.json](controls.json) to equal its render from the domain files byte for byte.
 - Record of renumberings. The behavioral domains were numbered 7 to 15 until pull request #4 (merged 2026-06-05), which made them domains 11 to 19 and adopted the OASB-2 name; no control heading changed in that commit, because the letter codes carried every ID across unchanged. The control set grew from 30 to 72 in pull request #5 (merged the same day) by adding IDs; none was removed or reassigned. The renumbering in pull request #4 is the last one on record. Section 8.1 makes domain numbers and control IDs permanent; a structural change is expressed by adding domains or controls and deprecating old ones, never by renumbering.
 
 ---

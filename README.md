@@ -225,7 +225,12 @@ agent-governance-spec/
   specification.md            Full formal specification (v1.0)
   scoring.md                  Scoring methodology
   conformance.md              Conformance levels
+  CHANGELOG.md                Changes by version
+  controls.json               JSON control export, generated from domains/ (specification.md section 8.2)
   crosswalks/                 Static crosswalks to NIST AI RMF 1.0 and the EU AI Act
+  scripts/
+    check_crosswalks.py       Validates crosswalks/, controls.json and the control registry; --write re-renders
+    test_check_crosswalks.py  Tests for the validator
   domains/
     README.md                 Domain overview
     11-trust-hierarchy.md     Domain 11: Trust Hierarchy
@@ -246,6 +251,10 @@ agent-governance-spec/
     chatbot-soul.md           Customer service bot
     coding-agent-soul.md      AI coding assistant
     data-pipeline-soul.md     Data processing agent
+  integrations/
+    README.md                 CI integration guide
+    github-action.yml         GitHub Actions workflow
+    gitlab-ci.yml             GitLab CI job
 ```
 
 ---

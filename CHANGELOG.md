@@ -46,6 +46,29 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
 
 ### Fixed
 
+- `scripts/check_crosswalks.py` reports a carriage return, a UTF-8 BOM, or a
+  byte that is not UTF-8 in `controls.json` or a rendered crosswalk `.md`
+  file at its line, in the words it uses for the CSV files, instead of a
+  length difference with no line or a traceback; it reports a length
+  difference only when the lengths differ, and a file that differs from its
+  render names `python3 scripts/check_crosswalks.py --write`. A control in a
+  domain file with no `# Domain N:` heading is reported instead of stopping
+  the run with a TypeError. An attribute table row outside ID, Severity,
+  Applicable tiers, Status, Replaced by, and Version, a table row that is not
+  an attribute row, and an attribute row separated from its table are now
+  red where they were dropped. A version takes ASCII digits without leading
+  zeros. A `Replaced by` chain must end at an active control, so a cycle of
+  deprecated controls is red (`specification.md` section 8.2). The attribute
+  row pattern no longer backtracks quadratically on a long row.
+- The registry table in `specification.md` section 5.3 gives each control's
+  heading title as its Name, as `controls.json` does; it differed in letter
+  case for all 72 controls and in wording for SOUL-HB-003, SOUL-AS-001,
+  SOUL-AS-002, SOUL-AS-003, and SOUL-HT-002. The validator now holds the table
+  to the domain files.
+- `.gitattributes` pins LF line endings for the crosswalk CSV and `.md` files
+  and `controls.json`, so a checkout with `core.autocrlf=true` is green.
+- README Repository Structure lists `CHANGELOG.md`, `controls.json`,
+  `scripts/`, and `integrations/`.
 - `scripts/check_crosswalks.py` compares a committed rendered file with its
   render byte for byte, as documented: a crosswalk `.md` file or
   `controls.json` whose line endings are CRLF or CR is now reported, where it

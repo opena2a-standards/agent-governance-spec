@@ -1,1 +1,1 @@
-Docs-only specification repo (markdown spec + templates, no executable code); the pre-push review's build/test/new-user phases do not apply.
+Specification repo: markdown spec and templates, plus a standard-library Python validator with no build or install step. Its checks are python3 scripts/check_crosswalks.py and python3 scripts/test_check_crosswalks.py; the pre-push review's build and new-user phases do not apply.
