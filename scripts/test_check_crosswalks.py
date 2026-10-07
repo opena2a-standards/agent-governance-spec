@@ -182,6 +182,33 @@ class RenderComparison(unittest.TestCase):
             "which ends here; run python3 scripts/check_crosswalks.py --write",
         ])
 
+    def test_length_difference_names_the_text_read_with_lf_line_endings(self):
+        # Both inputs are 6 bytes: the committed file is shorter only once CRLF is read as LF.
+        self.assertEqual(self.compare_committed_bytes(b"a\r\nb\r\n", "a\nb\nc\n"), [
+            "RED controls.json:1: carriage return found; LF line endings required",
+            "RED controls.json:3: committed file, with line endings read as LF, is shorter than its "
+            "render of the domain files, which continues here; run python3 scripts/check_crosswalks.py --write",
+        ])
+        self.assertEqual(self.compare_committed_bytes(b"a\rb\rc\r\r", "a\nb\nc\n"), [
+            "RED controls.json:1: carriage return found; LF line endings required",
+            "RED controls.json:4: committed file, with line endings read as LF, is longer than its "
+            "render of the domain files, which ends here; run python3 scripts/check_crosswalks.py --write",
+        ])
+
+    def test_length_difference_names_the_text_with_the_bom_removed(self):
+        # 7 committed bytes against a 6-byte render: shorter only once the BOM is removed.
+        self.assertEqual(self.compare_committed_bytes(b"\xef\xbb\xbfa\nb\n", "a\nb\nc\n"), [
+            "RED controls.json:1: file starts with a UTF-8 BOM",
+            "RED controls.json:3: committed file, with its BOM removed, is shorter than its "
+            "render of the domain files, which continues here; run python3 scripts/check_crosswalks.py --write",
+        ])
+        self.assertEqual(self.compare_committed_bytes(b"\xef\xbb\xbfa\r\nb\r\nc\r\n\r\n", "a\nb\nc\n"), [
+            "RED controls.json:1: file starts with a UTF-8 BOM",
+            "RED controls.json:1: carriage return found; LF line endings required",
+            "RED controls.json:4: committed file, with its BOM removed and line endings read as LF, is longer "
+            "than its render of the domain files, which ends here; run python3 scripts/check_crosswalks.py --write",
+        ])
+
 
 ACTIVE = ("### SOUL-TH-001: First", [("ID", "SOUL-TH-001"), ("Severity", "HIGH")])
 

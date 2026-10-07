@@ -52,7 +52,10 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   files at its line; a file that matched its render once CRLF and CR were
   read as LF was reported as a length difference with no line, a BOM as a
   difference at line 1, and a byte that is not UTF-8 stopped the run with a
-  traceback. It reports a length difference only when the lengths differ.
+  traceback. It reports a length difference only when the text, read with
+  the BOM removed and CRLF and CR as LF, differs in length from the render,
+  and a shorter or longer report on a file that had a BOM or a carriage
+  return says the text was read that way.
   For `controls.json` and the rendered `.md` files, the reports that a file
   differs from its render, is shorter or longer than it, or holds a byte
   that is not UTF-8 name `python3 scripts/check_crosswalks.py --write`, and
