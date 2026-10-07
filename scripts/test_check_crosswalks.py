@@ -150,6 +150,15 @@ class RenderComparison(unittest.TestCase):
             "run python3 scripts/check_crosswalks.py --write",
         ])
 
+    def test_cr_in_place_of_an_lf_before_a_blank_line_is_also_a_difference(self):
+        rendered = '{\n  "a": 1,\n\n  "b": 2\n}\n'
+        errors = self.compare_committed_bytes(b'{\n  "a": 1,\r\n  "b": 2\n}\n', rendered)
+        self.assertEqual(errors, [
+            "RED controls.json:2: carriage return found; LF line endings required",
+            "RED controls.json:3: committed file differs from the render of the domain files; "
+            "run python3 scripts/check_crosswalks.py --write",
+        ])
+
     def test_utf8_byte_order_mark_is_red(self):
         rendered = '{\n  "a": 1\n}\n'
         errors = self.compare_committed_bytes(b"\xef\xbb\xbf" + rendered.encode("utf-8"), rendered)
@@ -171,6 +180,33 @@ class RenderComparison(unittest.TestCase):
         self.assertEqual(self.compare_committed_bytes(b'{\n  "a": 1\n}\n\n', rendered), [
             "RED controls.json:4: committed file is longer than its render of the domain files, "
             "which ends here; run python3 scripts/check_crosswalks.py --write",
+        ])
+
+    def test_length_difference_names_the_text_read_with_lf_line_endings(self):
+        # Both inputs are 6 bytes: the committed file is shorter only once CRLF is read as LF.
+        self.assertEqual(self.compare_committed_bytes(b"a\r\nb\r\n", "a\nb\nc\n"), [
+            "RED controls.json:1: carriage return found; LF line endings required",
+            "RED controls.json:3: committed file, with line endings read as LF, is shorter than its "
+            "render of the domain files, which continues here; run python3 scripts/check_crosswalks.py --write",
+        ])
+        self.assertEqual(self.compare_committed_bytes(b"a\rb\rc\r\r", "a\nb\nc\n"), [
+            "RED controls.json:1: carriage return found; LF line endings required",
+            "RED controls.json:4: committed file, with line endings read as LF, is longer than its "
+            "render of the domain files, which ends here; run python3 scripts/check_crosswalks.py --write",
+        ])
+
+    def test_length_difference_names_the_text_with_the_bom_removed(self):
+        # 7 committed bytes against a 6-byte render: shorter only once the BOM is removed.
+        self.assertEqual(self.compare_committed_bytes(b"\xef\xbb\xbfa\nb\n", "a\nb\nc\n"), [
+            "RED controls.json:1: file starts with a UTF-8 BOM",
+            "RED controls.json:3: committed file, with its BOM removed, is shorter than its "
+            "render of the domain files, which continues here; run python3 scripts/check_crosswalks.py --write",
+        ])
+        self.assertEqual(self.compare_committed_bytes(b"\xef\xbb\xbfa\r\nb\r\nc\r\n\r\n", "a\nb\nc\n"), [
+            "RED controls.json:1: file starts with a UTF-8 BOM",
+            "RED controls.json:1: carriage return found; LF line endings required",
+            "RED controls.json:4: committed file, with its BOM removed and line endings read as LF, is longer "
+            "than its render of the domain files, which ends here; run python3 scripts/check_crosswalks.py --write",
         ])
 
 

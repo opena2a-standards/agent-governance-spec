@@ -474,9 +474,13 @@ def compare_render(errors, rel, committed, rendered, source):
     A UTF-8 BOM, a carriage return, or a byte that is not UTF-8 is reported
     first, the BOM and the carriage return in the words check_bytes uses for
     the CSV files. The text is then compared with the BOM removed and CRLF or
-    CR read as LF, so a file whose only difference is its line endings gets
-    the carriage-return line alone, and a length difference is reported only
-    when the lengths differ.
+    CR read as LF, so a file that matches its render once CRLF and CR are read
+    as LF gets the carriage-return line alone, and a length difference is
+    reported only when the lengths of that text differ. A CR that replaced the
+    LF before an LF is read with that LF as one CRLF, so the line it ended is
+    lost and that file also gets a difference report. A shorter or longer
+    report on a file that had a BOM or a carriage return names how its text
+    was read.
     """
     if committed is None:
         fail(errors, rel, "file is missing")
@@ -484,13 +488,16 @@ def compare_render(errors, rel, committed, rendered, source):
     if committed == rendered.encode("utf-8"):
         return
     data = committed
+    read_as = []
     if data.startswith(b"\xef\xbb\xbf"):
         fail(errors, f"{rel}:1", "file starts with a UTF-8 BOM")
         data = data[3:]
+        read_as.append("its BOM removed")
     if b"\r" in data:
         line = data[: data.index(b"\r")].count(b"\n") + 1
         fail(errors, f"{rel}:{line}", "carriage return found; LF line endings required")
         data = data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+        read_as.append("line endings read as LF")
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError as exc:
@@ -501,10 +508,11 @@ def compare_render(errors, rel, committed, rendered, source):
         return
     pos = len(os.path.commonprefix([text, rendered]))
     where = f"{rel}:{text.count(chr(10), 0, pos) + 1}"
+    subject = f"committed file, with {' and '.join(read_as)}," if read_as else "committed file"
     if pos == len(text):
-        fail(errors, where, f"committed file is shorter than its render of {source}, which continues here; {WRITE_HINT}")
+        fail(errors, where, f"{subject} is shorter than its render of {source}, which continues here; {WRITE_HINT}")
     elif pos == len(rendered):
-        fail(errors, where, f"committed file is longer than its render of {source}, which ends here; {WRITE_HINT}")
+        fail(errors, where, f"{subject} is longer than its render of {source}, which ends here; {WRITE_HINT}")
     else:
         fail(errors, where, f"committed file differs from the render of {source}; {WRITE_HINT}")
 
