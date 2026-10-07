@@ -49,11 +49,14 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
 - `scripts/check_crosswalks.py` reports a carriage return or a UTF-8 BOM in
   `controls.json` or a rendered crosswalk `.md` file at its line, in the
   words it uses for the CSV files, and a byte that is not UTF-8 in those
-  files at its line; a carriage return was reported as a length difference
-  with no line, a BOM as a difference at line 1, and a byte that is not
-  UTF-8 stopped the run with a traceback. It reports a length difference
-  only when the lengths differ, and a file that differs from its render
-  names `python3 scripts/check_crosswalks.py --write`. A control in a
+  files at its line; a file that matched its render once CRLF and CR were
+  read as LF was reported as a length difference with no line, a BOM as a
+  difference at line 1, and a byte that is not UTF-8 stopped the run with a
+  traceback. It reports a length difference only when the lengths differ.
+  For `controls.json` and the rendered `.md` files, the reports that a file
+  differs from its render, is shorter or longer than it, or holds a byte
+  that is not UTF-8 name `python3 scripts/check_crosswalks.py --write`, and
+  the BOM and carriage-return reports do not. A control in a
   domain file with no `# Domain N:` heading is reported instead of stopping
   the run with a TypeError. An attribute table row outside ID, Severity,
   Applicable tiers, Status, Replaced by, and Version, a table row that is not
