@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Validate and render the OASB-2 static crosswalks under crosswalks/.
+"""Validate and render the OASB-2 static crosswalks under crosswalks/, and the
+JSON control export controls.json at the repository root.
 
 The two crosswalk CSV files are canonical. This script:
 
@@ -18,10 +19,14 @@ The two crosswalk CSV files are canonical. This script:
     crosswalks/sources/, with the ruled constants subtracted from the
     text before the scan;
   * re-renders each crosswalk .md from its CSV and requires the committed
+    file to match byte for byte;
+  * validates the attribute table of each control heading (ID, Severity,
+    Status, Replaced by, Version; specification.md sections 5.1 and 8.2),
+    renders controls.json from the domain files, and requires the committed
     file to match byte for byte.
 
 Run from anywhere:  python3 scripts/check_crosswalks.py
-Re-render the .md files from the CSVs:  python3 scripts/check_crosswalks.py --write
+Re-render the .md files and controls.json:  python3 scripts/check_crosswalks.py --write
 
 Standard library only. No network access. Exits 0 when green, 1 when red;
 each red line names the file and the row or line concerned.
@@ -30,6 +35,7 @@ each red line names the file and the row or line concerned.
 import csv
 import hashlib
 import io
+import json
 import re
 import sys
 from pathlib import Path
@@ -37,6 +43,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 CROSSWALKS = ROOT / "crosswalks"
 DOMAINS = ROOT / "domains"
+CONTROLS_EXPORT = "controls.json"
 
 HEADER = ["control_id", "control_title", "target_id", "target_title", "basis", "note"]
 BASIS_VOCABULARY = ("partially-addresses", "evidence-for", "related")
@@ -44,6 +51,14 @@ NOTE_MAX_CHARS = 200
 
 CONTROL_HEADING = re.compile(r"^### (SOUL-[A-Z]{2}-\d{3}): (.+?)\s*$")
 DOMAIN_HEADING = re.compile(r"^# Domain (\d+): (.+?)\s*$")
+ATTRIBUTE_ROW = re.compile(r"^\| \*\*(.+?)\*\* \| (.*?) \|\s*$")
+
+# Every published control ID, active or deprecated (specification.md section 8.2).
+# It moves only in a commit that adds a control.
+CONTROL_COUNT = 72
+SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW")
+STATUSES = ("draft", "active", "deprecated")
+ENTRY_VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 
 BANNED_WORDS = (
     "compliant", "compliance", "conforms", "conformity", "certified", "meets",
@@ -232,13 +247,32 @@ def check_bytes(errors, path, data):
         fail(errors, f"{rel}:{data.count(chr(10).encode()) + 1}", "missing trailing newline")
 
 
-def load_domains(errors):
+def display(path):
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
+def load_domains(errors, domains_dir=DOMAINS):
+    """Read the domain and control headings, and each control's attribute table.
+
+    The attribute table is the first table after a control heading; it ends at
+    the first line that is not a table row, so table-shaped lines in a later
+    example block are not read as attributes. attributes maps each control ID
+    to (location of its heading, {attribute name: value}), with surrounding
+    backticks stripped from each value.
+    """
     controls = {}
     domain_order = []
-    for path in sorted(DOMAINS.glob("1[1-9]-*.md")):
+    attributes = {}
+    for path in sorted(domains_dir.glob("1[1-9]-*.md")):
+        rel = display(path)
         number = None
         name = None
-        for line in path.read_text(encoding="utf-8").splitlines():
+        table = None
+        in_table = False
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
             m = DOMAIN_HEADING.match(line)
             if m:
                 number, name = int(m.group(1)), m.group(2)
@@ -248,11 +282,91 @@ def load_domains(errors):
             if m:
                 cid, title = m.group(1), m.group(2)
                 if cid in controls:
-                    fail(errors, str(path.relative_to(ROOT)), f"duplicate control heading {cid}")
+                    fail(errors, rel, f"duplicate control heading {cid}")
                 if number is None:
-                    fail(errors, str(path.relative_to(ROOT)), f"control {cid} before domain heading")
+                    fail(errors, rel, f"control {cid} before domain heading")
                 controls[cid] = (title, number)
-    return controls, domain_order
+                table = {}
+                in_table = False
+                attributes[cid] = (f"{rel}:{lineno}", table)
+                continue
+            if table is None:
+                continue
+            if line.startswith("|"):
+                in_table = True
+                a = ATTRIBUTE_ROW.match(line)
+                if a:
+                    key, value = a.group(1), a.group(2).strip().strip("`")
+                    if key in table:
+                        fail(errors, f"{rel}:{lineno}", f"attribute {key} repeated for {cid}")
+                    else:
+                        table[key] = value
+            elif in_table:
+                table = None
+    return controls, domain_order, attributes
+
+
+def control_entries(errors, controls, attributes):
+    """The entries of the JSON control export, in domain order then NNN.
+
+    Members per specification.md section 8.2. status and version are written on
+    every entry: an absent Status is active and an absent Version is 1.0.0.
+    replacedBy is written on deprecated entries only.
+    """
+    entries = []
+    for cid in sorted(controls, key=lambda c: (controls[c][1], int(c.rsplit("-", 1)[1]))):
+        title, number = controls[cid]
+        where, table = attributes[cid]
+        if table.get("ID") != cid:
+            fail(errors, where, f"ID attribute {table.get('ID')!r} differs from the heading {cid}")
+        severity = table.get("Severity")
+        if severity not in SEVERITIES:
+            fail(errors, where, f"Severity {severity!r} of {cid} is outside {SEVERITIES}")
+        status = table.get("Status", "active")
+        if status not in STATUSES:
+            fail(errors, where, f"Status {status!r} of {cid} is outside {STATUSES}")
+        replaced_by = table.get("Replaced by")
+        if status == "deprecated":
+            if replaced_by is None:
+                fail(errors, where, f"{cid} is deprecated and has no Replaced by attribute")
+            elif replaced_by == cid:
+                fail(errors, where, f"Replaced by of {cid} names the control itself")
+            elif replaced_by not in controls:
+                fail(errors, where, f"Replaced by {replaced_by!r} of {cid} is not a control heading in domains/")
+        elif replaced_by is not None:
+            fail(errors, where, f"{cid} has a Replaced by attribute but its status is {status!r}, not 'deprecated'")
+        version = table.get("Version", "1.0.0")
+        if not ENTRY_VERSION.match(version):
+            fail(errors, where, f"Version {version!r} of {cid} is not MAJOR.MINOR.PATCH")
+        entry = {"id": cid, "title": title, "domain": number, "severity": severity, "status": status}
+        if status == "deprecated":
+            entry["replacedBy"] = replaced_by
+        entry["version"] = version
+        entries.append(entry)
+    return entries
+
+
+def render_controls_json(entries):
+    return json.dumps({"controls": entries}, indent=2, ensure_ascii=False) + "\n"
+
+
+def compare_render(errors, rel, committed, rendered, source):
+    """Fail unless the committed text equals its render; committed is None for a missing file."""
+    if committed is None:
+        fail(errors, rel, "file is missing")
+        return
+    if committed == rendered:
+        return
+    for lineno, (a, b) in enumerate(zip(committed.splitlines() + [""], rendered.splitlines() + [""]), start=1):
+        if a != b:
+            fail(errors, f"{rel}:{lineno}", f"committed file differs from the render of {source}")
+            return
+    fail(errors, rel, "committed file length differs from its render")
+
+
+def read_committed(path):
+    """The committed text decoded from its bytes, so CRLF or CR line endings stay a difference."""
+    return path.read_bytes().decode("utf-8") if path.is_file() else None
 
 
 def load_allowlist(errors, rel_path):
@@ -477,9 +591,9 @@ def scan_banned(errors):
 def main(argv):
     write = "--write" in argv
     errors = []
-    controls, domain_order = load_domains(errors)
-    if len(controls) != 72:
-        fail(errors, "domains/", f"expected 72 control headings, found {len(controls)}")
+    controls, domain_order, attributes = load_domains(errors)
+    if len(controls) != CONTROL_COUNT:
+        fail(errors, "domains/", f"expected {CONTROL_COUNT} control headings, found {len(controls)}")
     for spec in CROSSWALK_SET:
         csv_path = CROSSWALKS / spec["csv"]
         md_path = CROSSWALKS / spec["md"]
@@ -494,30 +608,24 @@ def main(argv):
         scan_cells(errors, csv_path.relative_to(ROOT), rows)
         rendered = render_md(spec, rows, controls, domain_order)
         if write:
-            md_path.write_text(rendered, encoding="utf-8")
+            md_path.write_bytes(rendered.encode("utf-8"))
             print(f"wrote crosswalks/{spec['md']}")
-        elif not md_path.is_file():
-            fail(errors, f"crosswalks/{spec['md']}", "file is missing")
         else:
-            committed = md_path.read_text(encoding="utf-8")
-            if committed != rendered:
-                for lineno, (a, b) in enumerate(
-                    zip(committed.splitlines() + [""], rendered.splitlines() + [""]), start=1
-                ):
-                    if a != b:
-                        fail(
-                            errors,
-                            f"crosswalks/{spec['md']}:{lineno}",
-                            "committed file differs from the render of its CSV",
-                        )
-                        break
-                else:
-                    fail(errors, f"crosswalks/{spec['md']}", "committed file length differs from its render")
+            compare_render(errors, f"crosswalks/{spec['md']}", read_committed(md_path), rendered, "its CSV")
         mapped = {r[0] for r in rows}
         print(
             f"crosswalks/{spec['csv']}: {len(rows)} rows, {len(mapped)} of "
             f"{len(controls)} controls mapped, {len(controls) - len(mapped)} with no mapping asserted"
         )
+    entries = control_entries(errors, controls, attributes)
+    export_path = ROOT / CONTROLS_EXPORT
+    export = render_controls_json(entries)
+    if write:
+        export_path.write_bytes(export.encode("utf-8"))
+        print(f"wrote {CONTROLS_EXPORT}")
+    else:
+        compare_render(errors, CONTROLS_EXPORT, read_committed(export_path), export, "the domain files")
+    print(f"{CONTROLS_EXPORT}: {len(entries)} controls")
     check_ruled_digests(errors)
     check_required_prose(errors)
     scan_banned(errors)

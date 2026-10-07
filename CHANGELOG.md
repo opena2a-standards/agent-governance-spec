@@ -8,6 +8,16 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
 
 ### Added
 
+- `controls.json` at the repository root: the JSON control export named in
+  `specification.md` section 8.2, one entry per control ID with `id`,
+  `title`, `domain`, `severity`, `status`, `replacedBy` (deprecated entries
+  only), and `version`. It is generated from the domain files by
+  `scripts/check_crosswalks.py --write`, and the plain run requires the
+  committed file to equal that render byte for byte. The validator also
+  checks each control's attribute table: the ID matches its heading, the
+  severity and status are in their vocabularies, `Replaced by` is present on
+  deprecated entries only and names another control, and a version is
+  `MAJOR.MINOR.PATCH`. Tests in `scripts/test_check_crosswalks.py`.
 - Control identifier stability rule (`specification.md` section 8.2): IDs are
   never reused or renumbered; a withdrawn control is deprecated with
   `replacedBy`; the status vocabulary `draft`, `active`, `deprecated` and the
@@ -33,6 +43,14 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   unified total (118, the sum 72 + 46, not measured on its own).
 - README Scoring section aligned with `scoring.md` grades and `conformance.md`
   (removes the invented score-band "levels" vocabulary). (#7, 2026-07-02)
+
+### Fixed
+
+- `scripts/check_crosswalks.py` compares a committed rendered file with its
+  render byte for byte, as documented: a crosswalk `.md` file or
+  `controls.json` whose line endings are CRLF or CR is now reported, where it
+  previously passed. `--write` writes those files with LF line endings on
+  every platform.
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
