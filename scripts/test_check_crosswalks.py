@@ -52,7 +52,7 @@ class CommittedExport(unittest.TestCase):
         self.assertEqual(self.errors, [])
 
     def test_committed_file_equals_the_render_of_the_domain_files(self):
-        committed = (cc.ROOT / cc.CONTROLS_EXPORT).read_text(encoding="utf-8")
+        committed = cc.read_committed(cc.ROOT / cc.CONTROLS_EXPORT)
         self.assertEqual(committed, cc.render_controls_json(self.entries))
 
     def test_one_entry_per_control_heading_with_the_section_8_2_members(self):
@@ -92,6 +92,25 @@ class RenderComparison(unittest.TestCase):
         errors = []
         cc.compare_render(errors, "controls.json", "{}\n", "{}\n", "the domain files")
         self.assertEqual(errors, [])
+
+    def compare_committed_bytes(self, data, rendered):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "controls.json"
+            path.write_bytes(data)
+            errors = []
+            cc.compare_render(errors, "controls.json", cc.read_committed(path), rendered, "the domain files")
+        return errors
+
+    def test_committed_bytes_equal_to_the_render_are_green(self):
+        rendered = '{\n  "a": 1\n}\n'
+        self.assertEqual(self.compare_committed_bytes(rendered.encode("utf-8"), rendered), [])
+
+    def test_crlf_or_cr_line_endings_are_red(self):
+        rendered = '{\n  "a": 1\n}\n'
+        for ending in ("\r\n", "\r"):
+            errors = self.compare_committed_bytes(rendered.replace("\n", ending).encode("utf-8"), rendered)
+            self.assertEqual(errors, ["RED controls.json: committed file length differs from its render"],
+                             repr(ending))
 
 
 ACTIVE = ("### SOUL-TH-001: First", [("ID", "SOUL-TH-001"), ("Severity", "HIGH")])

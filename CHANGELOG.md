@@ -44,6 +44,14 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
 - README Scoring section aligned with `scoring.md` grades and `conformance.md`
   (removes the invented score-band "levels" vocabulary). (#7, 2026-07-02)
 
+### Fixed
+
+- `scripts/check_crosswalks.py` compares a committed rendered file with its
+  render byte for byte, as documented: a crosswalk `.md` file or
+  `controls.json` whose line endings are CRLF or CR is now reported, where it
+  previously passed. `--write` writes those files with LF line endings on
+  every platform.
+
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
 ### Changed

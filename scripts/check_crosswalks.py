@@ -365,7 +365,8 @@ def compare_render(errors, rel, committed, rendered, source):
 
 
 def read_committed(path):
-    return path.read_text(encoding="utf-8") if path.is_file() else None
+    """The committed text decoded from its bytes, so CRLF or CR line endings stay a difference."""
+    return path.read_bytes().decode("utf-8") if path.is_file() else None
 
 
 def load_allowlist(errors, rel_path):
@@ -607,7 +608,7 @@ def main(argv):
         scan_cells(errors, csv_path.relative_to(ROOT), rows)
         rendered = render_md(spec, rows, controls, domain_order)
         if write:
-            md_path.write_text(rendered, encoding="utf-8")
+            md_path.write_bytes(rendered.encode("utf-8"))
             print(f"wrote crosswalks/{spec['md']}")
         else:
             compare_render(errors, f"crosswalks/{spec['md']}", read_committed(md_path), rendered, "its CSV")
@@ -620,7 +621,7 @@ def main(argv):
     export_path = ROOT / CONTROLS_EXPORT
     export = render_controls_json(entries)
     if write:
-        export_path.write_text(export, encoding="utf-8")
+        export_path.write_bytes(export.encode("utf-8"))
         print(f"wrote {CONTROLS_EXPORT}")
     else:
         compare_render(errors, CONTROLS_EXPORT, read_committed(export_path), export, "the domain files")
