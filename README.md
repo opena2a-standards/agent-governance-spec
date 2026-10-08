@@ -65,7 +65,7 @@ What you can do today: scan a governance file for coverage.
 npx hackmyagent scan-soul
 ```
 
-Where it stops today: a scan measures what the file covers. It does not stop a running agent from exceeding what the file says; the broker and authorization layer (AAP) do not read the governance file today.
+Where it stops today: a scan measures what the file covers. It does not stop a running agent from exceeding what the file says; the authorization layer, the Agent Authorization Protocol (AAP), does not read the governance file today.
 
 ### An agent takes an action nobody approved
 
