@@ -51,6 +51,39 @@ npx hackmyagent scan-soul
 
 ---
 
+## Use cases
+
+### Your company runs a hundred agents and an auditor asks what each one promised
+
+Every agent's rules live in a prompt somewhere, and no two are written alike. The auditor asks what each agent refuses to do, how it handles personal data and when it stops for a human, and the answer is a folder of prompts nobody can compare.
+
+This specification defines the governance file, `SOUL.md`, that an agent carries: nine behavioral domains, 72 controls and three conformance levels, so "what did this agent commit to" has a checkable answer and a coverage score instead of a recollection.
+
+What you can do today: scan a governance file for coverage.
+
+```bash
+npx hackmyagent scan-soul
+```
+
+Where it stops today: a scan measures what the file covers. It does not stop a running agent from exceeding what the file says; the broker and authorization layer (AAP) do not read the governance file today.
+
+### An agent takes an action nobody approved
+
+A tool-using agent can refund an order, delete a record or send mail, and nobody wrote down which of those need a person to say yes. The customer whose order was refunded twice, or whose record is gone, is the one who finds out.
+
+What you can do today:
+
+```bash
+cp templates/tool-using.md SOUL.md
+npx hackmyagent scan-soul
+```
+
+Where it stops today: the same limit applies; the file is a declared contract measured by a scanner, not a runtime control.
+
+Why you can check this yourself: [`specification.md`](specification.md) is the full text; [`controls.json`](controls.json) is the 72-control export generated from [`domains/`](domains/) and validated by [`scripts/check_crosswalks.py`](scripts/check_crosswalks.py); [`templates/`](templates/) and [`examples/`](examples/) are complete files; [`integrations/github-action.yml`](integrations/github-action.yml) runs the scan on pull requests; and the scanner is [HackMyAgent](https://github.com/opena2a-org/hackmyagent) on npm.
+
+---
+
 ## Specification Overview
 
 OASB-2 defines **9 governance domains** containing **72 controls** that cover the behavioral surface area of an AI agent deployment.
