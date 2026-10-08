@@ -81,7 +81,7 @@ cp templates/tool-using.md SOUL.md
 npx hackmyagent scan-soul
 ```
 
-The template is a starting point. Until its bracketed placeholders are replaced, a scan reports partial coverage.
+The template is a starting point: scanned as copied, it reports partial coverage.
 
 Where it stops today: the same limit applies; the file is a declared contract measured by a scanner, not a runtime control.
 
