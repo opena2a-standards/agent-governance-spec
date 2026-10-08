@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Tests for scripts/check_crosswalks.py: the JSON control export, the render
 comparison, the attribute tables, the section 5.3 registry table, and the
-.gitattributes line-ending pins of the files it compares byte for byte.
+.gitattributes line-ending pins of the files it compares byte for byte; and
+the terms README.md uses in its prose.
 
 Run from anywhere:  python3 scripts/test_check_crosswalks.py
 
 Standard library only. The tests read the committed domain files,
-controls.json, and specification.md, ask git for the eol attribute of the
+controls.json, specification.md, and README.md, ask git for the eol attribute of the
 byte-checked files, and write no tracked file: the synthetic domain files and
 the repository copy that main() runs against are written to a temporary
 directory, and bytecode caching is turned off before the import.
@@ -15,6 +16,7 @@ directory, and bytecode caching is turned off before the import.
 import contextlib
 import io
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -564,6 +566,31 @@ class MainRun(unittest.TestCase):
         self.assertIn(f"RED crosswalks/{spec['csv']}:1: header must be exactly {','.join(cc.HEADER)}\n", out)
         self.assertNotIn(f"crosswalks/{spec['csv']}: ", out)
         self.assertIn("\n1 problem(s) found", out)
+
+
+class ReadmeTerms(unittest.TestCase):
+    """README.md prose: an acronym in parentheses follows its expansion, and a
+    component the specification and domain files never name is not named."""
+
+    def setUp(self):
+        self.readme = (cc.ROOT / "README.md").read_text(encoding="utf-8")
+
+    def test_an_acronym_in_parentheses_follows_its_expansion(self):
+        for match in re.finditer(r" \(([A-Z][A-Z0-9]{1,5})\)", self.readme):
+            acronym = match.group(1)
+            words = re.findall(r"[A-Za-z0-9]+", self.readme[:match.start()])[-len(acronym):]
+            with self.subTest(acronym=acronym):
+                self.assertEqual("".join(word[0] for word in words).upper(), acronym,
+                                 f"README.md: ({acronym}) follows {' '.join(words)!r}, not its expansion")
+
+    def test_no_component_the_specification_does_not_name(self):
+        defined = (cc.ROOT / cc.SPECIFICATION).read_text(encoding="utf-8").lower()
+        defined += "".join(path.read_text(encoding="utf-8").lower() for path in sorted(cc.DOMAINS.glob("*.md")))
+        for term in ("broker",):
+            with self.subTest(term=term):
+                if term not in defined:
+                    lines = [n for n, line in enumerate(self.readme.splitlines(), 1) if term in line.lower()]
+                    self.assertEqual(lines, [], f"README.md names {term!r}, which the specification does not")
 
 
 if __name__ == "__main__":

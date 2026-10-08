@@ -65,18 +65,23 @@ What you can do today: scan a governance file for coverage.
 npx hackmyagent scan-soul
 ```
 
-Where it stops today: a scan measures what the file covers. It does not stop a running agent from exceeding what the file says; the broker and authorization layer (AAP) do not read the governance file today.
+Where it stops today: a scan measures what the file covers. It does not stop a running agent from exceeding what the file says; the authorization layer, the Agent Authorization Protocol (AAP), does not read the governance file today.
 
 ### An agent takes an action nobody approved
 
 A tool-using agent can refund an order, delete a record or send mail, and nobody wrote down which of those need a person to say yes. The customer whose order was refunded twice, or whose record is gone, is the one who finds out.
 
-What you can do today:
+What you can do today: copy the tool-using template, write in your agent's own tools, actions and approvals, then scan it.
 
 ```bash
 cp templates/tool-using.md SOUL.md
+
+# Edit to match your agent's actual constraints
+# Then scan for coverage
 npx hackmyagent scan-soul
 ```
+
+The template is a starting point: scanned as copied, it reports partial coverage.
 
 Where it stops today: the same limit applies; the file is a declared contract measured by a scanner, not a runtime control.
 
@@ -264,6 +269,7 @@ agent-governance-spec/
   scripts/
     check_crosswalks.py       Validates crosswalks/, controls.json and the control registry; --write re-renders
     test_check_crosswalks.py  Tests for the validator
+    test_readme.py            Tests for the README command blocks
   domains/
     README.md                 Domain overview
     11-trust-hierarchy.md     Domain 11: Trust Hierarchy

@@ -76,6 +76,15 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   The validator now holds the table to the domain files.
 - README Repository Structure lists `CHANGELOG.md`, `controls.json`,
   `scripts/`, and `integrations/`.
+- The README Use cases section expands AAP as the Agent Authorization
+  Protocol and no longer names a broker, a component the specification does
+  not define. Tests in `scripts/test_check_crosswalks.py` require an acronym
+  in parentheses in README.md to follow its expansion.
+- The README use case that copies `templates/tool-using.md` includes the
+  edit step before the scan, as Quick Start does, and states that an
+  unedited template scans as partial coverage. `scripts/test_readme.py`
+  checks that every README command block that copies a template edits it
+  before scanning. (#27)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
