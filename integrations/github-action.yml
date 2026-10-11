@@ -10,7 +10,12 @@
 # Optional: set a minimum score with the MIN_GOVERNANCE_SCORE repository
 # variable (Settings > Secrets and variables > Actions > Variables). The job
 # fails when the score is below it. Unset, the minimum is 0 and the job only
-# reports the score.
+# reports the score. When the scan measured nothing (no governance file, or one
+# that is unreadable or empty), the job prints the reason, and fails only when
+# a minimum is set.
+#
+# The scanner version is pinned in the "Run governance scan" step. To move to
+# a newer release, change the version there and check the keys this job reads.
 
 name: Agent Governance Scan
 
@@ -60,28 +65,41 @@ jobs:
       - name: Run governance scan
         id: scan
         run: |
-          npx hackmyagent@latest scan-soul --json > scan-result.json || true
-          SCORE=$(jq -r '.score // 0' scan-result.json 2>/dev/null || echo "0")
+          # Pinned: a new scanner release changes the result only through a commit here.
+          npx hackmyagent@0.33.2 scan-soul --json > scan-result.json || true
+          # A run that measured nothing (exit code 2) has a null score, left empty
+          # here, and gate.reason names the case.
+          SCORE=$(jq -r '.score // ""' scan-result.json 2>/dev/null || echo "")
           GRADE=$(jq -r '.grade // "F"' scan-result.json 2>/dev/null || echo "F")
           CONFORMANCE=$(jq -r '.conformance // "NONE"' scan-result.json 2>/dev/null || echo "NONE")
           FILE=$(jq -r '.file // "none"' scan-result.json 2>/dev/null || echo "none")
+          REASON=$(jq -r '.gate.reason // ""' scan-result.json 2>/dev/null || echo "")
           {
             echo "score=$SCORE"
             echo "grade=$GRADE"
             echo "conformance=$CONFORMANCE"
             echo "file=$FILE"
+            echo "reason=$REASON"
           } >> "$GITHUB_OUTPUT"
 
       - name: Comment on PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
+        env:
+          SCORE: ${{ steps.scan.outputs.score }}
+          GRADE: ${{ steps.scan.outputs.grade }}
+          CONFORMANCE: ${{ steps.scan.outputs.conformance }}
+          FILE: ${{ steps.scan.outputs.file }}
+          REASON: ${{ steps.scan.outputs.reason }}
         with:
           script: |
-            const score = '${{ steps.scan.outputs.score }}';
-            const grade = '${{ steps.scan.outputs.grade }}';
-            const conformance = '${{ steps.scan.outputs.conformance }}';
-            const file = '${{ steps.scan.outputs.file }}';
+            // The scan outputs arrive through env:, so no value is pasted into this source.
+            const { SCORE: score, GRADE: grade, CONFORMANCE: conformance, FILE: file, REASON: reason } = process.env;
             const fs = require('fs');
+
+            const scoreLine = score
+              ? `**Score:** ${score}/100 (Grade: ${grade})`
+              : `**Score:** not measured (\`${reason || 'no score in scan-result.json'}\`)`;
 
             let domainTable = '';
             try {
@@ -90,6 +108,11 @@ jobs:
               if (Array.isArray(result.domains) && result.domains.length > 0) {
                 domainTable = '\n| Domain | Score | Status |\n|--------|-------|--------|\n';
                 for (const d of result.domains) {
+                  // A domain the agent profile leaves out has no controls to score.
+                  if (d.skippedByProfile === true) {
+                    domainTable += `| ${d.domain} | Skipped by profile | Not applicable |\n`;
+                    continue;
+                  }
                   const pct = d.percentage;
                   const status = pct >= 75 ? 'Pass' : pct >= 50 ? 'Partial' : 'Needs work';
                   domainTable += `| ${d.domain} | ${d.passed}/${d.total} (${pct}%) | ${status} |\n`;
@@ -99,7 +122,7 @@ jobs:
 
             const body = `## Agent Governance Scan
 
-            **Score:** ${score}/100 (Grade: ${grade})
+            ${scoreLine}
             **Conformance:** ${conformance}
             **File:** \`${file}\`
             ${domainTable}
@@ -136,6 +159,7 @@ jobs:
         if: always()
         env:
           SCORE: ${{ steps.scan.outputs.score }}
+          REASON: ${{ steps.scan.outputs.reason }}
           MIN_SCORE: ${{ vars.MIN_GOVERNANCE_SCORE || '0' }}
         run: |
           case "$MIN_SCORE" in
@@ -144,9 +168,24 @@ jobs:
               exit 1
               ;;
           esac
-          case "$SCORE" in
-            ''|*[!0-9]*) SCORE=0 ;;
+          # gate.reason first: a run that measured nothing has no score to compare.
+          case "$REASON" in
+            no-governance-file) NOT_MEASURED="no governance file was found" ;;
+            governance-file-unreadable) NOT_MEASURED="the governance file could not be read" ;;
+            governance-file-empty) NOT_MEASURED="the governance file is empty" ;;
+            *) NOT_MEASURED="" ;;
           esac
+          case "$SCORE" in
+            ''|*[!0-9]*) [ -n "$NOT_MEASURED" ] || NOT_MEASURED="the scan reported no score; see scan-result.json" ;;
+          esac
+          if [ -n "$NOT_MEASURED" ]; then
+            echo "Nothing was measured: $NOT_MEASURED (gate.reason: ${REASON:-none})."
+            if [ "$MIN_SCORE" -gt 0 ]; then
+              echo "There is no score to compare with the minimum $MIN_SCORE."
+              exit 1
+            fi
+            exit 0
+          fi
           if [ "$SCORE" -lt "$MIN_SCORE" ]; then
             echo "Governance score $SCORE is below minimum $MIN_SCORE"
             exit 1

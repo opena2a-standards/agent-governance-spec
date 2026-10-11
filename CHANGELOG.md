@@ -594,6 +594,24 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   requires the swap test to fail each time. The two tests are now named
   once, on the test class, where the swap test and its test both read
   them. (#109)
+- The CI examples under `integrations/` no longer report a run that
+  measured nothing as score 0. A scan that found no governance file, or one
+  that is unreadable or empty, has a null score, which both examples turned
+  into 0, so with a minimum set the job failed as "score 0 is below minimum".
+  They now read `gate.reason` first, print what was missing, and fail only
+  when a minimum is set; the GitHub Action's comment shows the score as not
+  measured. The comment lists a domain that the agent profile leaves out as
+  not applicable instead of "0/0 (0%) Needs work", and its script reads the
+  scan outputs through `env:` instead of pasting them into the script
+  source. The GitLab CI example keeps `scan-result.json` as an artifact also
+  when the job fails. Both examples pin hackmyagent 0.33.2 instead of
+  installing the latest release on every run, and `integrations/README.md`
+  states the trade-off. `--help` and `-h` print the usage of
+  `scripts/check_docs_prose.py` and exit 0; they were read as a directory
+  name. Tests in `scripts/test_github_action.py`,
+  `scripts/test_integrations.py`, `scripts/test_gitlab_ci.py`,
+  `scripts/test_scan_soul_commands.py` and
+  `scripts/test_check_docs_prose.py`. (#51)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

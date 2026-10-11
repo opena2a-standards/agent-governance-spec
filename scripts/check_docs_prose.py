@@ -14,7 +14,7 @@
 Run from anywhere:  python3 scripts/check_docs_prose.py [ROOT]
 
 ROOT is the directory to check. Without it, the repository that holds this
-script is checked.
+script is checked. --help or -h prints the usage message and exits 0.
 
 Standard library only. Exit 0 when the prose is clean; exit 1 after printing
 one "file:line: message" line per finding; exit 2 after printing a usage
@@ -223,6 +223,9 @@ def findings(text):
 
 def main(argv=None):
     args = list(argv[1:]) if argv else []
+    if args in (["--help"], ["-h"]):
+        print(USAGE)
+        return 0
     if len(args) > 1:
         print(f"{SELF}: expected at most one argument, got {len(args)}\n{USAGE}", file=sys.stderr)
         return 2

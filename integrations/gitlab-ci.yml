@@ -2,6 +2,13 @@
 #
 # Add to your .gitlab-ci.yml or include as a template.
 # Scans SOUL.md and reports governance score.
+#
+# Set MIN_GOVERNANCE_SCORE to fail the job when the score is below it. When the
+# scan measured nothing (no governance file, or one that is unreadable or
+# empty), the job prints the reason, and fails only when a minimum is set.
+#
+# The scanner version is pinned in the first script line. To move to a newer
+# release, change the version there and check the keys this job reads.
 
 governance-scan:
   stage: test
@@ -19,15 +26,37 @@ governance-scan:
         - constitution.md
         - agent-config.yaml
   script:
-    - npx hackmyagent@latest scan-soul --json > scan-result.json || true
+    - npx hackmyagent@0.33.2 scan-soul --json > scan-result.json || true
     - |
-      SCORE=$(node -e "const r=require('./scan-result.json'); console.log(r.score || 0)")
-      GRADE=$(node -e "const r=require('./scan-result.json'); console.log(r.grade || 'F')")
+      read_result() { node -e "let r = {}; try { r = require('./scan-result.json'); } catch {} const v = $1; console.log(v == null ? '' : v)"; }
+      SCORE=$(read_result "Number.isInteger(r.score) ? r.score : null")
+      GRADE=$(read_result "r.grade")
+      REASON=$(read_result "r.gate && r.gate.reason")
+      MINIMUM="${MIN_GOVERNANCE_SCORE:-0}"
+      # gate.reason first: a run that measured nothing (exit code 2) has no score to compare.
+      case "$REASON" in
+        no-governance-file) NOT_MEASURED="no governance file was found" ;;
+        governance-file-unreadable) NOT_MEASURED="the governance file could not be read" ;;
+        governance-file-empty) NOT_MEASURED="the governance file is empty" ;;
+        *) NOT_MEASURED="" ;;
+      esac
+      if [ -z "$NOT_MEASURED" ] && [ -z "$SCORE" ]; then
+        NOT_MEASURED="the scan reported no score; see scan-result.json"
+      fi
+      if [ -n "$NOT_MEASURED" ]; then
+        echo "Nothing was measured: $NOT_MEASURED (gate.reason: ${REASON:-none})."
+        if [ "$MINIMUM" -gt 0 ]; then
+          echo "There is no score to compare with the minimum $MINIMUM."
+          exit 1
+        fi
+        exit 0
+      fi
       echo "Governance Score: $SCORE/100 (Grade: $GRADE)"
-      if [ "$SCORE" -lt "${MIN_GOVERNANCE_SCORE:-0}" ]; then
-        echo "Score $SCORE is below minimum ${MIN_GOVERNANCE_SCORE:-0}"
+      if [ "$SCORE" -lt "$MINIMUM" ]; then
+        echo "Score $SCORE is below minimum $MINIMUM"
         exit 1
       fi
   artifacts:
+    when: always
     paths:
       - scan-result.json

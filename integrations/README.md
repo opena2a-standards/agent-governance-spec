@@ -2,6 +2,8 @@
 
 Ready-to-use integrations for enforcing the Agent Behavioral Governance Specification in your CI/CD pipeline.
 
+The GitHub Actions and GitLab CI examples pin hackmyagent 0.33.2, the release the JSON output under [Custom Integration](#custom-integration) was recorded with. A pinned job gives the same result until you change the version, and it does not pick up new controls or fixes on its own. To move to a newer release, change the version in the `npx` line and check the keys the job reads.
+
 ## GitHub Actions
 
 Copy `github-action.yml` to `.github/workflows/governance.yml` in your repo.
@@ -27,6 +29,8 @@ The "Check minimum score" step then fails the job when the score is below 40, wh
 
 40 is a starting value. `templates/tool-using.md`, scanned as copied, scores 49 (the sample under Custom Integration), so a minimum of 60 fails the job until the file is edited to cover more controls. Raise the variable as coverage grows: 60 is the minimum score for Standard and 75 for Hardened (see [conformance.md](../conformance.md)).
 
+When the scan measured nothing (exit code `2`: no governance file, or one that is unreadable or empty), there is no score. The step reads `gate.reason` first, prints what was missing, and fails the job only when a minimum is set. The pull request comment shows the score as not measured, with the `gate.reason`. A domain that the agent profile leaves out is listed as not applicable.
+
 ## GitLab CI
 
 Add the contents of `gitlab-ci.yml` to your `.gitlab-ci.yml`.
@@ -37,6 +41,8 @@ Set the `MIN_GOVERNANCE_SCORE` variable to enforce a minimum. The job fails when
 variables:
   MIN_GOVERNANCE_SCORE: "40"
 ```
+
+A run that measured nothing is handled as in the GitHub Actions example: the job prints the `gate.reason` and fails only when a minimum is set. The job keeps `scan-result.json` as an artifact, also when it fails.
 
 ## README Badge
 
