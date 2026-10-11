@@ -64,7 +64,8 @@ class CredentialFiles(unittest.TestCase):
 
 class StrippedDocstrings(unittest.TestCase):
     def test_docstring_test_skips_with_a_reason_under_python3_OO(self):
-        # python3 -OO sets every __doc__ to None, so the test that reads the class docstring skips, and the run passes.
+        # python3 -OO strips the docstrings of this file, so the test that reads the class docstring skips, and
+        # the run passes.
         if sys.flags.optimize >= 2:
             self.skipTest("this is the python3 -OO run that the test starts")
         result = subprocess.run([sys.executable, "-OO", str(Path(__file__).resolve()), "-v"],
