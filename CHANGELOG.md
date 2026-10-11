@@ -349,6 +349,24 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   dropped `example`. The new cases of one break each cover the comma, the
   semicolon, the colon and the 11 words; the cases for the edges of a
   sentence or parenthetical predate #66. (#68)
+- The two tests in `scripts/test_check_docs_prose.py` that build a git
+  repository add their files with `git add -f`. A global gitignore that
+  listed `vendor/` made `git add` exit 1, and the test reported that as
+  "git is not available" and skipped. A git command that fails now skips
+  the test with the command and its error, and a new test runs both tests
+  under a global ignore file that matches their files and fails on a skip.
+  The docstrings of `excluded()` and `tracked_markdown()` in
+  `scripts/check_docs_prose.py` say root-relative (relative to the checked
+  directory), not repository-relative: a run with the ROOT argument `sub`
+  names `sub/b.md` as `b.md`. The module docstring says that
+  `CHANGELOG.md` and `changelog.d/` are skipped at the root of the checked
+  directory, since a run on the whole repository reads `sub/CHANGELOG.md`
+  and `sub/changelog.d/1.md`. The entry for #68 should have said that a
+  README in an example or examples directory is read unless a directory
+  named in that item, other than `example` or `examples`, holds it:
+  `vendor/` is named in another item, and `examples/vendor/README.md` is
+  read. It should also have said that the test adds one case per word,
+  and one for a capitalized No. (#70)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

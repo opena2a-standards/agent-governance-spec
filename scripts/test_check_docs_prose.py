@@ -214,6 +214,17 @@ class Scope(unittest.TestCase):
         ):
             self.assertFalse(cdp.excluded(rel), rel)
 
+    def test_paths_are_relative_to_the_checked_directory(self):
+        # A run with the ROOT argument sub names sub/b.md as b.md, so the docstrings say root-relative.
+        with tempfile.TemporaryDirectory() as tmp:
+            write_tree(tmp, {"sub/b.md": "A clause -- joined.\n"})
+            with mock.patch.object(cdp.subprocess, "run", side_effect=OSError("no git")):
+                self.assertEqual(["b.md"], cdp.tracked_markdown(Path(tmp) / "sub"))
+        for function in (cdp.excluded, cdp.listed_markdown, cdp.tracked_markdown):
+            with self.subTest(function=function.__name__):
+                self.assertIn("root-relative", function.__doc__.lower())
+                self.assertNotIn("repository-relative", function.__doc__.lower())
+
     def test_tracked_set_is_the_committed_markdown_minus_exclusions(self):
         rels = cdp.tracked_markdown(cdp.ROOT)
         self.assertIn("README.md", rels)
@@ -247,6 +258,25 @@ def write_tree(root, files):
         path.write_text(text, encoding="utf-8")
 
 
+def git_repository(test, root, paths):
+    """Make root a git repository that tracks paths, and return the environment its git commands ran in.
+
+    `git add -f` adds a path that an ignore file matches, such as a global gitignore that lists vendor/, which
+    `git add` refuses with exit 1. The test is skipped when git is not installed, or with the command and its
+    error when a git command fails.
+    """
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    for command in (["init", "-q"], ["add", "-f", "--", *paths]):
+        try:
+            subprocess.run(["git", "-C", str(root), *command], check=True, capture_output=True, env=env)
+        except OSError:
+            test.skipTest("git is not available")
+        except subprocess.CalledProcessError as error:
+            reason = error.stderr.decode("utf-8", "replace").strip()
+            test.skipTest("git {} failed: {}".format(" ".join(command), reason))
+    return env
+
+
 class CommandLine(unittest.TestCase):
     HINT = "see the rules at the top of scripts/check_docs_prose.py\n"
 
@@ -276,18 +306,13 @@ class CommandLine(unittest.TestCase):
                 self.assertEqual((0, "", ""), run_main(tmp))
 
     def test_tracked_md_and_mdx_files_are_read_and_untracked_ones_are_not(self):
-        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
         with tempfile.TemporaryDirectory() as tmp:
             write_tree(tmp, {
                 "a.md": "A clause -- joined.\n",
                 "b.mdx": "Another clause -- joined.\n",
                 "untracked.md": "Not tracked -- not read.\n",
             })
-            try:
-                for command in (["init", "-q"], ["add", "a.md", "b.mdx"]):
-                    subprocess.run(["git", "-C", tmp, *command], check=True, capture_output=True, env=env)
-            except (OSError, subprocess.CalledProcessError):
-                self.skipTest("git is not available")
+            env = git_repository(self, tmp, ["a.md", "b.mdx"])
             with mock.patch.dict(os.environ, env, clear=True):
                 code, out, err = run_main(tmp)
         self.assertEqual(1, code)
@@ -522,15 +547,22 @@ class Contributing(unittest.TestCase):
         self.assertIn("`python3 scripts/check_docs_prose.py` checks", described)
         self.assertIn("`node_modules/`, `vendor/`, `dist/` or `build/` at the repository root", described)
 
+    def test_each_exclusion_matched_at_the_start_of_the_path_is_stated_at_the_root(self):
+        # CHANGELOG.md and the prefixes match only at the start of the path, so a run on the whole repository reads
+        # sub/CHANGELOG.md and sub/changelog.d/1.md. The item of the docstring that names each says so.
+        items = [" ".join(i.split()) for i in checked_list(cdp.__doc__).split("\n  * ")[1:]]
+        for name in cdp.EXCLUDED_FILES + cdp.EXCLUDED_PREFIXES:
+            with self.subTest(name=name):
+                rel = name if name in cdp.EXCLUDED_FILES else name + "a.md"
+                self.assertTrue(cdp.excluded(rel))
+                self.assertFalse(cdp.excluded("sub/" + rel))
+                item, = [i for i in items if re.search(r"(?<![\w./-]){}(?!\w)".format(re.escape(name)), i)]
+                self.assertIn("at the root of the checked directory", item)
+
     def test_prefix_exclusions_apply_at_the_root_given_as_the_argument(self):
-        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
         with tempfile.TemporaryDirectory() as tmp:
             write_tree(tmp, {"sub/vendor/a.md": "A clause -- joined.\n", "sub/b.md": "Another clause -- joined.\n"})
-            try:
-                for command in (["init", "-q"], ["add", "sub/vendor/a.md", "sub/b.md"]):
-                    subprocess.run(["git", "-C", tmp, *command], check=True, capture_output=True, env=env)
-            except (OSError, subprocess.CalledProcessError):
-                self.skipTest("git is not available")
+            env = git_repository(self, tmp, ["sub/vendor/a.md", "sub/b.md"])
             with mock.patch.dict(os.environ, env, clear=True):
                 at_repository = run_main(tmp)
                 at_subdirectory = run_main(str(Path(tmp) / "sub"))
@@ -612,6 +644,37 @@ class Contributing(unittest.TestCase):
             "README.mdx files in example directories are checked.",
         ):
             self.assertEqual(1, len(readme_exception_statements(text)), text)
+
+
+class GitRepositories(unittest.TestCase):
+    """The tests that build a git repository run when an ignore file of the user's matches their files."""
+
+    def test_a_global_gitignore_that_matches_the_fixture_files_skips_no_test(self):
+        # `git add` exits 1 for an ignored path, which these tests used to report as "git is not available".
+        paths = ["a.md", "b.mdx", "sub/vendor/a.md"]
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as repo:
+            ignore = Path(home) / "ignore"
+            write_tree(home, {
+                ".gitconfig": '[core]\n\texcludesFile = "{}"\n'.format(ignore),
+                "ignore": "vendor/\n*.md\n*.mdx\n",
+            })
+            env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+            env.update(HOME=home, XDG_CONFIG_HOME=str(Path(home) / ".config"))
+            try:
+                subprocess.run(["git", "-C", repo, "init", "-q"], check=True, capture_output=True, env=env)
+                ignored = subprocess.run(["git", "-C", repo, "check-ignore", *paths], capture_output=True, env=env)
+            except (OSError, subprocess.CalledProcessError):
+                self.skipTest("git is not available")
+            self.assertEqual(paths, ignored.stdout.decode("utf-8").split(), "the global ignore file is not in effect")
+            result = unittest.TestResult()
+            with mock.patch.dict(os.environ, env, clear=True):
+                unittest.TestSuite([
+                    CommandLine("test_tracked_md_and_mdx_files_are_read_and_untracked_ones_are_not"),
+                    Contributing("test_prefix_exclusions_apply_at_the_root_given_as_the_argument"),
+                ]).run(result)
+        self.assertEqual([], [(test.id(), reason) for test, reason in result.skipped])
+        self.assertEqual([], [test.id() for test, _ in result.failures + result.errors])
+        self.assertEqual(2, result.testsRun)
 
 
 class Repository(unittest.TestCase):
