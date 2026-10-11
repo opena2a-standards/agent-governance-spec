@@ -29,7 +29,7 @@ OASB-2 fills the layer between model specifications (what the model can do) and 
 Create a governance file for your agent and validate it:
 
 ```bash
-# 1. Generate a governance file with guided prompts
+# 1. Generate SOUL.md from templates, one section per missing domain
 npx hackmyagent harden-soul
 
 # 2. Scan the file for governance coverage
@@ -181,7 +181,7 @@ OASB-2 is designed to complement, not compete with, existing specifications:
 # Scan an existing governance file
 npx hackmyagent scan-soul
 
-# Generate a governance file interactively
+# Generate or update SOUL.md from templates for missing domains
 npx hackmyagent harden-soul
 
 # Scan and output structured JSON

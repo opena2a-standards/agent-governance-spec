@@ -36,6 +36,10 @@ JSON_FENCE = re.compile(r"^```json\n(.*?)^```", re.MULTILINE | re.DOTALL)
 TABLE_KEY = re.compile(r"^\| `([^`]+)` \|", re.MULTILINE)
 COPY_TEMPLATE = re.compile(r"^cp templates/\S+\.md SOUL\.md$")
 EDIT_STEP = "# Edit to match your agent's actual constraints"
+HARDEN_SOUL = re.compile(r"\bharden-soul\b")
+# harden-soul asks no questions: it appends template sections for missing
+# domains, so no description of it may promise prompts or an interactive mode.
+PROMPT_CLAIM = re.compile(r"\b(guided|interactive(ly)?|prompts?|prompting|wizard|questions?)\b", re.IGNORECASE)
 
 # The shape `scan-soul --json` of hackmyagent 0.33.2 prints for a scanned governance file.
 SCAN_KEYS = {
@@ -138,6 +142,24 @@ def score_level_labels(text):
     and none for Essential, so a score is not a level.
     """
     return SCORE_LEVEL_LABEL.findall(text)
+
+
+def harden_soul_descriptions(text):
+    """Each line that describes harden-soul.
+
+    In a command block that is the comment above a harden-soul command;
+    outside command blocks it is any line that names harden-soul.
+    """
+    found = []
+    for block in command_blocks(text):
+        for i, line in enumerate(block):
+            if HARDEN_SOUL.search(line) and not line.startswith("#"):
+                comment = next((block[j] for j in range(i - 1, -1, -1) if block[j].startswith("#")), None)
+                if comment is not None:
+                    found.append(comment)
+    prose = FENCE.sub("", text)
+    found.extend(line.strip() for line in prose.splitlines() if HARDEN_SOUL.search(line))
+    return found
 
 
 class TemplateScans(unittest.TestCase):
@@ -266,6 +288,30 @@ class RuntimeEnforcementScope(unittest.TestCase):
         for claim in claims:
             with self.subTest(claim=claim):
                 self.assertRegex(claim, RUNTIME_CLAIM)
+
+
+class HardenSoulDescriptions(unittest.TestCase):
+    def setUp(self):
+        self.text = README.read_text(encoding="utf-8")
+
+    def test_readme_describes_harden_soul(self):
+        self.assertGreaterEqual(len(harden_soul_descriptions(self.text)), 3)
+
+    def test_no_description_promises_prompts(self):
+        for line in harden_soul_descriptions(self.text):
+            with self.subTest(line=line):
+                self.assertIsNone(PROMPT_CLAIM.search(line))
+
+    def test_description_that_promises_prompts_is_reported(self):
+        text = (
+            "```bash\n# Generate a governance file interactively\nnpx hackmyagent harden-soul\n```\n"
+            "1. `npx hackmyagent harden-soul` asks guided questions\n"
+        )
+        lines = harden_soul_descriptions(text)
+        self.assertEqual(len(lines), 2)
+        for line in lines:
+            with self.subTest(line=line):
+                self.assertIsNotNone(PROMPT_CLAIM.search(line))
 
 
 if __name__ == "__main__":

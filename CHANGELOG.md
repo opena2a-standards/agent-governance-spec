@@ -210,6 +210,13 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   and requires the Applicable controls count of each tier in sections 3.1 to
   3.4 to equal the number of controls that name it. Tests in
   `scripts/test_check_crosswalks.py`. (#40)
+- The README Quick Start and Tools sections describe `harden-soul` as
+  generating SOUL.md from templates, as the Adoption Path already did. They
+  called it "guided prompts" and "interactive", but the command asks no
+  questions: it appends a template section for each missing domain and
+  creates SOUL.md when there is none. `scripts/test_readme.py` checks that
+  no README description of `harden-soul` promises prompts or an interactive
+  mode. (#46)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
