@@ -20,7 +20,7 @@ The AI agent ecosystem has standards for several layers of the stack, but behavi
 | Coding instructions | [AGENTS.md](https://agents.md) | Instructions for AI coding agents |
 | **Behavioral governance** | **OASB-2 (this specification)** | **Per-agent safety constraints, scope boundaries, oversight requirements** |
 
-OASB-2 fills the layer between model specifications (what the model can do) and deployment behavior (what the agent actually does). It is the agent's own declared behavioral contract: what it will and will not do, who it trusts, how it handles sensitive data, and when it requires human approval. OASB-2 also provides runtime enforcement through automated scanning and CI/CD integration.
+OASB-2 fills the layer between model specifications (what the model can do) and deployment behavior (what the agent actually does). It is the agent's own declared behavioral contract: what it will and will not do, who it trusts, how it handles sensitive data, and when it requires human approval. OASB-2 coverage is measured through automated scanning and CI/CD checks of the governance file. Enforcing the declared behavior at runtime is the responsibility of runtime platforms, outside the scope of OASB-2.
 
 ---
 
@@ -29,7 +29,7 @@ OASB-2 fills the layer between model specifications (what the model can do) and 
 Create a governance file for your agent and validate it:
 
 ```bash
-# 1. Generate a governance file with guided prompts
+# 1. Generate SOUL.md from templates, one section per missing domain
 npx hackmyagent harden-soul
 
 # 2. Scan the file for governance coverage
@@ -127,14 +127,16 @@ See [conformance.md](conformance.md) for detailed requirements and audit procedu
 
 Not all agents need all controls. OASB-2 defines four tiers based on agent capability:
 
-| Tier | Description | Applicable Controls | Example |
+| Tier | Description | Applicable Controls (profile skips no domain) | Example |
 |------|-------------|-------------------|---------|
 | BASIC | Conversational agents with no tool access | 29 controls | Customer service chatbot |
 | TOOL-USING | Agents that call APIs or use tools | 57 controls | Research assistant with web search |
 | AGENTIC | Autonomous agents with multi-step execution | 69 controls | Coding assistant with file system access |
 | MULTI-AGENT | Orchestrators that delegate to other agents | 72 controls (all) | Multi-agent pipeline coordinator |
 
-See [specification.md](specification.md) Section 3 for tier definitions and the control applicability matrix.
+The tier is not the only input. The agent profile names the agent's purpose and skips the domains that purpose does not use: `conversational` skips five domains, `code-assistant` skips Capability Boundaries, Agentic Safety, and Human Oversight, `tool-agent` skips Agentic Safety, and `autonomous`, `orchestrator`, and `custom` skip none. A TOOL-USING agent under `code-assistant` is measured on 40 controls, not 57. The scanner infers the profile from the file unless you declare it with `<!-- soul:profile=NAME -->` or `scan-soul --profile NAME`, and `scan-soul --json` reports it as `agentProfile` with the skipped domains in `skippedDomains`.
+
+See [specification.md](specification.md) Section 3 for tier definitions and the control applicability matrix, and Section 3.6 for the profiles and the applicable count for every tier and profile.
 
 ---
 
@@ -142,10 +144,11 @@ See [specification.md](specification.md) Section 3 for tier definitions and the 
 
 Governance coverage is scored per domain and rolled up into an overall score:
 
-- **Per-domain score**: (controls detected / total applicable controls) x 100
-- **Overall score**: Average of all applicable domain scores
+- **Per-domain score**: (controls detected / total applicable controls) x 100, where the tier and the profile decide which controls are applicable
+- **Overall score**: Average of all applicable domain scores; a domain the profile skips is excluded
+- **Tier and profile**: a published score names both the tier and the profile it was measured under, because the same file has 57 applicable controls as TOOL-USING under a profile that skips no domain and 40 under `code-assistant`
 - **Grade**: A (80-100), B (60-79), C (40-59), D (20-39), F (0-19)
-- **Critical floor**: If any applicable CRITICAL control is missing, the maximum grade is C (effective maximum score 60), regardless of the calculated score
+- **Critical floor**: If any applicable CRITICAL control is missing, the maximum grade is C, regardless of the calculated score. The cap applies to the grade only: the overall score is reported as calculated, so a score of 60 or more can appear beside grade C
 
 Grades measure coverage; they are not the conformance levels. The Essential / Standard / Hardened conformance levels above are requirements-based (which controls must pass, plus a minimum score) and are defined in [conformance.md](conformance.md).
 
@@ -178,7 +181,7 @@ OASB-2 is designed to complement, not compete with, existing specifications:
 # Scan an existing governance file
 npx hackmyagent scan-soul
 
-# Generate a governance file interactively
+# Generate or update SOUL.md from templates for missing domains
 npx hackmyagent harden-soul
 
 # Scan and output structured JSON

@@ -12,7 +12,9 @@ governance-scan:
         - system-prompt.md
         - SYSTEM_PROMPT.md
         - .cursorrules
+        - .github/copilot-instructions.md
         - CLAUDE.md
+        - .clinerules
         - instructions.md
         - constitution.md
         - agent-config.yaml
@@ -27,7 +29,5 @@ governance-scan:
         exit 1
       fi
   artifacts:
-    reports:
-      dotenv: scan-result.json
     paths:
       - scan-result.json

@@ -51,7 +51,7 @@ If you are building a tool that implements OASB-2 scanning or enforcement, we we
 
 2. **Discussion period**: Issues remain open for at least 14 days to allow community input. Severity changes and new domains require 30 days.
 
-3. **Pull request**: After discussion converges, submit a pull request implementing the change. Reference the issue number. A change to a control heading or its attribute table also regenerates `controls.json` with `python3 scripts/check_crosswalks.py --write`, and updates the control's row in the registry table of `specification.md` section 5.3, which `python3 scripts/check_crosswalks.py` holds to the domain files, in the same pull request.
+3. **Pull request**: After discussion converges, submit a pull request implementing the change. Reference the issue number. A change to a control heading or its attribute table also regenerates `controls.json` with `python3 scripts/check_crosswalks.py --write`, and updates the control's row in the registry table of `specification.md` section 5.3, and for a change to `Applicable tiers` its row in the section 3.5 matrix and the Applicable controls counts in sections 3.1 to 3.4, all of which `python3 scripts/check_crosswalks.py` holds to the domain files, in the same pull request.
 
 4. **Review**: Pull requests require at least one maintainer review. Changes to control definitions, severities, or domains require two maintainer reviews.
 

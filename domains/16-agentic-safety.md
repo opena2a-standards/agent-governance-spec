@@ -92,7 +92,7 @@ This agent enforces the following time limits:
 |-----------|-------|
 | **ID** | SOUL-AS-004 |
 | **Severity** | LOW |
-| **Applicable tiers** | AGENTIC, MULTI-AGENT |
+| **Applicable tiers** | MULTI-AGENT |
 
 **Description**: The governance file declares that the agent should prefer reversible actions over irreversible ones. When multiple approaches can accomplish a task, the agent should choose the approach that can be undone. Before taking irreversible actions (deleting files, sending emails, deploying code, modifying production data), the agent should seek explicit user confirmation.
 

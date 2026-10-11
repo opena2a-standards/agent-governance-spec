@@ -81,6 +81,16 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
 
 ### Fixed
 
+- Agent profiles are part of the specification (`specification.md` section
+  3.6). The tier counts 29, 57, 69, and 72 hold only under a profile that
+  skips no domain; `conversational`, `code-assistant`, and `tool-agent` skip
+  whole domains, so a TOOL-USING file under `code-assistant` is measured on
+  40 controls. Section 3.6 lists which domains each profile skips and why,
+  and the applicable count for every tier and profile; sections 3.1 to 3.4,
+  section 6, `scoring.md`, and the README state that the tier and the profile
+  together decide the applicable set, and that a published score names both.
+  Tests in `scripts/test_agent_profiles.py` hold the counts to the section
+  3.5 matrix. (#48)
 - The registry table in `specification.md` section 5.3 gives each control's
   heading title as its Name, as `controls.json` does; it differed for all 72
   controls: in wording for SOUL-HB-003, SOUL-AS-001, SOUL-AS-002,
@@ -166,6 +176,47 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   from the `conformance` field. `scripts/test_readme.py` checks that
   `README.md`, `integrations/README.md` and `conformance.md` label no score
   with a conformance level. (#47)
+- The critical floor rule in `README.md`, `specification.md` section 6.4,
+  and `scoring.md` caps the grade at C and leaves the overall score as
+  calculated, as the scanner reports it. The three documents had promised an
+  effective maximum score of 60, which the scanner does not apply: a file
+  missing SOUL-HB-001 is reported with score 92 and grade C. Worked example 3
+  in `scoring.md` now reports score 86 beside grade C.
+  `scripts/test_critical_floor.py` checks that no document claims a score
+  cap. (#42)
+- The README introduction no longer states that OASB-2 provides runtime
+  enforcement, which `specification.md` section 1.2 places out of scope. It
+  states that coverage is measured through automated scanning and CI/CD
+  checks of the governance file, and that runtime platforms enforce the
+  declared behavior. `scripts/test_readme.py` checks that README.md claims no
+  runtime enforcement. (#45)
+- The GitLab CI example prints `Governance Score: NN/100 (Grade: X)` and
+  enforces `MIN_GOVERNANCE_SCORE`. Its scan used `--format json`, an option
+  `scan-soul` rejects, so `scan-result.json` held no JSON and the job ended
+  before the score was read; it now uses `--json`. The job no longer declares
+  `scan-result.json` as a `dotenv` report, which takes `KEY=VALUE` lines, and
+  keeps the file under `artifacts: paths:`. Its `changes:` list adds
+  `.github/copilot-instructions.md` and `.clinerules`, so it names all ten
+  governance files the scanner searches. `scripts/test_gitlab_ci.py` runs the
+  job's script against a stand-in that accepts only the scanner's options.
+  (#37)
+- SOUL-AS-004 (Reversibility Preference) applies to MULTI-AGENT only, as the
+  `specification.md` section 3.5 matrix, the AGENTIC count of 69, and
+  `templates/agentic.md` already had it. Its `Applicable tiers` row in
+  `domains/16-agentic-safety.md` named AGENTIC as well, and `conformance.md`
+  listed reversibility preferences among the AGENTIC additions; both now
+  match the matrix. The validator reads the `Applicable tiers` attribute of
+  every control, requires the section 3.5 matrix to mark the same tiers,
+  and requires the Applicable controls count of each tier in sections 3.1 to
+  3.4 to equal the number of controls that name it. Tests in
+  `scripts/test_check_crosswalks.py`. (#40)
+- The README Quick Start and Tools sections describe `harden-soul` as
+  generating SOUL.md from templates, as the Adoption Path already did. They
+  called it "guided prompts" and "interactive", but the command asks no
+  questions: it appends a template section for each missing domain and
+  creates SOUL.md when there is none. `scripts/test_readme.py` checks that
+  no README description of `harden-soul` promises prompts or an interactive
+  mode. (#46)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

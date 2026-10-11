@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Tests for the command blocks in README.md, the scan-soul JSON sample in integrations/README.md,
-the conformance badge URLs in README.md, integrations/README.md and conformance.md, and the score
-thresholds those three files name.
+"""Tests for the command blocks in README.md and its statement of scope, the scan-soul JSON sample
+in integrations/README.md, the conformance badge URLs in README.md, integrations/README.md and
+conformance.md, and the score thresholds those three files name.
 
 Run from anywhere:  python3 scripts/test_readme.py
 
-Standard library only. The tests read README.md, integrations/README.md and conformance.md and write nothing.
+Standard library only. The tests read README.md, integrations/README.md, conformance.md and
+specification.md and write nothing.
 """
 
 import json
@@ -24,11 +25,21 @@ BADGE_URL = re.compile(r"https://img\.shields\.io/badge/([^)\s`?]+)")
 LEVELS = ("Essential", "Standard", "Hardened")
 # A score with a conformance level as its label: "40 (Essential)", "`--fail-below 40` (Essential)".
 SCORE_LEVEL_LABEL = re.compile(r"(\d+)`?\s*\((" + "|".join(LEVELS) + r")\)")
+SPECIFICATION = README.parent / "specification.md"
+RUNTIME_EXCLUDED = "- **Runtime enforcement**: That is the responsibility of runtime platforms"
+RUNTIME_CLAIM = re.compile(
+    r"\b(provides?|performs?|offers?|delivers?|adds?) runtime enforcement\b|\benforces? .{0,40}\bat runtime\b",
+    re.IGNORECASE,
+)
 FENCE = re.compile(r"^```[^\n]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
 JSON_FENCE = re.compile(r"^```json\n(.*?)^```", re.MULTILINE | re.DOTALL)
 TABLE_KEY = re.compile(r"^\| `([^`]+)` \|", re.MULTILINE)
 COPY_TEMPLATE = re.compile(r"^cp templates/\S+\.md SOUL\.md$")
 EDIT_STEP = "# Edit to match your agent's actual constraints"
+HARDEN_SOUL = re.compile(r"\bharden-soul\b")
+# harden-soul asks no questions: it appends template sections for missing
+# domains, so no description of it may promise prompts or an interactive mode.
+PROMPT_CLAIM = re.compile(r"\b(guided|interactive(ly)?|prompts?|prompting|wizard|questions?)\b", re.IGNORECASE)
 
 # The shape `scan-soul --json` of hackmyagent 0.33.2 prints for a scanned governance file.
 SCAN_KEYS = {
@@ -131,6 +142,24 @@ def score_level_labels(text):
     and none for Essential, so a score is not a level.
     """
     return SCORE_LEVEL_LABEL.findall(text)
+
+
+def harden_soul_descriptions(text):
+    """Each line that describes harden-soul.
+
+    In a command block that is the comment above a harden-soul command;
+    outside command blocks it is any line that names harden-soul.
+    """
+    found = []
+    for block in command_blocks(text):
+        for i, line in enumerate(block):
+            if HARDEN_SOUL.search(line) and not line.startswith("#"):
+                comment = next((block[j] for j in range(i - 1, -1, -1) if block[j].startswith("#")), None)
+                if comment is not None:
+                    found.append(comment)
+    prose = FENCE.sub("", text)
+    found.extend(line.strip() for line in prose.splitlines() if HARDEN_SOUL.search(line))
+    return found
 
 
 class TemplateScans(unittest.TestCase):
@@ -239,6 +268,50 @@ class ScoreThresholds(unittest.TestCase):
 
     def test_minimum_score_of_a_level_is_not_reported(self):
         self.assertEqual(score_level_labels("60 (the minimum score for Standard), overall score >= 75\n"), [])
+
+
+class RuntimeEnforcementScope(unittest.TestCase):
+    """specification.md section 1.2 places runtime enforcement out of scope; README.md must agree."""
+
+    def test_specification_excludes_runtime_enforcement(self):
+        self.assertIn(RUNTIME_EXCLUDED, SPECIFICATION.read_text(encoding="utf-8"))
+
+    def test_readme_does_not_claim_runtime_enforcement(self):
+        text = README.read_text(encoding="utf-8")
+        self.assertEqual([m.group(0) for m in RUNTIME_CLAIM.finditer(text)], [])
+
+    def test_a_runtime_enforcement_claim_is_reported(self):
+        claims = (
+            "OASB-2 also provides runtime enforcement through automated scanning.",
+            "The scanner enforces the governance file at runtime.",
+        )
+        for claim in claims:
+            with self.subTest(claim=claim):
+                self.assertRegex(claim, RUNTIME_CLAIM)
+
+
+class HardenSoulDescriptions(unittest.TestCase):
+    def setUp(self):
+        self.text = README.read_text(encoding="utf-8")
+
+    def test_readme_describes_harden_soul(self):
+        self.assertGreaterEqual(len(harden_soul_descriptions(self.text)), 3)
+
+    def test_no_description_promises_prompts(self):
+        for line in harden_soul_descriptions(self.text):
+            with self.subTest(line=line):
+                self.assertIsNone(PROMPT_CLAIM.search(line))
+
+    def test_description_that_promises_prompts_is_reported(self):
+        text = (
+            "```bash\n# Generate a governance file interactively\nnpx hackmyagent harden-soul\n```\n"
+            "1. `npx hackmyagent harden-soul` asks guided questions\n"
+        )
+        lines = harden_soul_descriptions(text)
+        self.assertEqual(len(lines), 2)
+        for line in lines:
+            with self.subTest(line=line):
+                self.assertIsNotNone(PROMPT_CLAIM.search(line))
 
 
 if __name__ == "__main__":

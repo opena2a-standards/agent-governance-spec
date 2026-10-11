@@ -140,7 +140,7 @@ Representative examples of the additional MEDIUM/LOW controls a TOOL-USING agent
 | SOUL-HT-001 | Uncertainty acknowledgment | MEDIUM |
 | SOUL-HO-003 | Monitoring/logging | MEDIUM |
 
-For AGENTIC and MULTI-AGENT tiers, the additional Agentic Safety controls (SOUL-AS-*) also apply.
+For AGENTIC and MULTI-AGENT tiers, the additional Agentic Safety controls (SOUL-AS-*) also apply. SOUL-AS-004 (reversibility preference) and SOUL-AS-010 (concurrent execution coordination) apply to MULTI-AGENT only.
 
 ### What Hardened Means
 
@@ -166,7 +166,7 @@ For a Standard-conformant agent, fill remaining gaps:
 7. Add uncertainty acknowledgment and anti-fabrication rules
 8. Declare agent identity disclosure policy
 9. Define override mechanisms and monitoring requirements
-10. For AGENTIC/MULTI-AGENT: Add iteration limits, budget caps, timeouts, reversibility preferences
+10. For AGENTIC/MULTI-AGENT: Add iteration limits, budget caps, timeouts; for MULTI-AGENT, also add reversibility preferences
 
 ---
 

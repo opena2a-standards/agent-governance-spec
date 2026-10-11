@@ -21,16 +21,20 @@ The two crosswalk CSV files are canonical. This script:
   * re-renders each crosswalk .md from its CSV and requires the committed
     file to match byte for byte;
   * validates the attribute table of each control heading (ID, Severity,
-    Status, Replaced by, Version; specification.md sections 5.1 and 8.2),
-    renders controls.json from the domain files, and requires the committed
-    file to match byte for byte;
+    Applicable tiers, Status, Replaced by, Version; specification.md sections
+    5.1 and 8.2), renders controls.json from the domain files, and requires
+    the committed file to match byte for byte;
   * requires the registry table in specification.md section 5.3 to give, for
     each control, the ID, heading title, domain name, and severity of the
     domain files, in the order of controls.json;
   * requires the CRITICAL and HIGH controls tables in conformance.md to list
     every active control of that severity, with the heading title and the
     applicable tiers of the domain files, in the order of controls.json, and
-    the Path to Essential and Path to Standard steps to name each of them.
+    the Path to Essential and Path to Standard steps to name each of them;
+  * requires the applicability matrix in specification.md section 3.5 to mark,
+    for each control, the tiers its Applicable tiers attribute names, in the
+    order of controls.json, and the Applicable controls count of each tier in
+    sections 3.1 to 3.4 to equal the number of controls that name that tier.
 
 Run from anywhere:  python3 scripts/check_crosswalks.py
 Re-render the .md files and controls.json:  python3 scripts/check_crosswalks.py --write
@@ -86,6 +90,13 @@ CONFORMANCE_LEVELS = (
     ("### HIGH Controls", "### Path to Standard", "HIGH"),
 )
 CONFORMANCE_HEADER = ["Control ID", "Name", "Applicable Tiers"]
+# The agent tiers of specification.md section 3, lowest first, and the
+# Applicable tiers value of a control that applies to all of them.
+TIERS = ("BASIC", "TOOL-USING", "AGENTIC", "MULTI-AGENT")
+ALL_TIERS = "All (" + ", ".join(TIERS) + ")"
+MATRIX_HEADING = "### 3.5 Control Applicability Matrix"
+TIER_HEADING = re.compile(r"^### 3\.\d+ (" + "|".join(re.escape(t) for t in TIERS) + r")\s*$")
+TIER_COUNT = re.compile(r"^\*\*Applicable controls\*\*: (\d+)\b")
 
 BANNED_WORDS = (
     "compliant", "compliance", "conforms", "conformity", "certified", "meets",
@@ -552,6 +563,113 @@ def check_conformance_levels(errors, rel, text, entries, attributes):
                 fail(errors, rel, f"the section {path_heading!r} names no step for {cid}")
 
 
+def control_tiers(errors, entries, attributes):
+    """Read the Applicable tiers attribute of each control (specification.md section 5.1).
+
+    The value is ALL_TIERS, or names from TIERS separated by ", ", each once and
+    in the order of TIERS. Returns a map from each control ID, in the order of
+    entries, to (location of its heading, tuple of tiers); the tuple is None
+    when the attribute is absent or outside that form, which is red.
+    """
+    tiers = {}
+    for entry in entries:
+        cid = entry["id"]
+        where, table = attributes[cid]
+        value = table.get("Applicable tiers")
+        if value is None:
+            fail(errors, where, f"{cid} has no Applicable tiers attribute")
+            tiers[cid] = (where, None)
+            continue
+        names = TIERS if value == ALL_TIERS else tuple(value.split(", "))
+        if not set(names) <= set(TIERS) or list(names) != sorted(set(names), key=TIERS.index):
+            fail(errors, where, f"Applicable tiers {value!r} of {cid} is neither {ALL_TIERS!r} nor names from "
+                                f"{', '.join(TIERS)}, each once and in that order, separated by ', '")
+            names = None
+        tiers[cid] = (where, names)
+    return tiers
+
+
+def check_applicability_matrix(errors, rel, text, tiers):
+    """Require the matrix of specification.md section 3.5 to match the Applicable tiers attributes.
+
+    One row per control, in the order of controls.json, with Yes in the column
+    of each tier the control's Applicable tiers attribute names and -- in the
+    other columns. tiers is the map control_tiers returns. A control whose
+    attribute is already red is not compared.
+    """
+    lines = text.splitlines()
+    if MATRIX_HEADING not in lines:
+        fail(errors, rel, f"heading {MATRIX_HEADING!r} not found")
+        return
+    rows = table_after(lines, MATRIX_HEADING)
+    header = ["Control ID", *TIERS]
+    if len(rows) < 2 or rows[0][1] != header:
+        fail(errors, rel, f"the matrix under section 3.5 must have the header | {' | '.join(header)} |")
+        return
+    order = list(tiers)
+    seen = []
+    for lineno, cells in rows[2:]:
+        where = f"{rel}:{lineno}"
+        if len(cells) != len(header):
+            fail(errors, where, f"matrix row has {len(cells)} cells; expected {len(header)}")
+            continue
+        cid, marks = cells[0], cells[1:]
+        if cid not in tiers:
+            fail(errors, where, f"matrix row {cid!r} is not a control heading in domains/")
+            continue
+        if cid in seen:
+            fail(errors, where, f"matrix row {cid} is repeated")
+            continue
+        seen.append(cid)
+        if any(mark not in ("Yes", "--") for mark in marks):
+            fail(errors, where, f"matrix row {cid} has a cell other than Yes or --")
+            continue
+        marked = tuple(tier for tier, mark in zip(TIERS, marks) if mark == "Yes")
+        source, declared = tiers[cid]
+        if declared is not None and marked != declared:
+            fail(errors, where, f"{cid} is marked Yes for {', '.join(marked) or 'no tier'}; its Applicable tiers "
+                                f"attribute at {source} names {', '.join(declared)}")
+    for cid in order:
+        if cid not in seen:
+            fail(errors, rel, f"the matrix under section 3.5 has no row for {cid}")
+    if seen != [cid for cid in order if cid in seen]:
+        fail(errors, rel, "the matrix rows under section 3.5 are not in domain order then NNN")
+
+
+def check_tier_counts(errors, rel, text, tiers):
+    """Require each tier of specification.md section 3 to count the controls that apply to it.
+
+    The first "**Applicable controls**: N" line under the heading "### 3.n TIER"
+    gives N, the number of controls whose Applicable tiers attribute names
+    TIER. tiers is the map control_tiers returns; when an attribute is already
+    red, the counts are not compared.
+    """
+    counts = {}
+    tier = None
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        if line.startswith("#"):
+            m = TIER_HEADING.match(line)
+            tier = m.group(1) if m else None
+            if tier is not None:
+                counts.setdefault(tier, None)
+        elif tier is not None and counts[tier] is None:
+            m = TIER_COUNT.match(line)
+            if m:
+                counts[tier] = (lineno, int(m.group(1)))
+    known = all(names is not None for _, names in tiers.values())
+    for tier in TIERS:
+        if tier not in counts:
+            fail(errors, rel, f"section 3 has no heading '### 3.n {tier}'")
+        elif counts[tier] is None:
+            fail(errors, rel, f"the section on {tier} has no '**Applicable controls**: N' line")
+        elif known:
+            lineno, stated = counts[tier]
+            expected = sum(1 for _, names in tiers.values() if tier in names)
+            if stated != expected:
+                fail(errors, f"{rel}:{lineno}", f"Applicable controls {stated} of {tier} differs from the "
+                                                f"{expected} controls whose Applicable tiers attribute names {tier}")
+
+
 def render_controls_json(entries):
     return json.dumps({"controls": entries}, indent=2, ensure_ascii=False) + "\n"
 
@@ -866,6 +984,7 @@ def main(argv):
             f"{len(controls)} controls mapped, {len(controls) - len(mapped)} with no mapping asserted"
         )
     entries = control_entries(errors, controls, attributes)
+    tiers = control_tiers(errors, entries, attributes)
     export_path = ROOT / CONTROLS_EXPORT
     export = render_controls_json(entries)
     if write:
@@ -876,8 +995,10 @@ def main(argv):
     print(f"{CONTROLS_EXPORT}: {len(entries)} controls")
     spec_path = ROOT / SPECIFICATION
     if spec_path.is_file():
-        check_registry_table(errors, SPECIFICATION, spec_path.read_text(encoding="utf-8"), entries,
-                             dict(domain_order))
+        text = spec_path.read_text(encoding="utf-8")
+        check_registry_table(errors, SPECIFICATION, text, entries, dict(domain_order))
+        check_applicability_matrix(errors, SPECIFICATION, text, tiers)
+        check_tier_counts(errors, SPECIFICATION, text, tiers)
     else:
         fail(errors, SPECIFICATION, "file is missing")
     conformance_path = ROOT / CONFORMANCE
