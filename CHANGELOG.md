@@ -8,6 +8,18 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
 
 ### Added
 
+- `scripts/check_docs_prose.py`, the check for the two prose rules in the
+  `CONTRIBUTING.md` style guide: no spaced double hyphen, em dash, or spaced
+  en dash used as a dash, and no heading or bold label named "Why this
+  exists" or "Why this matters". It reads the tracked Markdown files except
+  `CHANGELOG.md`, the files under `examples/`, and the rendered crosswalk
+  files, prints one `file:line: message` line per finding, and exits 1. A
+  double hyphen or an en dash is a dash when a space, a tab, or the edge of
+  the line is on each side of it. A heading is an ATX heading at any indent,
+  a setext heading, or a bold label that starts a line. A code fence closes
+  only at a run of its own character at least as long as the run that
+  opened it. An argument that is not a directory prints a usage message and
+  exits 2. Tests in `scripts/test_check_docs_prose.py`.
 - `controls.json` at the repository root: the JSON control export named in
   `specification.md` section 8.2, one entry per control ID with `id`,
   `title`, `domain`, `severity`, `status`, `replacedBy` (deprecated entries
