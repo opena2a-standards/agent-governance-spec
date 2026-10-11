@@ -200,7 +200,8 @@ class Scope(unittest.TestCase):
             "CHANGELOG.md", "changelog.d/123.md", "LICENSE.md", "licenses/LICENSE-MIT.md",
             "node_modules/x/README.md", "vendor/x.md", "dist/x.md", "build/x.md",
             "test/fixtures/a.md", "tests/a.md", "corpus/a.md", "golden/a.md",
-            "snapshots/a.md", "examples/chatbot-soul.md",
+            "snapshots/a.md", "examples/chatbot-soul.md", "example/notes.md",
+            "tests/examples/README.md", "examples/fixtures/README.md", "corpus/README.md",
             "crosswalks/oasb-2-to-nist-ai-rmf-1.0.md", "crosswalks/oasb-2-to-eu-ai-act-2024-1689.md",
         ):
             self.assertTrue(cdp.excluded(rel), rel)
@@ -209,6 +210,7 @@ class Scope(unittest.TestCase):
         for rel in (
             "README.md", "specification.md", "domains/README.md", "templates/basic.md",
             "crosswalks/README.md", "crosswalks/sources.md",
+            "examples/README.md", "example/readme.mdx", "integrations/examples/README.md",
         ):
             self.assertFalse(cdp.excluded(rel), rel)
 
@@ -217,7 +219,7 @@ class Scope(unittest.TestCase):
         self.assertIn("README.md", rels)
         self.assertIn("specification.md", rels)
         self.assertNotIn("CHANGELOG.md", rels)
-        self.assertFalse([r for r in rels if r.startswith("examples/")])
+        self.assertEqual(["examples/README.md"], [r for r in rels if r.startswith("examples/")])
 
     def test_contributing_names_every_tracked_file_the_check_skips(self):
         text = (cdp.ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
@@ -325,12 +327,44 @@ def unnamed_exclusions(text):
     return [name for name, form in wanted if form not in described]
 
 
+def unreasoned_exclusions(doc):
+    """The exclusions of the checker that no "subject: reason" item of the docstring's Checked list gives a reason for."""
+    checked = doc.split("Checked:", 1)[-1].split("\n\n", 1)[0]
+    items = [" ".join(item.split()) for item in checked.split("\n  * ")[1:]]
+    reasoned = [item.split(": ", 1)[0] for item in items if ": " in item and item.split(": ", 1)[1].strip(" .")]
+    names = ["LICENSE"] + list(cdp.EXCLUDED_FILES + cdp.EXCLUDED_PREFIXES + cdp.RENDERED_PREFIXES)
+    names += sorted(cdp.EXCLUDED_DIR_NAMES)
+    pattern = r"(?<![\w./-]){}(?![\w])"
+    return [n for n in names if not any(re.search(pattern.format(re.escape(n)), s) for s in reasoned)]
+
+
 class Contributing(unittest.TestCase):
     """CONTRIBUTING.md names every path the checker does not read."""
 
     def test_contributing_names_every_exclusion(self):
         text = (cdp.ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
         self.assertEqual([], unnamed_exclusions(text))
+
+    def test_docstring_gives_the_reason_for_each_exclusion(self):
+        # CONTRIBUTING.md tells the reader the docstring gives the reason for each exclusion.
+        self.assertIn("docstring gives the reason for each exclusion",
+                      (cdp.ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8"))
+        self.assertEqual([], unreasoned_exclusions(cdp.__doc__))
+
+    def test_exclusion_without_a_reason_is_reported(self):
+        doc = (
+            "Checked: every tracked .md file, except:\n"
+            "  * CHANGELOG.md and changelog.d/: history is not rewritten.\n"
+            "  * LICENSE files\n"
+            "  * anything under node_modules/, vendor/, dist/ or\n"
+            "    build/: not written here.\n"
+        )
+        missing = unreasoned_exclusions(doc)
+        self.assertIn("LICENSE", missing)
+        self.assertIn("examples", missing)
+        self.assertIn("crosswalks/oasb-2-to-", missing)
+        self.assertNotIn("CHANGELOG.md", missing)
+        self.assertNotIn("build/", missing)
 
     def test_partial_list_is_reported(self):
         text = "- `python3 scripts/check_docs_prose.py` skips `CHANGELOG.md` and the files under `examples/`.\n"
