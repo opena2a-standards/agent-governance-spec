@@ -25,15 +25,15 @@ given with the reason it is not read:
   * CHANGELOG.md and changelog.d/: history is not rewritten.
   * LICENSE files: a license is legal text reproduced word for word from its
     publisher, and rewording it would change the terms it grants.
-  * anything under node_modules/, vendor/, dist/ or build/ at the repository
-    root: the files there are third-party or generated, so a fix belongs in
-    their source, not here.
+  * anything under node_modules/, vendor/, dist/ or build/ at the root of the
+    checked directory: the files there are third-party or generated, so a fix
+    belongs in their source, not here.
   * anything in a test, tests, fixture, fixtures, corpus, golden, snapshot,
     snapshots, example or examples directory: that text is data a tool reads,
     not prose a person reads. A README.md or README.mdx in an example or
     examples directory is read, since it describes the examples to a person,
-    unless another directory of this item holds it or another item of this
-    list excludes its path.
+    unless a directory of this item other than example or examples holds it
+    or another item of this list excludes its path.
   * the crosswalk .md files that scripts/check_crosswalks.py renders from the
     CSV sources (crosswalks/oasb-2-to-*.md): their text quotes the mapped
     frameworks verbatim and is compared byte for byte.
