@@ -40,16 +40,24 @@ def ignored(test, paths):
 
 
 class CredentialFiles(unittest.TestCase):
-    """A secrets file is never committed by accident, at the root or in a subdirectory."""
+    """git ignores secrets.json at the root and in a subdirectory."""
 
     def test_secrets_json_is_ignored_at_any_depth(self):
         paths = ["secrets.json", "integrations/secrets.json"]
         self.assertEqual(paths, ignored(self, paths))
 
     def test_the_pattern_matches_only_that_file_name(self):
-        # controls.json is the tracked control export; a template for a secrets file is committed on purpose.
+        # controls.json is the tracked control export; a template such as secrets.json.example would be committed on purpose.
         paths = ["controls.json", "secrets.json.example"]
         self.assertEqual([], ignored(self, paths))
+
+    def test_docstring_claims_only_what_the_tests_check(self):
+        # The tests check one file name, and git add -f still adds an ignored file, so the docstring names that
+        # file and says git ignores it, not that every secrets file is kept out of a commit.
+        doc = " ".join(CredentialFiles.__doc__.split())
+        self.assertIn("git ignores secrets.json at the root and in a subdirectory", doc)
+        self.assertNotIn("never committed", doc)
+        self.assertNotIn("A secrets file", doc)
 
 
 if __name__ == "__main__":

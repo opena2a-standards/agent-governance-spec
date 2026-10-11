@@ -396,6 +396,12 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `.gitignore` lists `secrets.json` beside the other credential files it
   ignores, and a test in `scripts/test_gitignore.py` checks that git
   ignores a `secrets.json` at the root and in a subdirectory. (#74)
+- The class docstring of the `.gitignore` tests in
+  `scripts/test_gitignore.py` said that a secrets file is never committed by
+  accident, but the tests check only the name `secrets.json`: git does not
+  ignore `secrets.yaml`, and `git add -f` still adds an ignored file. The
+  docstring now says that git ignores `secrets.json` at the root and in a
+  subdirectory, and a test in the same file holds it to that wording. (#76)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
