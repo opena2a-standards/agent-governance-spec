@@ -8,6 +8,18 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
 
 ### Added
 
+- `scripts/check_docs_prose.py`, the check for the two prose rules in the
+  `CONTRIBUTING.md` style guide: no spaced double hyphen, em dash, or spaced
+  en dash used as a dash, and no heading or bold label named "Why this
+  exists" or "Why this matters". It reads the tracked Markdown files except
+  `CHANGELOG.md`, the files under `examples/`, and the rendered crosswalk
+  files, prints one `file:line: message` line per finding, and exits 1. A
+  double hyphen or an en dash is a dash when a space, a tab, or the edge of
+  the line is on each side of it. A heading is an ATX heading at any indent,
+  a setext heading, or a bold label that starts a line. A code fence closes
+  only at a run of its own character at least as long as the run that
+  opened it. An argument that is not a directory prints a usage message and
+  exits 2. Tests in `scripts/test_check_docs_prose.py`.
 - `controls.json` at the repository root: the JSON control export named in
   `specification.md` section 8.2, one entry per control ID with `id`,
   `title`, `domain`, `severity`, `status`, `replacedBy` (deprecated entries
@@ -85,6 +97,75 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   unedited template scans as partial coverage. `scripts/test_readme.py`
   checks that every README command block that copies a template edits it
   before scanning. (#27)
+- README.md, `integrations/README.md`, and the GitHub Actions and GitLab CI
+  examples under `integrations/` request JSON from `scan-soul` with
+  `--json`. They passed `--format json`, which the scanner rejects as an
+  unknown option, so both CI examples stopped before they read a score. The
+  GitHub Actions example no longer writes stderr into `scan-result.json`,
+  where the notice npm prints when it installs the scanner on a new runner
+  made the file unreadable as JSON. `scripts/test_scan_soul_commands.py`
+  checks that every `scan-soul` command in the Markdown and YAML files uses
+  an option the scanner lists, and that a `--json` command keeps stderr out
+  of its output. (#31)
+- The minimum score in `integrations/github-action.yml` is read from the
+  `MIN_GOVERNANCE_SCORE` repository variable, so the job fails when the score
+  is below it. It was read from a `fail-below` input that the workflow never
+  declared and that `pull_request` and `push` runs do not carry, so the
+  minimum was always 0 and the check never failed. A minimum that is not a
+  whole number fails the job with a message naming the variable, and
+  `actionlint` reports nothing on the workflow.
+  `integrations/README.md` shows how to set the variable, and
+  `scripts/test_integrations.py` runs the check against scores below, at,
+  and above the minimum. (#32)
+- The domain table in the GitHub Action's pull request comment reads the
+  scanner's `domains` array and gives each domain's `passed`/`total` and
+  `percentage`. It read `domains` as an object keyed by domain name with a
+  `found` count, which the scanner does not print, so every row would have
+  shown the array index and `undefined/N (NaN%)`. Tests in
+  `scripts/test_github_action.py` run the comment script on JSON in the
+  scanner's shape. (#34)
+- `integrations/README.md` documents the `scan-soul` exit codes as the
+  scanner defines them. Exit `1` also means a CRITICAL control was not
+  detected, with no `--fail-below` given, and covers `--ci` findings and
+  usage errors; exit `2` covers a governance file that is missing,
+  unreadable, or empty; exit `0` requires Essential conformance. Each case
+  names its `gate.reason`. `scripts/test_integrations_readme.py` checks that
+  each `gate.reason` is listed under the exit code the scanner gives it. (#36)
+- The Standard level in `conformance.md` lists all 12 HIGH controls. Its
+  table omitted SOUL-IH-004, SOUL-HB-005, SOUL-HB-008, and SOUL-HO-008, and
+  the Path to Standard steps omitted those four and SOUL-HV-001; each step
+  now names the control it satisfies, grouped by the tiers it applies to.
+  `scripts/check_crosswalks.py` now requires the CRITICAL and HIGH tables to
+  list every active control of that severity with the domain files' title
+  and applicable tiers, in the order of `controls.json`, and each path to
+  name every one of them. Tests in `scripts/test_check_crosswalks.py`. (#39)
+- The `scan-soul` JSON sample in `integrations/README.md` is a trimmed run
+  of hackmyagent 0.33.2. It had a `tier` key for `agentTier`, a top-level
+  `controls` list, `domains` as an object, and upper-case conformance, and it
+  left out `level`, `gate`, `coverage`, `criticalMissing` and the other keys
+  the scanner prints. The guide now names the keys to code against, with
+  their values, and the ones a scanner release can change.
+  `scripts/test_readme.py` holds the sample to the scanner's key set and
+  value vocabularies, and every key the table names to the sample. (#35)
+- The conformance badge URLs in `conformance.md` and `integrations/README.md`
+  returned "404: badge not found": shields.io splits a static badge path on
+  single dashes, so `OASB-2-Essential-blue` had four parts. They now use the
+  README's `OASB--2` form, which renders "OASB-2: Essential", and one colour
+  per level in all three files: Essential blue, Standard teal, Hardened
+  green. `scripts/test_readme.py` checks that every badge URL in the three
+  files reads as label `OASB-2`, a message and a colour, and that each level
+  has one colour. (#38)
+- The README Adoption Path no longer labels `--fail-below 40` as Essential,
+  or 60 and 75 as Standard and Hardened. Essential is both CRITICAL controls
+  passing, with no minimum score: under hackmyagent 0.33.2 a governance file
+  that scores 10 with both present scans as `essential`, and
+  `--fail-below 40` fails it. The steps now say that `--fail-below 40` keeps
+  grade C or better, that the scanner fails the job on a missing CRITICAL
+  control without the flag, which is the Essential gate, that 60 and 75 are
+  the minimum scores of Standard and Hardened, and that the level is read
+  from the `conformance` field. `scripts/test_readme.py` checks that
+  `README.md`, `integrations/README.md` and `conformance.md` label no score
+  with a conformance level. (#47)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

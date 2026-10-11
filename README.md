@@ -242,13 +242,13 @@ Show your governance conformance:
 5. Add badge to README
 
 **For teams**:
-1. Add `scan-soul` to CI pipeline with `--fail-below 40` (Essential)
+1. Add `scan-soul` to the CI pipeline with `--fail-below 40` to keep grade C or better. Without the flag, the scanner already fails the job when a CRITICAL control is missing, which is the Essential gate
 2. Adopt SOUL.md as a required file alongside README.md
-3. Raise threshold over time: 40 (Essential) -> 60 (Standard) -> 75 (Hardened)
+3. Raise the threshold over time: 60 is the minimum score for Standard and 75 for Hardened. Each level also names the controls that must pass, so read the level from the `conformance` field of the `--json` output
 
 **For organizations**:
 1. Set minimum OASB-2 conformance level per agent risk tier
-2. Use JSON output (`--format json`) for compliance dashboards
+2. Use JSON output (`--json`) for compliance dashboards
 3. Integrate with existing GRC tooling via structured scan results
 
 ---
@@ -271,7 +271,11 @@ agent-governance-spec/
     check_docs_prose.py       Checks the Markdown prose for the dash and heading rules in CONTRIBUTING.md
     test_check_crosswalks.py  Tests for the validator
     test_check_docs_prose.py  Tests for the prose check
-    test_readme.py            Tests for the README command blocks
+    test_github_action.py     Tests for the GitHub Action's pull request comment
+    test_integrations_readme.py  Tests for the scan-soul exit codes in integrations/README.md
+    test_readme.py            Tests for the README command blocks, the integrations JSON sample and the badge URLs
+    test_scan_soul_commands.py  Tests for the scan-soul commands in the docs and CI examples
+    test_integrations.py      Tests for the minimum-score check in the GitHub Actions workflow
   domains/
     README.md                 Domain overview
     11-trust-hierarchy.md     Domain 11: Trust Hierarchy
