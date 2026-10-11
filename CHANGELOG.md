@@ -190,6 +190,16 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   checks of the governance file, and that runtime platforms enforce the
   declared behavior. `scripts/test_readme.py` checks that README.md claims no
   runtime enforcement. (#45)
+- The GitLab CI example prints `Governance Score: NN/100 (Grade: X)` and
+  enforces `MIN_GOVERNANCE_SCORE`. Its scan used `--format json`, an option
+  `scan-soul` rejects, so `scan-result.json` held no JSON and the job ended
+  before the score was read; it now uses `--json`. The job no longer declares
+  `scan-result.json` as a `dotenv` report, which takes `KEY=VALUE` lines, and
+  keeps the file under `artifacts: paths:`. Its `changes:` list adds
+  `.github/copilot-instructions.md` and `.clinerules`, so it names all ten
+  governance files the scanner searches. `scripts/test_gitlab_ci.py` runs the
+  job's script against a stand-in that accepts only the scanner's options.
+  (#37)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
