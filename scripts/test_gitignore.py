@@ -47,7 +47,7 @@ class CredentialFiles(unittest.TestCase):
         self.assertEqual(paths, ignored(self, paths))
 
     def test_the_pattern_matches_only_that_file_name(self):
-        # controls.json is the tracked control export; a template for a secrets file is committed on purpose.
+        # controls.json is the tracked control export; a template such as secrets.json.example would be committed on purpose.
         paths = ["controls.json", "secrets.json.example"]
         self.assertEqual([], ignored(self, paths))
 
