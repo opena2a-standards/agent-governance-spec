@@ -492,10 +492,13 @@ class Contributing(unittest.TestCase):
 
     def test_docstring_states_the_limits_of_the_readme_exception(self):
         # A README in an examples directory is not read under another excluded directory or an excluded prefix.
+        # An example or examples directory nested in another one does not take the README out.
         self.assertTrue(cdp.excluded("tests/examples/README.md"))
         self.assertTrue(cdp.excluded("vendor/examples/README.md"))
+        self.assertFalse(cdp.excluded("examples/pkg/examples/README.md"))
+        self.assertFalse(cdp.excluded("examples/example/README.md"))
         stated = " ".join(readme_exception_statements(checked_list(cdp.__doc__)))
-        self.assertRegex(stated, r"\bunless another directory of this item holds it\b")
+        self.assertRegex(stated, r"\bunless a directory of this item other than example or examples holds it\b")
         self.assertRegex(stated, r"\bunless\b.* another item of this list excludes its path\b")
 
     def test_contributing_states_that_the_readme_exception_yields_to_the_other_exclusions(self):
@@ -505,15 +508,35 @@ class Contributing(unittest.TestCase):
         self.assertTrue(cdp.excluded(match.group(1)))
         self.assertFalse(cdp.excluded(match.group(1).split("/", 1)[1]))
 
-    def test_prefix_exclusions_are_stated_at_the_repository_root(self):
+    def test_prefix_exclusions_are_stated_at_the_root_of_the_checked_directory(self):
         # The prefixes match only at the start of the path, so a node_modules directory deeper in the tree is read.
+        # The path is relative to ROOT, so the docstring names the checked directory. CONTRIBUTING.md gives the
+        # command without ROOT, which checks the repository.
         self.assertTrue(cdp.excluded("node_modules/notes.md"))
         self.assertFalse(cdp.excluded("packages/a/node_modules/notes.md"))
         self.assertFalse(cdp.excluded("x/vendor/notes.md"))
         item = next(i for i in checked_list(cdp.__doc__).split("\n  * ") if "node_modules/" in i)
-        self.assertIn("at the repository root", " ".join(item.split()))
+        self.assertIn("at the root of the checked directory", " ".join(item.split()))
+        self.assertNotIn("repository root", " ".join(item.split()))
         described = checker_lines((cdp.ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8"))
+        self.assertIn("`python3 scripts/check_docs_prose.py` checks", described)
         self.assertIn("`node_modules/`, `vendor/`, `dist/` or `build/` at the repository root", described)
+
+    def test_prefix_exclusions_apply_at_the_root_given_as_the_argument(self):
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        with tempfile.TemporaryDirectory() as tmp:
+            write_tree(tmp, {"sub/vendor/a.md": "A clause -- joined.\n", "sub/b.md": "Another clause -- joined.\n"})
+            try:
+                for command in (["init", "-q"], ["add", "sub/vendor/a.md", "sub/b.md"]):
+                    subprocess.run(["git", "-C", tmp, *command], check=True, capture_output=True, env=env)
+            except (OSError, subprocess.CalledProcessError):
+                self.skipTest("git is not available")
+            with mock.patch.dict(os.environ, env, clear=True):
+                at_repository = run_main(tmp)
+                at_subdirectory = run_main(str(Path(tmp) / "sub"))
+        message = ": spaced double hyphen used as a dash\n"
+        self.assertEqual((1, f"sub/b.md:1{message}sub/vendor/a.md:1{message}"), at_repository[:2])
+        self.assertEqual((1, f"b.md:1{message}"), at_subdirectory[:2])
 
     def test_each_clause_break_separates_the_verb_from_the_readme(self):
         # One sentence per break, each holding no negation, so it would be counted if its break did not start a clause.
@@ -535,6 +558,20 @@ class Contributing(unittest.TestCase):
         ):
             self.assertIsNone(NEGATION.search(text), text)
             self.assertEqual([], readme_exception_statements(text), text)
+
+    def test_each_negation_word_rejects_a_clause_on_its_own(self):
+        # One clause per word, naming the README, the directory and the verb, so it would be counted without the word.
+        for text, word in (
+            ("A README.md in an examples directory is not read when the checker reads the tree.", "not"),
+            ("The checker reads no README.md in an examples directory.", "no"),
+            ("No README.md in an examples directory is read.", "No"),
+            ("The checker never reads a README.md in an examples directory.", "never"),
+        ):
+            with self.subTest(text=text):
+                self.assertEqual([text], CLAUSE_BREAK.split(text))
+                self.assertTrue(all(p.search(text) for p in (README_PATTERN, EXAMPLE_DIR_PATTERN, READ_VERB)))
+                self.assertEqual([word], NEGATION.findall(text))
+                self.assertEqual([], readme_exception_statements(text))
 
     def test_readme_exception_split_across_a_break_is_not_counted(self):
         # The README, the directory and the verb have to sit between the same two breaks.

@@ -334,6 +334,21 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   that states the exception. New tests give one case per break, check that
   the docstring names both limits of the exception, and check that the
   break pattern splits a long run of spaces in linear time. (#66)
+- The docstring of `scripts/check_docs_prose.py` says that `node_modules/`,
+  `vendor/`, `dist/` and `build/` are skipped at the root of the checked
+  directory, not at the repository root: a run with the ROOT argument `sub`
+  skips `sub/vendor/`, which a run on the whole repository reads. It says
+  that a README in an example or examples directory is read unless a
+  directory of the list other than `example` or `examples` holds it; "another
+  directory of this item" read as excluding `examples/pkg/examples/README.md`,
+  which the check reads. `scripts/test_check_docs_prose.py` adds one case per
+  word of the negation rule that only that word rejects, since no test failed
+  when "never" was removed from the rule. The entry for #66 is broader than
+  that change in two places. The earlier test of the directory names could
+  not fail when the docstring dropped `examples`, and did fail when it
+  dropped `example`. The new cases of one break each cover the comma, the
+  semicolon, the colon and the 11 words; the cases for the edges of a
+  sentence or parenthetical predate #66. (#68)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
