@@ -384,9 +384,18 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `CONTRIBUTING.md` says that `CHANGELOG.md` and `changelog.d/` are skipped
   at the repository root. The entry for #70 should have said that a README
   in an example or examples directory is read unless a directory named in
-  that item, other than `example` or `examples`, holds it and no other item
+  that item, other than `example` or `examples`, holds it or another item
   of the list excludes its path: `vendor/examples/README.md` is not read.
   (#72)
+- The entry for #72 joined the two limits of the README exception with
+  "and no other item of the list excludes its path", which reads as if a
+  README were skipped only when both held; either one keeps the README from
+  being read, and the entry now joins them with "or", as the docstring of
+  `scripts/check_docs_prose.py` does. A test in
+  `scripts/test_check_docs_prose.py` holds the entry to that wording.
+  `.gitignore` lists `secrets.json` beside the other credential files it
+  ignores, and a test in `scripts/test_gitignore.py` checks that git
+  ignores a `secrets.json` at the root and in a subdirectory. (#74)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
