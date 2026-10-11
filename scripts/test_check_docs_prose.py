@@ -318,18 +318,45 @@ class CommandLine(unittest.TestCase):
         self.assertIn("exit 2", cdp.__doc__)
 
 
+def checker_lines(text):
+    """The lines of text that name the checker, joined into one."""
+    return " ".join(line for line in text.splitlines() if "check_docs_prose.py" in line)
+
+
+def checked_list(doc):
+    """The Checked list of the docstring: the paragraph that names what the checker does not read."""
+    return doc.split("Checked:", 1)[-1].split("\n\n", 1)[0]
+
+
 def unnamed_exclusions(text):
     """The exclusions of the checker that the lines of text naming the checker leave out."""
-    described = " ".join(line for line in text.splitlines() if "check_docs_prose.py" in line)
+    described = checker_lines(text)
     wanted = [("LICENSE", "LICENSE")]
     wanted += [(name, "`" + name) for name in cdp.EXCLUDED_FILES + cdp.EXCLUDED_PREFIXES + cdp.RENDERED_PREFIXES]
     wanted += [(name, "`" + name + "`") for name in sorted(cdp.EXCLUDED_DIR_NAMES)]
     return [name for name, form in wanted if form not in described]
 
 
+def readme_exception_statements(text):
+    """The sentences and parentheticals of text that say the checker reads a README in an examples directory.
+
+    One says so when it names a README file and an examples directory and says "checks", "reads", "is read"
+    or "is checked". "does not read" and "is not checked" hold none of those forms.
+    """
+    readme = "|".join(re.escape(name) for name in sorted(cdp.README_NAMES))
+    directory = "|".join(re.escape(name) for name in sorted(cdp.EXAMPLE_DIR_NAMES))
+    wanted = (
+        re.compile(rf"(?<![\w.-])(?:{readme})(?!\w)", re.IGNORECASE),
+        re.compile(rf"(?<![\w.-])(?:{directory})(?![\w.-])"),
+        re.compile(r"\b(?:checks|reads|(?:is|are) (?:checked|read))\b"),
+    )
+    statements = re.split(r"(?<=[.!?])\s+|\s*[()]\s*", " ".join(text.split()))
+    return [s for s in statements if all(pattern.search(s) for pattern in wanted)]
+
+
 def unreasoned_exclusions(doc):
     """The exclusions of the checker that no "subject: reason" item of the docstring's Checked list gives a reason for."""
-    checked = doc.split("Checked:", 1)[-1].split("\n\n", 1)[0]
+    checked = checked_list(doc)
     items = [" ".join(item.split()) for item in checked.split("\n  * ")[1:]]
     reasoned = [item.split(": ", 1)[0] for item in items if ": " in item and item.split(": ", 1)[1].strip(" .")]
     names = ["LICENSE"] + list(cdp.EXCLUDED_FILES + cdp.EXCLUDED_PREFIXES + cdp.RENDERED_PREFIXES)
@@ -338,8 +365,23 @@ def unreasoned_exclusions(doc):
     return [n for n in names if not any(re.search(pattern.format(re.escape(n)), s) for s in reasoned)]
 
 
+def readme_exception_gaps(text):
+    """The parts of the README exception that the sentence naming the excluded directories leaves out.
+
+    The checker reads a README in an example or examples directory, so the sentence of the lines of text
+    naming the checker that says nothing "in a directory named" one of the excluded names is read has to
+    state the exception itself: the README names, and after them the directory names it applies to.
+    """
+    described = " ".join(line for line in text.splitlines() if "check_docs_prose.py" in line)
+    sentence = re.split(r"\.(?:\s|$)", described.partition("in a directory named")[2], maxsplit=1)[0].lower()
+    start = sentence.find("`readme")
+    exception = sentence[start:] if start >= 0 else ""
+    wanted = sorted(cdp.README_NAMES) + sorted(cdp.EXAMPLE_DIR_NAMES)
+    return [name for name in wanted if "`" + name + "`" not in exception]
+
+
 class Contributing(unittest.TestCase):
-    """CONTRIBUTING.md names every path the checker does not read."""
+    """CONTRIBUTING.md names every path the checker does not read, and the README it reads among them."""
 
     def test_contributing_names_every_exclusion(self):
         text = (cdp.ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
@@ -374,6 +416,55 @@ class Contributing(unittest.TestCase):
         self.assertIn("crosswalks/oasb-2-to-", missing)
         self.assertIn("fixtures", missing)
         self.assertNotIn("CHANGELOG.md", missing)
+
+    def test_contributing_states_the_readme_exception_where_it_names_the_directories(self):
+        # A README is read in an example or examples directory wherever that directory is.
+        self.assertFalse(cdp.excluded("docs/examples/README.md"))
+        text = (cdp.ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+        self.assertEqual([], readme_exception_gaps(text))
+
+    def test_readme_exception_stated_apart_from_the_directory_names_is_reported(self):
+        # The sentence says a file is checked and, where it names the directories, that the same file is not read.
+        apart = (
+            "- `python3 scripts/check_docs_prose.py` does not read the example governance files under"
+            " `examples/` (it checks `examples/README.md`), or anything in a directory named `test`,"
+            " `example` or `examples`. The script's docstring gives the reason for each exclusion.\n"
+        )
+        self.assertEqual(["readme.md", "readme.mdx", "example", "examples"], readme_exception_gaps(apart))
+        partial = (
+            "- `python3 scripts/check_docs_prose.py` does not read anything in a directory named `test`,"
+            " `example` or `examples`, except a `README.md`. It checks `examples/README.md`.\n"
+        )
+        self.assertEqual(["readme.mdx", "example", "examples"], readme_exception_gaps(partial))
+
+    def test_contributing_states_the_readme_exception(self):
+        # The lines that list `examples` among the skipped directories say that the README there is checked.
+        text = (cdp.ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+        self.assertTrue(
+            readme_exception_statements(checker_lines(text)),
+            "CONTRIBUTING.md does not say that the check reads a README.md in an examples directory",
+        )
+
+    def test_docstring_states_the_readme_exception(self):
+        self.assertTrue(
+            readme_exception_statements(checked_list(cdp.__doc__)),
+            "the docstring's Checked list does not say that a README.md in an examples directory is read",
+        )
+
+    def test_text_without_the_readme_exception_is_reported(self):
+        for text in (
+            "It does not read `CHANGELOG.md` or the example governance files under `examples/`.",
+            "It does not read the files under `examples/`, `examples/README.md` among them.",
+            "Anything in an examples directory is data a tool reads. A README.md describes a directory to a person.",
+            "A README.md in an examples directory is not read.",
+        ):
+            self.assertEqual([], readme_exception_statements(text), text)
+        for text in (
+            "It does not read the files under `examples/` (it checks `examples/README.md`).",
+            "A README.md in an examples directory\n    is read, since it describes the examples to a person.",
+            "A readme.mdx in an example directory is checked.",
+        ):
+            self.assertEqual(1, len(readme_exception_statements(text)), text)
 
 
 class Repository(unittest.TestCase):

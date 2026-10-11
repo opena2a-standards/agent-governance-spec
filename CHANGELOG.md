@@ -287,6 +287,20 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   and no grade are reported, and the scanner exits with code 2.
   `scripts/test_scoring.py` checks that the edge case withholds the empty
   file's score and names the exit code `integrations/README.md` lists. (#58)
+- The `CONTRIBUTING.md` sentence that lists what
+  `scripts/check_docs_prose.py` does not read no longer contradicts itself.
+  It said the check reads `examples/README.md` and, in the same sentence,
+  that it reads nothing in a directory named `example` or `examples`. The
+  README exception now sits with the directory names: a `README.md` or
+  `README.mdx` is read when the only directories of those names it is in are
+  `example` or `examples`, wherever that directory is.
+  `scripts/test_check_docs_prose.py` checks that the sentence naming the
+  directories states the exception. (#60)
+- `scripts/test_check_docs_prose.py` checks that CONTRIBUTING.md and the
+  docstring of `scripts/check_docs_prose.py` both say that a `README.md` in
+  an examples directory is read. Either statement could be deleted with
+  every test still passing, which would leave a reader to conclude from the
+  list of skipped directories that `examples/README.md` is not checked. (#61)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
