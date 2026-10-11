@@ -3,8 +3,8 @@
 
 Run from anywhere:  python3 scripts/test_stripped_docstrings.py
 
-Standard library only. python3 -OO strips the docstrings of the Python files
-it runs and imports, so a test that reads one must skip under it. The test
+Standard library only. python3 -OO strips the docstrings of the files under
+scripts/, so a test that reads one must skip under it. The test
 runs each scripts/test_*.py file, this one included, in its own python3 -OO
 process; it writes no tracked file.
 """
