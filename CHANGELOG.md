@@ -81,6 +81,16 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
 
 ### Fixed
 
+- Agent profiles are part of the specification (`specification.md` section
+  3.6). The tier counts 29, 57, 69, and 72 hold only under a profile that
+  skips no domain; `conversational`, `code-assistant`, and `tool-agent` skip
+  whole domains, so a TOOL-USING file under `code-assistant` is measured on
+  40 controls. Section 3.6 lists which domains each profile skips and why,
+  and the applicable count for every tier and profile; sections 3.1 to 3.4,
+  section 6, `scoring.md`, and the README state that the tier and the profile
+  together decide the applicable set, and that a published score names both.
+  Tests in `scripts/test_agent_profiles.py` hold the counts to the section
+  3.5 matrix. (#48)
 - The registry table in `specification.md` section 5.3 gives each control's
   heading title as its Name, as `controls.json` does; it differed for all 72
   controls: in wording for SOUL-HB-003, SOUL-AS-001, SOUL-AS-002,

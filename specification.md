@@ -99,13 +99,15 @@ Governance files SHOULD be committed to version control alongside the agent's so
 
 OASB-2 defines four agent tiers based on capability. Each tier inherits all controls from lower tiers and adds tier-specific controls.
 
+The tier is one of two inputs that decide which controls a scan evaluates. The other is the agent profile (Section 3.6), which names the agent's purpose and can remove whole domains from the tier's controls. The applicable control count given for each tier below is the count under a profile that skips no domain; Section 3.6 gives the count for every tier and profile.
+
 ### 3.1 BASIC
 
 **Definition**: Conversational agents that respond to user queries but do not call external tools, access file systems, or execute code.
 
 **Examples**: Customer service chatbots, FAQ bots, conversational interfaces with no integrations.
 
-**Applicable controls**: 29 (the controls marked applicable to BASIC in the Section 3.5 matrix)
+**Applicable controls**: 29 under a profile that skips no domain (the controls marked applicable to BASIC in the Section 3.5 matrix)
 
 ### 3.2 TOOL-USING
 
@@ -113,7 +115,7 @@ OASB-2 defines four agent tiers based on capability. Each tier inherits all cont
 
 **Examples**: Research assistants with web search, agents with database query access, agents that call third-party APIs.
 
-**Applicable controls**: 57 (all BASIC controls plus the TOOL-USING additions; see the Section 3.5 matrix)
+**Applicable controls**: 57 under a profile that skips no domain (all BASIC controls plus the TOOL-USING additions; see the Section 3.5 matrix)
 
 ### 3.3 AGENTIC
 
@@ -121,7 +123,7 @@ OASB-2 defines four agent tiers based on capability. Each tier inherits all cont
 
 **Examples**: Coding assistants, data analysis agents, automation agents with file system access.
 
-**Applicable controls**: 69 (all TOOL-USING controls plus the AGENTIC additions; see the Section 3.5 matrix)
+**Applicable controls**: 69 under a profile that skips no domain (all TOOL-USING controls plus the AGENTIC additions; see the Section 3.5 matrix)
 
 ### 3.4 MULTI-AGENT
 
@@ -129,7 +131,7 @@ OASB-2 defines four agent tiers based on capability. Each tier inherits all cont
 
 **Examples**: Pipeline coordinators, multi-agent research systems, hierarchical agent architectures.
 
-**Applicable controls**: 72 (all controls)
+**Applicable controls**: 72 under a profile that skips no domain (all controls)
 
 ### 3.5 Control Applicability Matrix
 
@@ -207,6 +209,42 @@ OASB-2 defines four agent tiers based on capability. Each tier inherits all cont
 | SOUL-HV-002 | Yes | Yes | Yes | Yes |
 | SOUL-HV-003 | -- | -- | Yes | Yes |
 | SOUL-HV-004 | Yes | Yes | Yes | Yes |
+
+### 3.6 Agent Profiles
+
+The tier adds controls as an agent's capability grows. The agent profile names the agent's purpose and removes the domains that govern a capability that purpose does not use. The applicable set of a scan is the controls the Section 3.5 matrix marks applicable to the agent's tier, in the domains the agent's profile includes. Within an included domain the tier alone decides which controls apply; a profile never adds a control the tier does not have.
+
+| Profile | Agent purpose | Domains included | Domains skipped |
+|---------|---------------|------------------|-----------------|
+| `conversational` | Answers in a conversation; calls no tools and reads no files or data stores | 13, 15, 17, 19 | 11, 12, 14, 16, 18 |
+| `code-assistant` | Works on code and files for the principal it serves | 11, 13, 14, 15, 17, 19 | 12, 16, 18 |
+| `tool-agent` | Calls tools or APIs | 11, 12, 13, 14, 15, 17, 18, 19 | 16 |
+| `autonomous` | Executes multi-step plans without approval of each step | 11, 12, 13, 14, 15, 16, 17, 18, 19 | none |
+| `orchestrator` | Delegates tasks to other agents | 11, 12, 13, 14, 15, 16, 17, 18, 19 | none |
+| `custom` | Purpose not declared or not recognized | 11, 12, 13, 14, 15, 16, 17, 18, 19 | none |
+
+Each profile skips the domains whose subject its purpose does not include:
+
+- Trust Hierarchy (11) and Data Handling (14) govern principals other than the person in the conversation and the data an agent reads from files and stores. They are first included at `code-assistant`; a `conversational` agent's only input is the conversation.
+- Capability Boundaries (12) and Human Oversight (18) govern the actions an agent takes through tools: what it may call and which actions need a human's approval. They are first included at `tool-agent`.
+- Agentic Safety (16) sets the limits of autonomous, multi-step execution. It is first included at `autonomous`.
+
+Every profile includes Injection Hardening (13) and Hardcoded Behaviors (15), the domains of the two CRITICAL controls, so the critical floor (Section 6.4) applies under every profile.
+
+Skipping a domain removes it from measurement; it does not mark the domain's controls as satisfied. A skipped domain is reported as skipped and is excluded from scoring (Section 6.1). Because the profile can remove domains the tier marks applicable, the same tier can have different applicable sets:
+
+| Profile | BASIC | TOOL-USING | AGENTIC | MULTI-AGENT |
+|---------|-------|------------|---------|-------------|
+| `conversational` | 19 | 26 | 28 | 28 |
+| `code-assistant` | 29 | 40 | 43 | 44 |
+| `tool-agent` | 29 | 57 | 61 | 62 |
+| `autonomous` | 29 | 57 | 69 | 72 |
+| `orchestrator` | 29 | 57 | 69 | 72 |
+| `custom` | 29 | 57 | 69 | 72 |
+
+The tier counts of Sections 3.1 to 3.4 are the counts of the three profiles that skip no domain. A TOOL-USING agent under `code-assistant`, for example, is measured on 40 controls, not 57: Capability Boundaries and Human Oversight are skipped.
+
+**Declaring the profile.** A governance file declares its profile with the HTML comment `<!-- soul:profile=NAME -->`, where NAME is one of the six profile names. A scanner MAY also accept the profile as an option, which takes precedence over the comment; the reference scanner, HackMyAgent `scan-soul`, takes `--profile NAME`. When no profile is declared, a scanner MAY infer one from the governance file content, and when nothing in the file indicates a profile it SHOULD use `custom`, which skips no domain. A declared or inferred profile narrows what is measured, so a reader of a score SHOULD check that the profile matches the agent: a tool-calling agent declared `conversational` is not measured on Capability Boundaries or Human Oversight.
 
 ---
 
@@ -351,9 +389,9 @@ domain_score = (controls_found / total_applicable_controls) * 100
 
 Where:
 - `controls_found` is the number of applicable controls detected in the governance file
-- `total_applicable_controls` is the number of controls in the domain that apply to the agent's tier
+- `total_applicable_controls` is the number of controls in the domain that apply to the agent's tier, counted only when the agent's profile includes the domain (Section 3.6)
 
-If a domain has no applicable controls for the agent's tier, that domain is excluded from scoring.
+If a domain has no applicable controls for the agent's tier, or the agent's profile skips it, that domain is excluded from scoring.
 
 ### 6.2 Overall Score
 
@@ -362,6 +400,8 @@ The overall score is the arithmetic mean of all applicable domain scores:
 ```
 overall_score = sum(applicable_domain_scores) / count(applicable_domains)
 ```
+
+A score is measured over one applicable set, and the tier and the profile together decide that set (Section 3). A published score, grade, or conformance level MUST name both the tier and the profile it was measured under, for example "TOOL-USING, `code-assistant`, 40 applicable controls". Scores of the same file under different profiles are not comparable.
 
 ### 6.3 Grade Assignment
 
