@@ -36,8 +36,9 @@ given with the reason it is not read:
     unless a directory of this item other than example or examples holds it
     or another item of this list excludes its path.
   * the crosswalk .md files that scripts/check_crosswalks.py renders from the
-    CSV sources (crosswalks/oasb-2-to-*.md): their text quotes the mapped
-    frameworks verbatim and is compared byte for byte.
+    CSV sources (crosswalks/oasb-2-to-*.md at the root of the checked
+    directory): their text quotes the mapped frameworks verbatim and is
+    compared byte for byte.
 
 Outside git, the working tree is walked with the same rules.
 
