@@ -15,6 +15,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.dont_write_bytecode = True
 
@@ -55,7 +56,7 @@ class CredentialFiles(unittest.TestCase):
         # The tests check one file name, and git add -f still adds an ignored file, so the docstring names that
         # file and says git ignores it, not that every secrets file is kept out of a commit. It must equal that
         # sentence, so a clause appended to it, such as "so no secrets file can reach a commit", fails.
-        if CredentialFiles.__doc__ is None:
+        if CredentialFiles.__doc__ is None and sys.flags.optimize >= 2:
             self.skipTest("python3 -OO strips docstrings, so CredentialFiles has none to check")
         doc = " ".join(CredentialFiles.__doc__.split())
         self.assertEqual("git ignores secrets.json at the root and in a subdirectory.", doc)
@@ -70,6 +71,17 @@ class StrippedDocstrings(unittest.TestCase):
                                 capture_output=True, text=True)
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("skipped 'python3 -OO strips docstrings, so CredentialFiles has none to check'", result.stderr)
+
+    def test_a_missing_docstring_is_an_error_without_python3_OO(self):
+        # A class docstring missing from the source, for example because a statement was placed above it, is None
+        # without -OO too, and the test that reads it must then report an error, not a skip.
+        if sys.flags.optimize >= 2:
+            self.skipTest("under python3 -OO the test that reads the class docstring skips on purpose")
+        result = unittest.TestResult()
+        with mock.patch.object(CredentialFiles, "__doc__", None):
+            CredentialFiles("test_docstring_claims_only_what_the_tests_check").run(result)
+        self.assertEqual([], result.skipped)
+        self.assertEqual(1, len(result.errors), result.errors)
 
 
 if __name__ == "__main__":

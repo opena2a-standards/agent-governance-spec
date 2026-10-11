@@ -196,7 +196,7 @@ class CodeSpans(unittest.TestCase):
 
 def docstring(test, obj):
     """The docstring of obj, or a skip of the test when python3 -OO has stripped it."""
-    if obj.__doc__ is None:
+    if obj.__doc__ is None and sys.flags.optimize >= 2:
         test.skipTest("python3 -OO strips docstrings, so {} has none to check".format(obj.__name__))
     return obj.__doc__
 
@@ -760,6 +760,17 @@ class StrippedDocstrings(unittest.TestCase):
         self.assertIn("skipped 'python3 -OO strips docstrings, so check_docs_prose has none to check'",
                       result.stderr)
         self.assertIn("skipped 'python3 -OO strips docstrings, so excluded has none to check'", result.stderr)
+
+    def test_a_missing_docstring_is_an_error_without_python3_OO(self):
+        # A docstring missing from the source, for example because a statement was placed above it, is None without
+        # -OO too, and the test that reads it must then report an error, not a skip.
+        if sys.flags.optimize >= 2:
+            self.skipTest("under python3 -OO the test that reads a docstring skips on purpose")
+        result = unittest.TestResult()
+        with mock.patch.object(cdp, "__doc__", None):
+            CommandLine("test_usage_and_docstring_name_the_optional_root_argument").run(result)
+        self.assertEqual([], result.skipped)
+        self.assertEqual(1, len(result.errors), result.errors)
 
 
 if __name__ == "__main__":

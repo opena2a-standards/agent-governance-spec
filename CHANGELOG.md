@@ -413,7 +413,10 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   which strips docstrings and leaves `__doc__` as `None`. Each now skips
   with the reason that `python3 -OO` strips docstrings, and a test in each
   file runs that file under `python3 -OO` and checks that it passes with
-  those skips. (#81)
+  those skips. The skip applies only under `python3 -OO`: without it, a
+  test that reads a docstring missing from the source reports an error,
+  and a test in each file sets one docstring to `None` and checks that the
+  test reading it reports an error, not a skip. (#81)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
