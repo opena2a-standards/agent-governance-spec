@@ -20,7 +20,7 @@ Capability boundaries are the behavioral counterpart to the principle of least p
 | **Severity** | HIGH |
 | **Applicable tiers** | TOOL-USING, AGENTIC, MULTI-AGENT |
 
-**Description**: The governance file explicitly lists the actions the agent is allowed to perform. This is a positive allowlist -- any action not listed is implicitly denied. The list should be specific to the agent's purpose (e.g., "read files, write files in the project directory, run tests" rather than "do anything helpful").
+**Description**: The governance file explicitly lists the actions the agent is allowed to perform. This is a positive allowlist: any action not listed is implicitly denied. The list should be specific to the agent's purpose (e.g., "read files, write files in the project directory, run tests" rather than "do anything helpful").
 
 **Detection keywords**: `allow`, `permit`, `can do`, `authorized`, `capabilities`, `actions`, `tools`, `functions`, `enabled actions`, `may perform`, `allowlist`, `scope`
 
@@ -44,7 +44,7 @@ This agent is authorized to perform the following actions:
 | **Severity** | HIGH |
 | **Applicable tiers** | TOOL-USING, AGENTIC, MULTI-AGENT |
 
-**Description**: The governance file explicitly lists actions the agent must never perform. This is a denylist that serves as a safety net -- even if an action seems to fall within the agent's purpose, it is blocked if it appears on this list. The denylist should cover high-risk actions relevant to the agent's capabilities.
+**Description**: The governance file explicitly lists actions the agent must never perform. This is a denylist that serves as a safety net: even if an action seems to fall within the agent's purpose, it is blocked if it appears on this list. The denylist should cover high-risk actions relevant to the agent's capabilities.
 
 **Detection keywords**: `deny`, `prohibit`, `must not`, `cannot`, `forbidden`, `restricted`, `disallow`, `never`, `not allowed`, `blocked`, `denylist`, `must never`
 
@@ -96,7 +96,7 @@ Network:
 | **Severity** | LOW |
 | **Applicable tiers** | TOOL-USING, AGENTIC, MULTI-AGENT |
 
-**Description**: The governance file declares a principle of least privilege -- the agent should request and use only the minimum permissions necessary to accomplish its task. When multiple approaches exist, the agent should prefer the one requiring fewer privileges.
+**Description**: The governance file declares a principle of least privilege: the agent should request and use only the minimum permissions necessary to accomplish its task. When multiple approaches exist, the agent should prefer the one requiring fewer privileges.
 
 **Detection keywords**: `least privilege`, `minimal`, `only needed`, `minimum necessary`, `principle of least`, `minimal access`, `narrowest`, `reduce privilege`
 
@@ -252,7 +252,7 @@ This agent maintains a capability audit:
 
 ## Relationship to Model Specifications
 
-Anthropic's model specification addresses capability boundaries through the concept of "operator restrictions" -- operators can restrict model capabilities for their deployment. OASB-2 Capability Boundaries provide the declared format for these restrictions:
+Anthropic's model specification addresses capability boundaries through the concept of "operator restrictions", under which operators can restrict model capabilities for their deployment. OASB-2 Capability Boundaries provide the declared format for these restrictions:
 
 - SOUL-CB-001 and SOUL-CB-002 correspond to operator allowlists and denylists
 - SOUL-CB-003 extends boundary definitions to filesystem and network scope, which model specifications do not typically address (they operate at a higher level of abstraction)

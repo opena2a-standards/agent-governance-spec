@@ -15,7 +15,7 @@ The Agent Behavioral Governance Specification (OASB-2) defines a standard for de
 
 ### 1.2 Scope
 
-OASB-2 governs the **deployment layer** -- the behavioral contract of a specific agent instance. It does not govern:
+OASB-2 governs the **deployment layer**: the behavioral contract of a specific agent instance. It does not govern:
 
 - **Foundation model behavior**: That is the responsibility of model specifications (Anthropic's principal hierarchy, OpenAI's model spec). An agent can comply with OASB-2 regardless of which underlying model it uses.
 - **Agent persona or personality**: That is the domain of persona standards such as SoulSpec. OASB-2 defines safety and governance constraints, not character traits.

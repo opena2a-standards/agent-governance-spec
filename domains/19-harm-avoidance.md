@@ -6,13 +6,13 @@ The Harm Avoidance domain governs the agent's obligation to evaluate potential n
 
 ## Rationale
 
-The other OASB-2 domains define what the agent can do (Capability Boundaries), what it must never do (Hardcoded Behaviors), and when to ask a human (Human Oversight). But there is a gap between "permitted" and "advisable." An action can be within the agent's declared capabilities, not on any denylist, and not flagged for human approval -- and still cause harm.
+The other OASB-2 domains define what the agent can do (Capability Boundaries), what it must never do (Hardcoded Behaviors), and when to ask a human (Human Oversight). But there is a gap between "permitted" and "advisable." An action can be within the agent's declared capabilities, not on any denylist, and not flagged for human approval, and still cause harm.
 
 A coding agent asked to refactor a function might technically have permission to modify the file, but if that function is called by 200 other modules, the refactor could break production in ways the agent didn't anticipate. A research agent asked to summarize a person's online presence might have permission to search the web, but aggregating scattered personal information into a single document creates a privacy harm that no individual search caused.
 
 Anthropic's soul document addresses this through several mechanisms: the "1000 users test" (if 1000 different users sent this request, what's the best policy?), the dual newspaper test (would the response be criticized as harmful OR criticized as unnecessarily restrictive?), and explicit cost-benefit reasoning that weighs the probability of harm, the severity of harm, the breadth of harm, and whether the agent is the proximate cause.
 
-These are judgment-level controls. They operate in the gray area between clear permission and clear prohibition -- the space where most real-world harm occurs. Without declared harm avoidance governance, agents default to executing any action that isn't explicitly blocked, which is insufficient for production deployment.
+These are judgment-level controls. They operate in the gray area between clear permission and clear prohibition, the space where most real-world harm occurs. Without declared harm avoidance governance, agents default to executing any action that isn't explicitly blocked, which is insufficient for production deployment.
 
 ## Controls
 
@@ -24,7 +24,7 @@ These are judgment-level controls. They operate in the gray area between clear p
 | **Severity** | HIGH |
 | **Applicable tiers** | TOOL-USING, AGENTIC, MULTI-AGENT |
 
-**Description**: The governance file instructs the agent to evaluate potential negative consequences before executing actions, even when the action is within its declared capabilities. The agent should consider who could be affected, what could go wrong, and whether the potential harm is proportionate to the expected benefit. This is not a requirement to seek approval for every action (that is Human Oversight) -- it is a requirement to think before acting.
+**Description**: The governance file instructs the agent to evaluate potential negative consequences before executing actions, even when the action is within its declared capabilities. The agent should consider who could be affected, what could go wrong, and whether the potential harm is proportionate to the expected benefit. This is not a requirement to seek approval for every action (that is Human Oversight). It is a requirement to think before acting.
 
 **Detection keywords**: `risk`, `consequence`, `impact`, `assess`, `evaluate`, `before acting`, `potential harm`, `side effect`, `consider`, `weigh`, `cost-benefit`, `risk assessment`, `impact analysis`, `potential risk`, `think before`
 
@@ -49,7 +49,7 @@ Before executing actions, this agent evaluates potential consequences:
 | **Severity** | MEDIUM |
 | **Applicable tiers** | All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT) |
 
-**Description**: The governance file instructs the agent to scale its response to match the stakes of the situation. Low-risk queries should receive fast, direct responses. High-stakes actions should trigger additional verification, caution, or user consultation. The agent should not treat every request with equal urgency or equal caution -- both under-reacting to dangerous requests and over-reacting to routine requests are governance failures.
+**Description**: The governance file instructs the agent to scale its response to match the stakes of the situation. Low-risk queries should receive fast, direct responses. High-stakes actions should trigger additional verification, caution, or user consultation. The agent should not treat every request with equal urgency or equal caution. Both under-reacting to dangerous requests and over-reacting to routine requests are governance failures.
 
 **Detection keywords**: `proportional`, `appropriate`, `scale`, `match`, `stakes`, `severity`, `measured`, `calibrate`, `escalate`, `level of caution`, `risk level`, `commensurate`, `appropriate response`
 
@@ -127,7 +127,7 @@ Anthropic's model specification addresses harm avoidance extensively through sev
 
 - SOUL-HV-004 (Ambiguity resolution) corresponds to Anthropic's guidance on charitable interpretation of user requests while maintaining safety: assume the best interpretation, but do not assume the interpretation that maximizes risk.
 
-OpenAI's model specification addresses similar concerns through its guidance on "following the spirit of instructions" and applying judgment when literal compliance would produce harmful outcomes. Both specifications treat harm avoidance as a judgment-level capability that operates above explicit rules -- the governance layer that handles the cases rules alone cannot anticipate.
+OpenAI's model specification addresses similar concerns through its guidance on "following the spirit of instructions" and applying judgment when literal compliance would produce harmful outcomes. Both specifications treat harm avoidance as a judgment-level capability that operates above explicit rules, the governance layer that handles the cases rules alone cannot anticipate.
 
 ## Relationship to Other OASB-2 Domains
 

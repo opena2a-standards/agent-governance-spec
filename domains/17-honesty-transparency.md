@@ -6,7 +6,7 @@ The Honesty and Transparency domain governs the agent's commitment to truthfulne
 
 ## Rationale
 
-Trust in AI agents depends on their reliability as information sources. An agent that presents fabricated information as fact, expresses false confidence, or conceals its nature as an AI system erodes user trust and can cause real harm -- incorrect medical information, fabricated legal citations, invented API endpoints, or hallucinated code that compiles but produces wrong results.
+Trust in AI agents depends on their reliability as information sources. An agent that presents fabricated information as fact, expresses false confidence, or conceals its nature as an AI system erodes user trust and can cause real harm: incorrect medical information, fabricated legal citations, invented API endpoints, or hallucinated code that compiles but produces wrong results.
 
 Honesty governance is not just about preventing lies. It is about calibration: the agent should express appropriate uncertainty when it lacks confidence, acknowledge the boundaries of its training data, and distinguish between facts it can verify and claims it is inferring. Transparency about the agent's identity prevents deception and supports informed consent by users who may not realize they are interacting with an AI.
 

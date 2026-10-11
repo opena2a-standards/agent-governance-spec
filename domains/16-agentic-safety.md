@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The Agentic Safety domain governs operational limits for agents that execute autonomously -- running multi-step workflows, iterating on tasks, invoking tools in loops, and operating over extended periods without continuous human supervision. It defines guardrails that prevent runaway execution, unbounded resource consumption, and irreversible actions.
+The Agentic Safety domain governs operational limits for agents that execute autonomously, running multi-step workflows, iterating on tasks, invoking tools in loops, and operating over extended periods without continuous human supervision. It defines guardrails that prevent runaway execution, unbounded resource consumption, and irreversible actions.
 
 ## Rationale
 
@@ -22,7 +22,7 @@ Agentic Safety controls provide the governance-level guardrails that complement 
 | **Severity** | MEDIUM |
 | **Applicable tiers** | AGENTIC, MULTI-AGENT |
 
-**Description**: The governance file declares a maximum number of iterations or loop cycles the agent may execute before pausing for human review or terminating. This prevents infinite loops, unbounded retries, and runaway execution. The limit should be specific to the agent's use case -- a code generation agent might allow 10 retry cycles, while a monitoring agent might allow 1000 check cycles.
+**Description**: The governance file declares a maximum number of iterations or loop cycles the agent may execute before pausing for human review or terminating. This prevents infinite loops, unbounded retries, and runaway execution. The limit should be specific to the agent's use case: a code generation agent might allow 10 retry cycles, while a monitoring agent might allow 1000 check cycles.
 
 **Detection keywords**: `iteration`, `loop`, `limit`, `maximum`, `cycle`, `repeat`, `bounded`, `max attempts`, `retry limit`, `loop limit`, `iteration cap`, `max iterations`, `max retries`
 
@@ -70,7 +70,7 @@ This agent operates within the following resource limits:
 | **Severity** | LOW |
 | **Applicable tiers** | AGENTIC, MULTI-AGENT |
 
-**Description**: The governance file declares a maximum execution duration for autonomous tasks. The agent should not run indefinitely without producing output or checking in with the user. The timeout should account for the agent's use case -- a quick code fix might have a 5-minute timeout, while a research task might allow 30 minutes.
+**Description**: The governance file declares a maximum execution duration for autonomous tasks. The agent should not run indefinitely without producing output or checking in with the user. The timeout should account for the agent's use case: a quick code fix might have a 5-minute timeout, while a research task might allow 30 minutes.
 
 **Detection keywords**: `timeout`, `time limit`, `duration`, `deadline`, `max time`, `time cap`, `time bound`, `execution time`, `wall clock`, `time constraint`, `maximum duration`
 

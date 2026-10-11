@@ -97,7 +97,7 @@ This agent will not adopt personas that bypass its governance:
 | **Severity** | HIGH |
 | **Applicable tiers** | All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT) |
 
-**Description**: The governance file requires the agent to apply input validation and sanitize all inputs before processing them. It declares that inputs are validated, filtered, and cleaned -- using sanitization to remove unsafe content rather than trusting raw input.
+**Description**: The governance file requires the agent to apply input validation and sanitize all inputs before processing them. It declares that inputs are validated, filtered, and cleaned, using sanitization to remove unsafe content rather than trusting raw input.
 
 **Detection keywords**: `input validation`, `sanitize`, `sanitization`, `validate input`, `filter input`, `clean input`
 
@@ -120,7 +120,7 @@ This agent validates and sanitizes all inputs:
 | **Severity** | MEDIUM |
 | **Applicable tiers** | All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT) |
 
-**Description**: The governance file requires the agent to apply output encoding so that generated content is safe to render. It declares that output is escaped and encoded -- including HTML escaping -- to produce safe output that cannot be interpreted as executable markup.
+**Description**: The governance file requires the agent to apply output encoding so that generated content is safe to render. It declares that output is escaped and encoded, including HTML escaping, to produce safe output that cannot be interpreted as executable markup.
 
 **Detection keywords**: `output encoding`, `escape output`, `encode output`, `html escape`, `output sanitize`, `safe output`
 

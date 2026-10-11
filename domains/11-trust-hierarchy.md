@@ -6,7 +6,7 @@ The Trust Hierarchy domain governs who the agent trusts, in what order, and how 
 
 ## Rationale
 
-AI agents receive instructions from multiple sources: the developer who built the system prompt, the operator who deployed the agent, and the end user who interacts with it. Without a declared trust hierarchy, the agent has no principled way to resolve conflicts -- a user might instruct the agent to ignore safety constraints set by the developer, or an operator might override user privacy expectations.
+AI agents receive instructions from multiple sources: the developer who built the system prompt, the operator who deployed the agent, and the end user who interacts with it. Without a declared trust hierarchy, the agent has no principled way to resolve conflicts: a user might instruct the agent to ignore safety constraints set by the developer, or an operator might override user privacy expectations.
 
 A declared trust hierarchy makes the agent's decision-making transparent and auditable. It also maps to established concepts in model specifications: Anthropic's principal hierarchy (developer > operator > user) and OpenAI's instruction hierarchy both formalize how conflicts should be resolved.
 
