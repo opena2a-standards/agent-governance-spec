@@ -338,6 +338,21 @@ def unreasoned_exclusions(doc):
     return [n for n in names if not any(re.search(pattern.format(re.escape(n)), s) for s in reasoned)]
 
 
+def readme_exception_gaps(text):
+    """The parts of the README exception that the sentence naming the excluded directories leaves out.
+
+    The checker reads a README in an example or examples directory, so the sentence of the lines of text
+    naming the checker that says nothing "in a directory named" one of the excluded names is read has to
+    state the exception itself: the README names, and after them the directory names it applies to.
+    """
+    described = " ".join(line for line in text.splitlines() if "check_docs_prose.py" in line)
+    sentence = re.split(r"\.(?:\s|$)", described.partition("in a directory named")[2], maxsplit=1)[0].lower()
+    start = sentence.find("`readme")
+    exception = sentence[start:] if start >= 0 else ""
+    wanted = sorted(cdp.README_NAMES) + sorted(cdp.EXAMPLE_DIR_NAMES)
+    return [name for name in wanted if "`" + name + "`" not in exception]
+
+
 class Contributing(unittest.TestCase):
     """CONTRIBUTING.md names every path the checker does not read."""
 
@@ -374,6 +389,26 @@ class Contributing(unittest.TestCase):
         self.assertIn("crosswalks/oasb-2-to-", missing)
         self.assertIn("fixtures", missing)
         self.assertNotIn("CHANGELOG.md", missing)
+
+    def test_contributing_states_the_readme_exception_where_it_names_the_directories(self):
+        # A README is read in an example or examples directory wherever that directory is.
+        self.assertFalse(cdp.excluded("docs/examples/README.md"))
+        text = (cdp.ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+        self.assertEqual([], readme_exception_gaps(text))
+
+    def test_readme_exception_stated_apart_from_the_directory_names_is_reported(self):
+        # The sentence says a file is checked and, where it names the directories, that the same file is not read.
+        apart = (
+            "- `python3 scripts/check_docs_prose.py` does not read the example governance files under"
+            " `examples/` (it checks `examples/README.md`), or anything in a directory named `test`,"
+            " `example` or `examples`. The script's docstring gives the reason for each exclusion.\n"
+        )
+        self.assertEqual(["readme.md", "readme.mdx", "example", "examples"], readme_exception_gaps(apart))
+        partial = (
+            "- `python3 scripts/check_docs_prose.py` does not read anything in a directory named `test`,"
+            " `example` or `examples`, except a `README.md`. It checks `examples/README.md`.\n"
+        )
+        self.assertEqual(["readme.mdx", "example", "examples"], readme_exception_gaps(partial))
 
 
 class Repository(unittest.TestCase):
