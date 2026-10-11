@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Tests for scripts/check_crosswalks.py: the JSON control export, the render
-comparison, the attribute tables, the section 5.3 registry table, and the
+comparison, the attribute tables, the section 5.3 registry table, the section
+3.5 applicability matrix and the tier counts of section 3, and the
 .gitattributes line-ending pins of the files it compares byte for byte; and
 the terms README.md uses in its prose.
 
@@ -64,6 +65,7 @@ class CommittedExport(unittest.TestCase):
         controls, _, attributes = cc.load_domains(self.errors)
         self.controls = controls
         self.entries = cc.control_entries(self.errors, controls, attributes)
+        self.tiers = cc.control_tiers(self.errors, self.entries, attributes)
 
     def test_domain_files_are_valid_input(self):
         self.assertEqual(self.errors, [])
@@ -87,6 +89,13 @@ class CommittedExport(unittest.TestCase):
         self.assertEqual(errors, [])
         for _, _, severity in cc.CONFORMANCE_LEVELS:
             self.assertTrue(any(e["severity"] == severity for e in self.entries), severity)
+
+    def test_applicability_matrix_and_tier_counts_match_the_domain_files(self):
+        errors = []
+        text = (cc.ROOT / cc.SPECIFICATION).read_text(encoding="utf-8")
+        cc.check_applicability_matrix(errors, cc.SPECIFICATION, text, self.tiers)
+        cc.check_tier_counts(errors, cc.SPECIFICATION, text, self.tiers)
+        self.assertEqual(errors, [])
 
     def test_one_entry_per_control_heading_with_the_section_8_2_members(self):
         exported = json.loads((cc.ROOT / cc.CONTROLS_EXPORT).read_text(encoding="utf-8"))
@@ -587,6 +596,172 @@ class ConformanceLevels(unittest.TestCase):
         ])
 
 
+def tiers_for(controls):
+    with tempfile.TemporaryDirectory() as tmp:
+        (Path(tmp) / "11-trust-hierarchy.md").write_text(domain_file(controls), encoding="utf-8")
+        errors = []
+        found, _, attributes = cc.load_domains(errors, Path(tmp))
+        entries = cc.control_entries(errors, found, attributes)
+        tiers = cc.control_tiers(errors, entries, attributes)
+    return tiers, errors
+
+
+def with_tiers(cid, value):
+    return (f"### {cid}: Control", [("ID", cid), ("Severity", "LOW"), ("Applicable tiers", value)])
+
+
+class ApplicableTiers(unittest.TestCase):
+    def test_all_and_a_list_of_tiers_are_read_in_tier_order(self):
+        tiers, errors = tiers_for([with_tiers("SOUL-TH-001", "All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT)"),
+                                   with_tiers("SOUL-TH-002", "`AGENTIC, MULTI-AGENT`")])
+        self.assertEqual(errors, [])
+        self.assertEqual({cid: names for cid, (_, names) in tiers.items()},
+                         {"SOUL-TH-001": cc.TIERS, "SOUL-TH-002": ("AGENTIC", "MULTI-AGENT")})
+        self.assertRegex(tiers["SOUL-TH-002"][0], r"11-trust-hierarchy\.md:\d+$")
+
+    def test_absent_attribute_is_red(self):
+        tiers, errors = tiers_for([ACTIVE])
+        self.assertEqual([e.split(": ", 1)[1] for e in errors], ["SOUL-TH-001 has no Applicable tiers attribute"])
+        self.assertIsNone(tiers["SOUL-TH-001"][1])
+
+    def test_unknown_repeated_or_reordered_tiers_are_red(self):
+        for value in ("AGENTIC, ORCHESTRATOR", "AGENTIC, AGENTIC", "MULTI-AGENT, AGENTIC", "All",
+                      "AGENTIC,MULTI-AGENT", ""):
+            with self.subTest(value=value):
+                tiers, errors = tiers_for([with_tiers("SOUL-TH-001", value)])
+                self.assertEqual([e.split(": ", 1)[1] for e in errors], [
+                    f"Applicable tiers {value!r} of SOUL-TH-001 is neither "
+                    "'All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT)' nor names from BASIC, TOOL-USING, "
+                    "AGENTIC, MULTI-AGENT, each once and in that order, separated by ', '"])
+                self.assertIsNone(tiers["SOUL-TH-001"][1])
+
+
+MATRIX = """# Spec
+
+### 3.5 Control Applicability Matrix
+
+| Control ID | BASIC | TOOL-USING | AGENTIC | MULTI-AGENT |
+|-----------|-------|-----------|---------|-------------|
+{rows}
+
+Text after the table.
+"""
+
+
+class ApplicabilityMatrix(unittest.TestCase):
+    TIERS = {
+        "SOUL-TH-001": ("domains/11-trust-hierarchy.md:5", cc.TIERS),
+        "SOUL-TH-002": ("domains/11-trust-hierarchy.md:20", ("AGENTIC", "MULTI-AGENT")),
+    }
+    GREEN = ["| SOUL-TH-001 | Yes | Yes | Yes | Yes |", "| SOUL-TH-002 | -- | -- | Yes | Yes |"]
+
+    def check(self, rows, tiers=None):
+        errors = []
+        cc.check_applicability_matrix(errors, "specification.md", MATRIX.format(rows="\n".join(rows)),
+                                      tiers or self.TIERS)
+        return errors
+
+    def test_rows_equal_to_the_applicable_tiers_attributes_are_green(self):
+        self.assertEqual(self.check(self.GREEN), [])
+
+    def test_row_that_differs_from_the_attribute_is_red(self):
+        self.assertEqual(self.check([self.GREEN[0], "| SOUL-TH-002 | -- | -- | -- | Yes |"]), [
+            "RED specification.md:8: SOUL-TH-002 is marked Yes for MULTI-AGENT; its Applicable tiers attribute "
+            "at domains/11-trust-hierarchy.md:20 names AGENTIC, MULTI-AGENT"])
+        self.assertEqual(self.check(["| SOUL-TH-001 | -- | -- | -- | -- |", self.GREEN[1]]), [
+            "RED specification.md:7: SOUL-TH-001 is marked Yes for no tier; its Applicable tiers attribute "
+            "at domains/11-trust-hierarchy.md:5 names BASIC, TOOL-USING, AGENTIC, MULTI-AGENT"])
+
+    def test_cell_other_than_yes_or_double_hyphen_is_red(self):
+        self.assertEqual(self.check([self.GREEN[0], "| SOUL-TH-002 | -- | -- | yes | Yes |"]),
+                         ["RED specification.md:8: matrix row SOUL-TH-002 has a cell other than Yes or --"])
+
+    def test_attribute_already_red_is_not_compared(self):
+        tiers = {**self.TIERS, "SOUL-TH-002": ("domains/11-trust-hierarchy.md:20", None)}
+        self.assertEqual(self.check([self.GREEN[0], "| SOUL-TH-002 | Yes | -- | -- | -- |"], tiers), [])
+
+    def test_missing_unknown_repeated_and_reordered_rows_are_red(self):
+        self.assertEqual(self.check(["| SOUL-TH-009 | -- | -- | -- | Yes |", self.GREEN[0], self.GREEN[0]]), [
+            "RED specification.md:7: matrix row 'SOUL-TH-009' is not a control heading in domains/",
+            "RED specification.md:9: matrix row SOUL-TH-001 is repeated",
+            "RED specification.md: the matrix under section 3.5 has no row for SOUL-TH-002",
+        ])
+        self.assertEqual(self.check(list(reversed(self.GREEN))),
+                         ["RED specification.md: the matrix rows under section 3.5 are not in domain order then NNN"])
+
+    def test_row_with_the_wrong_number_of_cells_is_red(self):
+        self.assertEqual(self.check(["| SOUL-TH-001 | Yes | Yes | Yes |", self.GREEN[1]]), [
+            "RED specification.md:7: matrix row has 4 cells; expected 5",
+            "RED specification.md: the matrix under section 3.5 has no row for SOUL-TH-001",
+        ])
+
+    def test_missing_heading_or_header_is_red(self):
+        errors = []
+        cc.check_applicability_matrix(errors, "specification.md", "# Spec\n", self.TIERS)
+        self.assertEqual(errors, ["RED specification.md: heading '### 3.5 Control Applicability Matrix' not found"])
+        errors = []
+        cc.check_applicability_matrix(errors, "specification.md",
+                                      MATRIX.format(rows="").replace("| MULTI-AGENT |", "| MULTI |"), self.TIERS)
+        self.assertEqual(errors, ["RED specification.md: the matrix under section 3.5 must have the header "
+                                  "| Control ID | BASIC | TOOL-USING | AGENTIC | MULTI-AGENT |"])
+
+
+TIER_SECTIONS = """## 3. Agent Tiers
+
+### 3.1 BASIC
+
+**Applicable controls**: {} (the controls marked applicable to BASIC)
+
+### 3.2 TOOL-USING
+
+**Applicable controls**: {}
+
+### 3.3 AGENTIC
+
+**Definition**: Text.
+
+**Applicable controls**: {} (all TOOL-USING controls plus the AGENTIC additions)
+
+### 3.4 MULTI-AGENT
+
+**Applicable controls**: {} (all controls)
+
+### 3.5 Control Applicability Matrix
+"""
+
+
+class TierCounts(unittest.TestCase):
+    TIERS = {
+        "SOUL-TH-001": ("a.md:1", cc.TIERS),
+        "SOUL-TH-002": ("a.md:2", ("AGENTIC", "MULTI-AGENT")),
+        "SOUL-TH-003": ("a.md:3", ("MULTI-AGENT",)),
+    }
+
+    def check(self, text, tiers=None):
+        errors = []
+        cc.check_tier_counts(errors, "specification.md", text, tiers or self.TIERS)
+        return errors
+
+    def test_counts_equal_to_the_attributes_are_green(self):
+        self.assertEqual(self.check(TIER_SECTIONS.format(1, 1, 2, 3)), [])
+
+    def test_count_that_differs_is_red_at_its_line(self):
+        self.assertEqual(self.check(TIER_SECTIONS.format(1, 1, 3, 3)), [
+            "RED specification.md:15: Applicable controls 3 of AGENTIC differs from the 2 controls whose "
+            "Applicable tiers attribute names AGENTIC"])
+
+    def test_counts_are_not_compared_when_an_attribute_is_red(self):
+        tiers = {**self.TIERS, "SOUL-TH-003": ("a.md:3", None)}
+        self.assertEqual(self.check(TIER_SECTIONS.format(9, 9, 9, 9), tiers), [])
+
+    def test_missing_heading_or_count_line_is_red(self):
+        text = TIER_SECTIONS.format(1, 1, 2, 3)
+        self.assertEqual(self.check(text.replace("### 3.2 TOOL-USING", "### 3.2 Tool-using")),
+                         ["RED specification.md: section 3 has no heading '### 3.n TOOL-USING'"])
+        self.assertEqual(self.check(text.replace("**Applicable controls**: 3 (all controls)", "All controls.")),
+                         ["RED specification.md: the section on MULTI-AGENT has no '**Applicable controls**: N' line"])
+
+
 class LineEndingPins(unittest.TestCase):
     def test_the_byte_checked_files_are_pinned_to_lf(self):
         paths = [f"crosswalks/{spec[kind]}" for spec in cc.CROSSWALK_SET for kind in ("csv", "md")]
@@ -664,6 +839,30 @@ class MainRun(unittest.TestCase):
         code, out, _ = self.run_main([], lambda root: (root / cc.CONFORMANCE).unlink())
         self.assertEqual(code, 1, out)
         self.assertIn("RED conformance.md: file is missing\n", out)
+
+    def test_applicable_tiers_that_differ_from_the_matrix_are_red(self):
+        domain = "16-agentic-safety.md"
+        table = "| **ID** | SOUL-AS-004 |\n| **Severity** | LOW |\n| **Applicable tiers** | MULTI-AGENT |\n"
+        heading = (cc.DOMAINS / domain).read_text(encoding="utf-8").splitlines().index(
+            "### SOUL-AS-004: Reversibility Preference") + 1
+        spec = (cc.ROOT / cc.SPECIFICATION).read_text(encoding="utf-8").splitlines()
+        row = spec.index("| SOUL-AS-004 | -- | -- | -- | Yes |") + 1
+        count = next(i for i in range(spec.index("### 3.3 AGENTIC"), len(spec)) if cc.TIER_COUNT.match(spec[i]))
+        stated = int(cc.TIER_COUNT.match(spec[count]).group(1))
+
+        def drift(root):
+            path = root / "domains" / domain
+            text = path.read_text(encoding="utf-8")
+            self.assertIn(table, text)
+            path.write_text(text.replace(table, table.replace("| MULTI-AGENT |", "| AGENTIC, MULTI-AGENT |")),
+                            encoding="utf-8")
+        code, out, _ = self.run_main([], drift)
+        self.assertEqual(code, 1, out)
+        self.assertIn(f"RED specification.md:{row}: SOUL-AS-004 is marked Yes for MULTI-AGENT; its Applicable tiers "
+                      f"attribute at domains/{domain}:{heading} names AGENTIC, MULTI-AGENT\n", out)
+        self.assertIn(f"RED specification.md:{count + 1}: Applicable controls {stated} of AGENTIC differs from the "
+                      f"{stated + 1} controls whose Applicable tiers attribute names AGENTIC\n", out)
+        self.assertIn("\n2 problem(s) found", out)
 
     def test_write_restores_controls_json(self):
         rendered = (cc.ROOT / cc.CONTROLS_EXPORT).read_bytes()

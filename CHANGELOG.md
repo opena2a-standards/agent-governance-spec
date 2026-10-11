@@ -200,6 +200,16 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   governance files the scanner searches. `scripts/test_gitlab_ci.py` runs the
   job's script against a stand-in that accepts only the scanner's options.
   (#37)
+- SOUL-AS-004 (Reversibility Preference) applies to MULTI-AGENT only, as the
+  `specification.md` section 3.5 matrix, the AGENTIC count of 69, and
+  `templates/agentic.md` already had it. Its `Applicable tiers` row in
+  `domains/16-agentic-safety.md` named AGENTIC as well, and `conformance.md`
+  listed reversibility preferences among the AGENTIC additions; both now
+  match the matrix. The validator reads the `Applicable tiers` attribute of
+  every control, requires the section 3.5 matrix to mark the same tiers,
+  and requires the Applicable controls count of each tier in sections 3.1 to
+  3.4 to equal the number of controls that name it. Tests in
+  `scripts/test_check_crosswalks.py`. (#40)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
