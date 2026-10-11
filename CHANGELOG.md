@@ -402,6 +402,12 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   ignore `secrets.yaml`, and `git add -f` still adds an ignored file. The
   docstring now says that git ignores `secrets.json` at the root and in a
   subdirectory, and a test in the same file holds it to that wording. (#76)
+- The test that holds the class docstring of the `.gitignore` tests to its
+  wording checked only that the sentence was present, so a docstring that
+  appended a broader claim, such as "so no secrets file can reach a
+  commit", still passed. The test now requires the whitespace-normalised
+  docstring to equal "git ignores secrets.json at the root and in a
+  subdirectory." (#80)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
