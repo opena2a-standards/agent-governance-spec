@@ -124,6 +124,13 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   shown the array index and `undefined/N (NaN%)`. Tests in
   `scripts/test_github_action.py` run the comment script on JSON in the
   scanner's shape. (#34)
+- `integrations/README.md` documents the `scan-soul` exit codes as the
+  scanner defines them. Exit `1` also means a CRITICAL control was not
+  detected, with no `--fail-below` given, and covers `--ci` findings and
+  usage errors; exit `2` covers a governance file that is missing,
+  unreadable, or empty; exit `0` requires Essential conformance. Each case
+  names its `gate.reason`. `scripts/test_integrations_readme.py` checks that
+  each `gate.reason` is listed under the exit code the scanner gives it. (#36)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

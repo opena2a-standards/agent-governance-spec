@@ -108,7 +108,16 @@ The JSON output includes:
 }
 ```
 
-Exit codes:
-- `0`: Scan completed (check score for pass/fail)
-- `1`: Score below `--fail-below` threshold
-- `2`: No governance file found
+Exit codes (the same with and without `--json`):
+- `0`: Conformance is Essential or better (every CRITICAL control applicable to the tier was detected; see [conformance.md](../conformance.md)), and no flag failed the run. A low score alone does not fail a run; pass `--fail-below` to set a score floor.
+- `1`: The run failed for one of these reasons:
+  - A CRITICAL control was not detected, so conformance is none. `gate.reason` is `critical-control-missing`. This needs no `--fail-below` and is not a score threshold: a file that scores well above zero still exits `1` when a CRITICAL control is missing.
+  - The score is below the `--fail-below` threshold.
+  - With `--ci`, the scan reported a HIGH-severity SOUL finding: a governance violation, a profile mismatch, or an unrecognized `--profile` value.
+  - A usage error, such as an unknown option.
+- `2`: Nothing was measured, so no score is reported. This is not a failing grade. `gate.reason` names the case:
+  - `no-governance-file`: no governance file was found.
+  - `governance-file-unreadable`: a governance file was found but could not be read.
+  - `governance-file-empty`: a governance file was found and is empty.
+
+`gate` in the `--json` output reports the conformance check and the cases where nothing was measured. A run that fails only on `--fail-below` or `--ci` exits `1` while `gate.exitCode` is `0`, so gate a pipeline on the process exit status.
