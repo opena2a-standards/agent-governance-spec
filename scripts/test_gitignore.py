@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Tests for the patterns .gitignore holds for credential files.
+"""Tests for the patterns .gitignore holds for credential files, and for the
+wording of the CHANGELOG.md entry about the test of the class docstring.
 
 Run from anywhere:  python3 scripts/test_gitignore.py
 
-Standard library only. The tests copy .gitignore into a new git repository
-under a temporary directory, with an empty home and no system configuration,
-so only the committed patterns decide what git ignores. They write no tracked
+Standard library only. The pattern tests copy .gitignore into a new git
+repository under a temporary directory, with an empty home and no system
+configuration, so only the committed patterns decide what git ignores. The
+changelog test reads the committed CHANGELOG.md. No test writes a tracked
 file.
 """
 
@@ -21,6 +23,7 @@ sys.dont_write_bytecode = True
 
 ROOT = Path(__file__).resolve().parent.parent
 GITIGNORE = ROOT / ".gitignore"
+CHANGELOG = ROOT / "CHANGELOG.md"
 
 
 def ignored(test, paths):
@@ -83,6 +86,23 @@ class StrippedDocstrings(unittest.TestCase):
             CredentialFiles("test_docstring_claims_only_what_the_tests_check").run(result)
         self.assertEqual([], result.skipped)
         self.assertEqual(1, len(result.errors), result.errors)
+
+
+class ChangelogEntry(unittest.TestCase):
+    """The wording of the CHANGELOG.md entry for #80."""
+
+    def test_entry_says_the_earlier_test_checked_the_sentence_and_two_absent_phrases(self):
+        # Before #80 the docstring test asserted that the sentence was in the docstring and that "never committed"
+        # and "A secrets file" were not, so the entry names both checks and does not say it checked only the first.
+        text = " ".join(CHANGELOG.read_text(encoding="utf-8").split())
+        start = text.index("The test that holds the class docstring of the `.gitignore` tests")
+        entry = text[start:text.index("(#80)", start)]
+        self.assertIn(
+            "checked that the sentence was present and that two phrases of the docstring that #76 replaced, "
+            '"never committed" and "A secrets file", were absent',
+            entry,
+        )
+        self.assertNotIn("checked only", entry)
 
 
 if __name__ == "__main__":
