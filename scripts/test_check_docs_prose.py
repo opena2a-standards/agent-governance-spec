@@ -531,6 +531,16 @@ class Contributing(unittest.TestCase):
         self.assertRegex(stated, r"\bunless a directory of this item other than example or examples holds it\b")
         self.assertRegex(stated, r"\bunless\b.* another item of this list excludes its path\b")
 
+    def test_changelog_joins_the_limits_of_the_readme_exception_with_or(self):
+        # Either limit alone keeps the README from being read, so the entry for #72 joins them as the docstring does.
+        self.assertTrue(cdp.excluded("tests/examples/README.md"))
+        self.assertTrue(cdp.excluded("vendor/examples/README.md"))
+        text = " ".join((cdp.ROOT / "CHANGELOG.md").read_text(encoding="utf-8").split())
+        start = text.index("The entry for #70 should have said that a README")
+        entry = text[start:text.index("(#72)", start)]
+        self.assertIn("holds it or another item of the list excludes its path", entry)
+        self.assertNotIn("no other item", entry)
+
     def test_contributing_states_that_the_readme_exception_yields_to_the_other_exclusions(self):
         described = checker_lines((cdp.ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8"))
         match = re.search(r"exception does not override the other exclusions, so it does not read `([^`]+)`", described)

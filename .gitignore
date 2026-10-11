@@ -10,4 +10,5 @@ venv/
 *.key
 *.p12
 *.pfx
+secrets.json
 node_modules/
