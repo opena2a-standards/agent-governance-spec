@@ -24,7 +24,8 @@ Checked: every file git tracks that ends in .md or .mdx, except CHANGELOG.md
 and changelog.d/ (history is not rewritten), LICENSE files, and anything under
 node_modules/, vendor/, dist/, build/, or a test, fixture, corpus, golden,
 snapshot or examples directory (that text is data a tool reads, not prose a
-person reads), and the crosswalk .md files that scripts/check_crosswalks.py
+person reads) other than a README.md in an examples directory that no other
+of those directories holds, and the crosswalk .md files that scripts/check_crosswalks.py
 renders from the CSV sources (their text quotes the mapped frameworks verbatim
 and is compared byte for byte). Outside git, the working tree is walked with
 the same rules.
@@ -53,6 +54,9 @@ RENDERED_PREFIXES = ("crosswalks/oasb-2-to-",)
 EXCLUDED_DIR_NAMES = frozenset(
     ["test", "tests", "fixture", "fixtures", "corpus", "golden", "snapshot", "snapshots", "example", "examples"]
 )
+# An examples directory holds files a tool reads beside a README a person reads about them.
+EXAMPLE_DIR_NAMES = frozenset(["example", "examples"])
+README_NAMES = frozenset(["readme.md", "readme.mdx"])
 
 FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
 BACKTICK_RUN = re.compile(r"`+")
@@ -82,7 +86,10 @@ def excluded(rel):
     parts = rel.split("/")
     if parts[-1].upper().startswith("LICENSE"):
         return True
-    return any(part.lower() in EXCLUDED_DIR_NAMES for part in parts[:-1])
+    data_dirs = {part.lower() for part in parts[:-1]} & EXCLUDED_DIR_NAMES
+    if data_dirs <= EXAMPLE_DIR_NAMES and parts[-1].lower() in README_NAMES:
+        return False
+    return bool(data_dirs)
 
 
 def listed_markdown(root):

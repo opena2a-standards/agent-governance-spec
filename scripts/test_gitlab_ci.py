@@ -248,11 +248,14 @@ class MissingPrograms(unittest.TestCase):
     """Without bash or node the job tests fail; a skip would pass the file with the job untested."""
 
     def run_job_tests_without(self, *absent):
-        """The result of the job tests on a PATH that has none of the absent programs."""
-        which = shutil.which
+        """The result of the job tests on a PATH that lacks exactly the absent programs.
+
+        Every other program is found whatever the real PATH holds, so the result does not
+        depend on the machine that runs this test.
+        """
 
         def find(name, *args, **kwargs):
-            return None if name in absent else which(name, *args, **kwargs)
+            return None if name in absent else f"/simulated/bin/{name}"
 
         suite = unittest.defaultTestLoader.loadTestsFromTestCase(GovernanceScanJob)
         result = unittest.TestResult()
@@ -267,6 +270,12 @@ class MissingPrograms(unittest.TestCase):
         self.assertEqual(result.testsRun, 0)
         (_, report), = result.errors
         self.assertIn("not on PATH: node", report)
+
+    def test_simulated_path_ignores_the_real_path(self):
+        with mock.patch("shutil.which", lambda *args, **kwargs: None):
+            result = self.run_job_tests_without("node")
+        (_, report), = result.errors
+        self.assertIn("not on PATH: node\n", report)
 
     def test_missing_bash_and_node_are_both_named(self):
         result = self.run_job_tests_without("bash", "node")

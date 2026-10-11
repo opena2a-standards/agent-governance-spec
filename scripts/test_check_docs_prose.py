@@ -200,7 +200,8 @@ class Scope(unittest.TestCase):
             "CHANGELOG.md", "changelog.d/123.md", "LICENSE.md", "licenses/LICENSE-MIT.md",
             "node_modules/x/README.md", "vendor/x.md", "dist/x.md", "build/x.md",
             "test/fixtures/a.md", "tests/a.md", "corpus/a.md", "golden/a.md",
-            "snapshots/a.md", "examples/chatbot-soul.md",
+            "snapshots/a.md", "examples/chatbot-soul.md", "example/notes.md",
+            "tests/examples/README.md", "examples/fixtures/README.md", "corpus/README.md",
             "crosswalks/oasb-2-to-nist-ai-rmf-1.0.md", "crosswalks/oasb-2-to-eu-ai-act-2024-1689.md",
         ):
             self.assertTrue(cdp.excluded(rel), rel)
@@ -209,6 +210,7 @@ class Scope(unittest.TestCase):
         for rel in (
             "README.md", "specification.md", "domains/README.md", "templates/basic.md",
             "crosswalks/README.md", "crosswalks/sources.md",
+            "examples/README.md", "example/readme.mdx", "integrations/examples/README.md",
         ):
             self.assertFalse(cdp.excluded(rel), rel)
 
@@ -217,7 +219,7 @@ class Scope(unittest.TestCase):
         self.assertIn("README.md", rels)
         self.assertIn("specification.md", rels)
         self.assertNotIn("CHANGELOG.md", rels)
-        self.assertFalse([r for r in rels if r.startswith("examples/")])
+        self.assertEqual(["examples/README.md"], [r for r in rels if r.startswith("examples/")])
 
     def test_contributing_names_every_tracked_file_the_check_skips(self):
         text = (cdp.ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")

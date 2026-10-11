@@ -260,6 +260,17 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   fixture, corpus, golden and snapshot directories.
   `scripts/test_check_docs_prose.py` checks that CONTRIBUTING.md names each
   exclusion the script defines. (#49)
+- The `scripts/test_gitlab_ci.py` tests of a missing `bash` or `node`
+  simulate a PATH that lacks exactly the programs they name. They deferred
+  to the real PATH for the others, so on a machine with node but not bash
+  the test of a missing node failed beside the error it expects. (#55)
+- `scripts/check_docs_prose.py` checks a `README.md` in an examples
+  directory, such as `examples/README.md`, which describes the examples to a
+  person. It skipped every file under a directory named `examples`, so that
+  page was never checked. The example governance files stay skipped. (#55)
+- `CONTRIBUTING.md` names the command that runs the tests under `scripts/`,
+  `python3 -m unittest discover -s scripts -p 'test_*.py'`, and says that
+  the GitLab job tests need bash and node on PATH. (#55)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
