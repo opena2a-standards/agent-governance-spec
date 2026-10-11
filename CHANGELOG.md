@@ -174,6 +174,12 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   in `scoring.md` now reports score 86 beside grade C.
   `scripts/test_critical_floor.py` checks that no document claims a score
   cap. (#42)
+- The README introduction no longer states that OASB-2 provides runtime
+  enforcement, which `specification.md` section 1.2 places out of scope. It
+  states that coverage is measured through automated scanning and CI/CD
+  checks of the governance file, and that runtime platforms enforce the
+  declared behavior. `scripts/test_readme.py` checks that README.md claims no
+  runtime enforcement. (#45)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Tests for the command blocks in README.md, the scan-soul JSON sample in integrations/README.md,
-the conformance badge URLs in README.md, integrations/README.md and conformance.md, and the score
-thresholds those three files name.
+"""Tests for the command blocks in README.md and its statement of scope, the scan-soul JSON sample
+in integrations/README.md, the conformance badge URLs in README.md, integrations/README.md and
+conformance.md, and the score thresholds those three files name.
 
 Run from anywhere:  python3 scripts/test_readme.py
 
-Standard library only. The tests read README.md, integrations/README.md and conformance.md and write nothing.
+Standard library only. The tests read README.md, integrations/README.md, conformance.md and
+specification.md and write nothing.
 """
 
 import json
@@ -24,6 +25,12 @@ BADGE_URL = re.compile(r"https://img\.shields\.io/badge/([^)\s`?]+)")
 LEVELS = ("Essential", "Standard", "Hardened")
 # A score with a conformance level as its label: "40 (Essential)", "`--fail-below 40` (Essential)".
 SCORE_LEVEL_LABEL = re.compile(r"(\d+)`?\s*\((" + "|".join(LEVELS) + r")\)")
+SPECIFICATION = README.parent / "specification.md"
+RUNTIME_EXCLUDED = "- **Runtime enforcement**: That is the responsibility of runtime platforms"
+RUNTIME_CLAIM = re.compile(
+    r"\b(provides?|performs?|offers?|delivers?|adds?) runtime enforcement\b|\benforces? .{0,40}\bat runtime\b",
+    re.IGNORECASE,
+)
 FENCE = re.compile(r"^```[^\n]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
 JSON_FENCE = re.compile(r"^```json\n(.*?)^```", re.MULTILINE | re.DOTALL)
 TABLE_KEY = re.compile(r"^\| `([^`]+)` \|", re.MULTILINE)
@@ -239,6 +246,26 @@ class ScoreThresholds(unittest.TestCase):
 
     def test_minimum_score_of_a_level_is_not_reported(self):
         self.assertEqual(score_level_labels("60 (the minimum score for Standard), overall score >= 75\n"), [])
+
+
+class RuntimeEnforcementScope(unittest.TestCase):
+    """specification.md section 1.2 places runtime enforcement out of scope; README.md must agree."""
+
+    def test_specification_excludes_runtime_enforcement(self):
+        self.assertIn(RUNTIME_EXCLUDED, SPECIFICATION.read_text(encoding="utf-8"))
+
+    def test_readme_does_not_claim_runtime_enforcement(self):
+        text = README.read_text(encoding="utf-8")
+        self.assertEqual([m.group(0) for m in RUNTIME_CLAIM.finditer(text)], [])
+
+    def test_a_runtime_enforcement_claim_is_reported(self):
+        claims = (
+            "OASB-2 also provides runtime enforcement through automated scanning.",
+            "The scanner enforces the governance file at runtime.",
+        )
+        for claim in claims:
+            with self.subTest(claim=claim):
+                self.assertRegex(claim, RUNTIME_CLAIM)
 
 
 if __name__ == "__main__":

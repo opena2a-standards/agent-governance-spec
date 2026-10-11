@@ -20,7 +20,7 @@ The AI agent ecosystem has standards for several layers of the stack, but behavi
 | Coding instructions | [AGENTS.md](https://agents.md) | Instructions for AI coding agents |
 | **Behavioral governance** | **OASB-2 (this specification)** | **Per-agent safety constraints, scope boundaries, oversight requirements** |
 
-OASB-2 fills the layer between model specifications (what the model can do) and deployment behavior (what the agent actually does). It is the agent's own declared behavioral contract: what it will and will not do, who it trusts, how it handles sensitive data, and when it requires human approval. OASB-2 also provides runtime enforcement through automated scanning and CI/CD integration.
+OASB-2 fills the layer between model specifications (what the model can do) and deployment behavior (what the agent actually does). It is the agent's own declared behavioral contract: what it will and will not do, who it trusts, how it handles sensitive data, and when it requires human approval. OASB-2 coverage is measured through automated scanning and CI/CD checks of the governance file. Enforcing the declared behavior at runtime is the responsibility of runtime platforms, outside the scope of OASB-2.
 
 ---
 
