@@ -416,7 +416,9 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   those skips. The skip applies only under `python3 -OO`: without it, a
   test that reads a docstring missing from the source reports an error,
   and a test in each file sets one docstring to `None` and checks that the
-  test reading it reports an error, not a skip. (#81)
+  test reading it reports an error, not a skip.
+  `scripts/test_stripped_docstrings.py` runs each `scripts/test_*.py` file
+  under `python3 -OO` and checks that it passes. (#81)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
