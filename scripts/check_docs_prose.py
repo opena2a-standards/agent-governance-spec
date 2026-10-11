@@ -22,7 +22,8 @@ message when ROOT is not a directory or more than one argument is given.
 
 Checked: every file git tracks that ends in .md or .mdx, except these, each
 given with the reason it is not read:
-  * CHANGELOG.md and changelog.d/: history is not rewritten.
+  * CHANGELOG.md and changelog.d/ at the root of the checked directory:
+    history is not rewritten.
   * LICENSE files: a license is legal text reproduced word for word from its
     publisher, and rewording it would change the terms it grants.
   * anything under node_modules/, vendor/, dist/ or build/ at the root of the
@@ -90,7 +91,7 @@ DASHES = (
 
 
 def excluded(rel):
-    """True when the repository-relative POSIX path is outside the checked set."""
+    """True when the root-relative POSIX path (relative to the checked directory) is outside the checked set."""
     if rel in EXCLUDED_FILES or rel.startswith(EXCLUDED_PREFIXES + RENDERED_PREFIXES):
         return True
     parts = rel.split("/")
@@ -120,7 +121,7 @@ def listed_markdown(root):
 
 
 def tracked_markdown(root):
-    """Repository-relative paths of the Markdown files to check, sorted."""
+    """Root-relative paths (relative to the checked directory) of the Markdown files to check, sorted."""
     return sorted(rel for rel in listed_markdown(root) if not excluded(rel))
 
 
