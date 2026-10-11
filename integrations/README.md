@@ -20,20 +20,22 @@ cp integrations/github-action.yml .github/workflows/governance.yml
 To set a minimum score, create the repository variable `MIN_GOVERNANCE_SCORE` (Settings > Secrets and variables > Actions > Variables), or from the command line:
 
 ```bash
-gh variable set MIN_GOVERNANCE_SCORE --body 60
+gh variable set MIN_GOVERNANCE_SCORE --body 40
 ```
 
-The "Check minimum score" step then fails the job when the score is below 60. Without the variable the minimum is 0, and the job reports the score without failing.
+The "Check minimum score" step then fails the job when the score is below 40, which keeps grade C or better. Without the variable the minimum is 0, and the job reports the score without failing.
+
+40 is a starting value. `templates/tool-using.md`, scanned as copied, scores 49 (the sample under Custom Integration), so a minimum of 60 fails the job until the file is edited to cover more controls. Raise the variable as coverage grows: 60 is the minimum score for Standard and 75 for Hardened (see [conformance.md](../conformance.md)).
 
 ## GitLab CI
 
 Add the contents of `gitlab-ci.yml` to your `.gitlab-ci.yml`.
 
-Set `MIN_GOVERNANCE_SCORE` variable to enforce a minimum:
+Set the `MIN_GOVERNANCE_SCORE` variable to enforce a minimum. The job fails when the score is below it; 40 is the same starting value as for GitHub Actions:
 
 ```yaml
 variables:
-  MIN_GOVERNANCE_SCORE: "60"
+  MIN_GOVERNANCE_SCORE: "40"
 ```
 
 ## README Badge

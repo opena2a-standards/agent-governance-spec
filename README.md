@@ -100,7 +100,7 @@ OASB-2 defines **9 governance domains** containing **72 controls** that cover th
 | Injection Hardening | 13 | 8 | Prompt injection defense, encoded payloads, role-play refusal |
 | Data Handling | 14 | 8 | PII protection, credential handling, data minimization |
 | Hardcoded Behaviors | 15 | 8 | Immutable safety rules, exfiltration prevention, kill switch |
-| Agentic Safety | 16 | 10 | Iteration limits, budget caps, timeouts, reversibility |
+| Agentic Safety | 16 | 10 | Iteration limits, budget caps, timeouts; for MULTI-AGENT only, reversibility |
 | Honesty and Transparency | 17 | 8 | Uncertainty acknowledgment, factual accuracy, identity disclosure |
 | Human Oversight | 18 | 8 | Approval gates, override mechanisms, monitoring requirements |
 | Harm Avoidance | 19 | 4 | Pre-action risk assessment, proportional response, unintended impact, ambiguity resolution |
@@ -296,6 +296,7 @@ agent-governance-spec/
     agentic.md                SOUL.md for autonomous agents
     multi-agent.md            SOUL.md for orchestrators
   examples/
+    README.md                 The example files, and what a scanner reports on them
     chatbot-soul.md           Customer service bot
     coding-agent-soul.md      AI coding assistant
     data-pipeline-soul.md     Data processing agent
