@@ -258,22 +258,27 @@ def write_tree(root, files):
         path.write_text(text, encoding="utf-8")
 
 
+def run_git(test, root, command, env):
+    """Run the git command in root, and skip the test when git is not installed, or with the command and its error
+    when the command fails."""
+    try:
+        subprocess.run(["git", "-C", str(root), *command], check=True, capture_output=True, env=env)
+    except OSError:
+        test.skipTest("git is not available")
+    except subprocess.CalledProcessError as error:
+        reason = error.stderr.decode("utf-8", "replace").strip()
+        test.skipTest("git {} failed: {}".format(" ".join(command), reason))
+
+
 def git_repository(test, root, paths):
     """Make root a git repository that tracks paths, and return the environment its git commands ran in.
 
     `git add -f` adds a path that an ignore file matches, such as a global gitignore that lists vendor/, which
-    `git add` refuses with exit 1. The test is skipped when git is not installed, or with the command and its
-    error when a git command fails.
+    `git add` refuses with exit 1. The test is skipped as run_git() skips it.
     """
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     for command in (["init", "-q"], ["add", "-f", "--", *paths]):
-        try:
-            subprocess.run(["git", "-C", str(root), *command], check=True, capture_output=True, env=env)
-        except OSError:
-            test.skipTest("git is not available")
-        except subprocess.CalledProcessError as error:
-            reason = error.stderr.decode("utf-8", "replace").strip()
-            test.skipTest("git {} failed: {}".format(" ".join(command), reason))
+        run_git(test, root, command, env)
     return env
 
 
@@ -547,11 +552,19 @@ class Contributing(unittest.TestCase):
         self.assertIn("`python3 scripts/check_docs_prose.py` checks", described)
         self.assertIn("`node_modules/`, `vendor/`, `dist/` or `build/` at the repository root", described)
 
+    def test_contributing_states_that_the_changelog_is_skipped_at_the_repository_root(self):
+        # A run on the whole repository reads sub/CHANGELOG.md and sub/changelog.d/1.md.
+        self.assertTrue(cdp.excluded("CHANGELOG.md") and cdp.excluded("changelog.d/1.md"))
+        self.assertFalse(cdp.excluded("sub/CHANGELOG.md") or cdp.excluded("sub/changelog.d/1.md"))
+        described = checker_lines((cdp.ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8"))
+        self.assertIn("`CHANGELOG.md` and `changelog.d/` at the repository root", described)
+
     def test_each_exclusion_matched_at_the_start_of_the_path_is_stated_at_the_root(self):
-        # CHANGELOG.md and the prefixes match only at the start of the path, so a run on the whole repository reads
-        # sub/CHANGELOG.md and sub/changelog.d/1.md. The item of the docstring that names each says so.
+        # CHANGELOG.md, the prefixes and the rendered crosswalk prefix match only at the start of the path, so a run on
+        # the whole repository reads sub/CHANGELOG.md, sub/changelog.d/1.md and sub/crosswalks/oasb-2-to-a.md. The
+        # item of the docstring that names each says so.
         items = [" ".join(i.split()) for i in checked_list(cdp.__doc__).split("\n  * ")[1:]]
-        for name in cdp.EXCLUDED_FILES + cdp.EXCLUDED_PREFIXES:
+        for name in cdp.EXCLUDED_FILES + cdp.EXCLUDED_PREFIXES + cdp.RENDERED_PREFIXES:
             with self.subTest(name=name):
                 rel = name if name in cdp.EXCLUDED_FILES else name + "a.md"
                 self.assertTrue(cdp.excluded(rel))
@@ -646,25 +659,35 @@ class Contributing(unittest.TestCase):
             self.assertEqual(1, len(readme_exception_statements(text)), text)
 
 
+def user_environment(home):
+    """The environment without GIT_ variables, with home as the user's home and git configuration directory."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env.update(HOME=str(home), XDG_CONFIG_HOME=str(Path(home) / ".config"))
+    return env
+
+
+def skip_unless_git_is_installed(test):
+    try:
+        subprocess.run(["git", "--version"], check=True, capture_output=True)
+    except (OSError, subprocess.CalledProcessError):
+        test.skipTest("git is not available")
+
+
 class GitRepositories(unittest.TestCase):
-    """The tests that build a git repository run when an ignore file of the user's matches their files."""
+    """The tests that build a git repository run when an ignore file of the user's matches their files, and say
+    which git command failed when one does."""
 
     def test_a_global_gitignore_that_matches_the_fixture_files_skips_no_test(self):
         # `git add` exits 1 for an ignored path, which these tests used to report as "git is not available".
+        # `git config` writes the path, so a backslash in it is escaped as the .gitconfig syntax requires.
         paths = ["a.md", "b.mdx", "sub/vendor/a.md"]
         with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as repo:
-            ignore = Path(home) / "ignore"
-            write_tree(home, {
-                ".gitconfig": '[core]\n\texcludesFile = "{}"\n'.format(ignore),
-                "ignore": "vendor/\n*.md\n*.mdx\n",
-            })
-            env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-            env.update(HOME=home, XDG_CONFIG_HOME=str(Path(home) / ".config"))
-            try:
-                subprocess.run(["git", "-C", repo, "init", "-q"], check=True, capture_output=True, env=env)
-                ignored = subprocess.run(["git", "-C", repo, "check-ignore", *paths], capture_output=True, env=env)
-            except (OSError, subprocess.CalledProcessError):
-                self.skipTest("git is not available")
+            write_tree(home, {"ignore": "vendor/\n*.md\n*.mdx\n"})
+            env = user_environment(home)
+            gitconfig = str(Path(home) / ".gitconfig")
+            run_git(self, home, ["config", "--file", gitconfig, "core.excludesFile", str(Path(home) / "ignore")], env)
+            run_git(self, repo, ["init", "-q"], env)
+            ignored = subprocess.run(["git", "-C", repo, "check-ignore", *paths], capture_output=True, env=env)
             self.assertEqual(paths, ignored.stdout.decode("utf-8").split(), "the global ignore file is not in effect")
             result = unittest.TestResult()
             with mock.patch.dict(os.environ, env, clear=True):
@@ -675,6 +698,31 @@ class GitRepositories(unittest.TestCase):
         self.assertEqual([], [(test.id(), reason) for test, reason in result.skipped])
         self.assertEqual([], [test.id() for test, _ in result.failures + result.errors])
         self.assertEqual(2, result.testsRun)
+
+    def test_a_temporary_directory_whose_path_holds_a_backslash_skips_no_test(self):
+        # A path formatted into a double-quoted .gitconfig value by hand made git reject the file, as on Windows.
+        skip_unless_git_is_installed(self)
+        with tempfile.TemporaryDirectory() as base:
+            tmp = Path(base) / "x\\q"
+            tmp.mkdir(parents=True)
+            result = unittest.TestResult()
+            with mock.patch.object(tempfile, "tempdir", str(tmp)):
+                GitRepositories("test_a_global_gitignore_that_matches_the_fixture_files_skips_no_test").run(result)
+        self.assertEqual([], [(test.id(), reason) for test, reason in result.skipped])
+        self.assertEqual([], [test.id() for test, _ in result.failures + result.errors])
+        self.assertEqual(1, result.testsRun)
+
+    def test_a_failing_git_command_skips_with_the_command_and_its_error(self):
+        # A .gitconfig that git cannot parse makes `git init` exit 128 while git is installed.
+        skip_unless_git_is_installed(self)
+        with tempfile.TemporaryDirectory() as home:
+            write_tree(home, {".gitconfig": "[core\nbroken\n"})
+            result = unittest.TestResult()
+            with mock.patch.dict(os.environ, user_environment(home), clear=True):
+                CommandLine("test_tracked_md_and_mdx_files_are_read_and_untracked_ones_are_not").run(result)
+        reasons = [reason for _, reason in result.skipped]
+        self.assertEqual(1, len(reasons), reasons)
+        self.assertTrue(reasons[0].startswith("git init -q failed: "), reasons[0])
 
 
 class Repository(unittest.TestCase):

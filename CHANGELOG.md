@@ -367,6 +367,26 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `vendor/` is named in another item, and `examples/vendor/README.md` is
   read. It should also have said that the test adds one case per word,
   and one for a capitalized No. (#70)
+- `scripts/test_check_docs_prose.py` adds a test that runs a git-based test
+  with a `.gitconfig` git cannot parse and requires its skip reason to start
+  with "git init -q failed:"; no test failed when that reason was replaced
+  with "git is not available". The test of a global gitignore skips a
+  failing git command with the command and its error, as the other git
+  tests do, not with "git is not available", and writes
+  `core.excludesFile` with `git config --file`. It used to format the path
+  into a double-quoted value by hand, so a temporary directory whose path
+  holds a backslash, as on Windows, made git reject the file and the test
+  skipped; a new test runs it under such a directory. The module docstring
+  of `scripts/check_docs_prose.py` says that the rendered crosswalk files
+  are skipped at the root of the checked directory, since a run on the
+  whole repository reads `sub/crosswalks/oasb-2-to-a.md`, and the test of
+  each exclusion matched at the start of the path covers that prefix.
+  `CONTRIBUTING.md` says that `CHANGELOG.md` and `changelog.d/` are skipped
+  at the repository root. The entry for #70 should have said that a README
+  in an example or examples directory is read unless a directory named in
+  that item, other than `example` or `examples`, holds it and no other item
+  of the list excludes its path: `vendor/examples/README.md` is not read.
+  (#72)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
