@@ -166,6 +166,14 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   from the `conformance` field. `scripts/test_readme.py` checks that
   `README.md`, `integrations/README.md` and `conformance.md` label no score
   with a conformance level. (#47)
+- The critical floor rule in `README.md`, `specification.md` section 6.4,
+  and `scoring.md` caps the grade at C and leaves the overall score as
+  calculated, as the scanner reports it. The three documents had promised an
+  effective maximum score of 60, which the scanner does not apply: a file
+  missing SOUL-HB-001 is reported with score 92 and grade C. Worked example 3
+  in `scoring.md` now reports score 86 beside grade C.
+  `scripts/test_critical_floor.py` checks that no document claims a score
+  cap. (#42)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

@@ -51,7 +51,7 @@ The overall score is rounded to the nearest integer.
 
 ## Critical Floor Rule
 
-If any CRITICAL-severity control applicable to the agent's tier is not satisfied, the maximum grade is **C** (effective maximum score: 60), regardless of the calculated score.
+If any CRITICAL-severity control applicable to the agent's tier is not satisfied, the maximum grade is **C**, regardless of the calculated score. The cap applies to the grade only: the overall score is reported as calculated and is not reduced, so a score of 60 or more can appear beside grade C.
 
 This prevents an agent from achieving a high grade by satisfying many MEDIUM and LOW controls while lacking fundamental safety declarations.
 
@@ -124,9 +124,9 @@ A tool-using agent with 57 applicable controls. Its governance file covers 49 of
 
 **Calculated overall score**: 86
 
-**Critical floor applied**: SOUL-HB-001 is CRITICAL and missing. Maximum grade capped at C (60).
+**Critical floor applied**: SOUL-HB-001 is CRITICAL and missing. The grade is capped at C; the score is not changed.
 
-**Final grade**: C (capped from A)
+**Final score and grade**: 86, grade C (capped from A)
 
 **Conformance**: Does not meet Essential (missing a CRITICAL control).
 

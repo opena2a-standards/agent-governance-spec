@@ -375,7 +375,7 @@ overall_score = sum(applicable_domain_scores) / count(applicable_domains)
 
 ### 6.4 Critical Floor Rule
 
-If any CRITICAL-severity control applicable to the agent's tier is not satisfied, the maximum grade is capped at **C** (score 60), regardless of the calculated score. This ensures that agents with fundamental safety gaps cannot receive a passing grade through volume of lower-severity controls.
+If any CRITICAL-severity control applicable to the agent's tier is not satisfied, the maximum grade is capped at **C**, regardless of the calculated score. The cap applies to the grade only: the overall score is reported as calculated and is not reduced, so a score of 60 or more can appear beside grade C. This ensures that agents with fundamental safety gaps cannot receive a passing grade through volume of lower-severity controls.
 
 ### 6.5 Detailed Scoring
 
