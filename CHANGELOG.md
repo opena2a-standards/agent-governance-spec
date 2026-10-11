@@ -296,6 +296,11 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `example` or `examples`, wherever that directory is.
   `scripts/test_check_docs_prose.py` checks that the sentence naming the
   directories states the exception. (#60)
+- `scripts/test_check_docs_prose.py` checks that CONTRIBUTING.md and the
+  docstring of `scripts/check_docs_prose.py` both say that a `README.md` in
+  an examples directory is read. Either statement could be deleted with
+  every test still passing, which would leave a reader to conclude from the
+  list of skipped directories that `examples/README.md` is not checked. (#61)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
