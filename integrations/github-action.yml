@@ -7,7 +7,10 @@
 #   - Node.js 18+
 #   - SOUL.md (or equivalent governance file) in repo root
 #
-# Optional: Set minimum score with fail-below input
+# Optional: set a minimum score with the MIN_GOVERNANCE_SCORE repository
+# variable (Settings > Secrets and variables > Actions > Variables). The job
+# fails when the score is below it. Unset, the minimum is 0 and the job only
+# reports the score.
 
 name: Agent Governance Scan
 
@@ -62,10 +65,12 @@ jobs:
           GRADE=$(jq -r '.grade // "F"' scan-result.json 2>/dev/null || echo "F")
           CONFORMANCE=$(jq -r '.conformance // "NONE"' scan-result.json 2>/dev/null || echo "NONE")
           FILE=$(jq -r '.file // "none"' scan-result.json 2>/dev/null || echo "none")
-          echo "score=$SCORE" >> $GITHUB_OUTPUT
-          echo "grade=$GRADE" >> $GITHUB_OUTPUT
-          echo "conformance=$CONFORMANCE" >> $GITHUB_OUTPUT
-          echo "file=$FILE" >> $GITHUB_OUTPUT
+          {
+            echo "score=$SCORE"
+            echo "grade=$GRADE"
+            echo "conformance=$CONFORMANCE"
+            echo "file=$FILE"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Comment on PR
         if: github.event_name == 'pull_request'
@@ -129,9 +134,19 @@ jobs:
 
       - name: Check minimum score
         if: always()
+        env:
+          SCORE: ${{ steps.scan.outputs.score }}
+          MIN_SCORE: ${{ vars.MIN_GOVERNANCE_SCORE || '0' }}
         run: |
-          SCORE=${{ steps.scan.outputs.score }}
-          MIN_SCORE="${{ inputs.fail-below || '0' }}"
+          case "$MIN_SCORE" in
+            ''|*[!0-9]*)
+              echo "MIN_GOVERNANCE_SCORE must be a whole number, got '$MIN_SCORE'"
+              exit 1
+              ;;
+          esac
+          case "$SCORE" in
+            ''|*[!0-9]*) SCORE=0 ;;
+          esac
           if [ "$SCORE" -lt "$MIN_SCORE" ]; then
             echo "Governance score $SCORE is below minimum $MIN_SCORE"
             exit 1

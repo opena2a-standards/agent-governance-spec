@@ -107,6 +107,16 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   checks that every `scan-soul` command in the Markdown and YAML files uses
   an option the scanner lists, and that a `--json` command keeps stderr out
   of its output. (#31)
+- The minimum score in `integrations/github-action.yml` is read from the
+  `MIN_GOVERNANCE_SCORE` repository variable, so the job fails when the score
+  is below it. It was read from a `fail-below` input that the workflow never
+  declared and that `pull_request` and `push` runs do not carry, so the
+  minimum was always 0 and the check never failed. A minimum that is not a
+  whole number fails the job with a message naming the variable, and
+  `actionlint` reports nothing on the workflow.
+  `integrations/README.md` shows how to set the variable, and
+  `scripts/test_integrations.py` runs the check against scores below, at,
+  and above the minimum. (#32)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

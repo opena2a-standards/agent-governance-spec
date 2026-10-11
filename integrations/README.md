@@ -9,7 +9,7 @@ Copy `github-action.yml` to `.github/workflows/governance.yml` in your repo.
 Features:
 - Scans SOUL.md on every PR that modifies governance files
 - Comments on PRs with governance score and domain breakdown
-- Optional minimum score enforcement (set `fail-below` input)
+- Optional minimum score enforcement (set the `MIN_GOVERNANCE_SCORE` repository variable)
 - Updates existing comments instead of creating duplicates
 
 ```yaml
@@ -17,13 +17,13 @@ Features:
 cp integrations/github-action.yml .github/workflows/governance.yml
 ```
 
-To set a minimum score, add to your workflow:
+To set a minimum score, create the repository variable `MIN_GOVERNANCE_SCORE` (Settings > Secrets and variables > Actions > Variables), or from the command line:
 
-```yaml
-- name: Check minimum score
-  env:
-    MIN_SCORE: 60  # Require at least Standard conformance
+```bash
+gh variable set MIN_GOVERNANCE_SCORE --body 60
 ```
+
+The "Check minimum score" step then fails the job when the score is below 60. Without the variable the minimum is 0, and the job reports the score without failing.
 
 ## GitLab CI
 

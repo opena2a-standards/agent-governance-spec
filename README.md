@@ -273,6 +273,7 @@ agent-governance-spec/
     test_check_docs_prose.py  Tests for the prose check
     test_readme.py            Tests for the README command blocks
     test_scan_soul_commands.py  Tests for the scan-soul commands in the docs and CI examples
+    test_integrations.py      Tests for the minimum-score check in the GitHub Actions workflow
   domains/
     README.md                 Domain overview
     11-trust-hierarchy.md     Domain 11: Trust Hierarchy
