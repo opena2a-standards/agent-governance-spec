@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Tests for the "No Governance File Found" edge case in scoring.md.
+"""Tests for the "No Governance File Found" and "Governance File Below
+Minimum Requirements" edge cases in scoring.md.
 
 Run from anywhere:  python3 scripts/test_scoring.py
 
@@ -18,14 +19,19 @@ ROOT = Path(__file__).resolve().parent.parent
 SCORING = ROOT / "scoring.md"
 GUIDE = ROOT / "integrations" / "README.md"
 HEADING = "### No Governance File Found"
+BELOW_MINIMUM_HEADING = "### Governance File Below Minimum Requirements"
 PROMISED_VALUE = re.compile(r"\b(?:score|grade) is (?:\d+|[A-F])\b")
+SCORED_AS_0 = re.compile(r"\bscore it as 0\b")
 EXIT_CODE = re.compile(r"\bexits? with code (\d+)\b")
 GUIDE_EXIT_ENTRY = re.compile(r"^- `(\d+)`: ")
 MISSING_FILE = "no governance file"
+EMPTY_FILE = "empty governance file"
+EMPTY_FILE_REASON = "`governance-file-empty`"
+NOT_EMPTY = "is not empty"
 
 
-def missing_file_exit_codes(text):
-    """The exit codes in the guide's list whose entry names a missing governance file.
+def exit_codes_naming(text, case):
+    """The exit codes in the guide's list whose entry names case.
 
     An entry is a top-level "- `N`: ..." line together with the indented lines
     under it, so the case is found whether the guide names it on the entry
@@ -39,9 +45,29 @@ def missing_file_exit_codes(text):
             code = entry.group(1)
         elif not line.startswith(" "):
             code = None
-        if code and MISSING_FILE in line.lower() and code not in codes:
+        if code and case in line.lower() and code not in codes:
             codes.append(code)
     return codes
+
+
+def missing_file_exit_codes(text):
+    """The exit codes in the guide's list whose entry names a missing governance file."""
+    return exit_codes_naming(text, MISSING_FILE)
+
+
+def empty_file_exit_codes(text):
+    """The exit codes in the guide's list whose entry names an empty governance file."""
+    return exit_codes_naming(text, EMPTY_FILE_REASON)
+
+
+def paragraphs(body):
+    """The paragraphs of a section body, in order."""
+    return [part for part in re.split(r"\n\s*\n", body) if part.strip()]
+
+
+def empty_file_rule(body):
+    """The paragraph of a section body that names an empty governance file, or "" if none does."""
+    return next((part for part in paragraphs(body) if EMPTY_FILE in part.lower()), "")
 
 
 def section(text, heading):
@@ -87,6 +113,46 @@ class NoGovernanceFile(unittest.TestCase):
         self.assertEqual(EXIT_CODE.findall(body), [])
 
 
+class BelowMinimumRequirements(unittest.TestCase):
+    def setUp(self):
+        self.body = section(SCORING.read_text(encoding="utf-8"), BELOW_MINIMUM_HEADING)
+        self.rule = empty_file_rule(self.body)
+
+    def test_score_of_0_is_for_a_file_that_is_not_empty(self):
+        scored = [part for part in paragraphs(self.body) if SCORED_AS_0.search(part)]
+        self.assertEqual(len(scored), 1, self.body)
+        self.assertIn(NOT_EMPTY, scored[0])
+
+    def test_empty_file_score_is_withheld(self):
+        self.assertIn("the score is withheld", self.rule)
+        self.assertIsNone(PROMISED_VALUE.search(self.rule), self.rule)
+        self.assertIsNone(SCORED_AS_0.search(self.rule), self.rule)
+
+    def test_empty_file_exit_code_is_the_one_the_integrations_guide_lists(self):
+        listed = empty_file_exit_codes(GUIDE.read_text(encoding="utf-8"))
+        self.assertEqual(len(listed), 1, listed)
+        self.assertEqual(EXIT_CODE.findall(self.rule), listed)
+        self.assertIn(EMPTY_FILE_REASON, self.rule)
+
+    def test_section_that_scores_an_empty_file_as_0_is_reported(self):
+        text = "\n".join([
+            "## Edge Cases",
+            "",
+            BELOW_MINIMUM_HEADING,
+            "",
+            "If a governance file is found but does not meet the minimum viable requirements"
+            " (500+ characters, 3+ headings), the scanner should score it as 0.",
+            "",
+            "### All Controls Pass",
+            "",
+            "An empty governance file exits with code 2.",
+        ])
+        body = section(text, BELOW_MINIMUM_HEADING)
+        self.assertEqual(len(SCORED_AS_0.findall(body)), 1)
+        self.assertNotIn(NOT_EMPTY, body)
+        self.assertEqual(empty_file_rule(body), "")
+
+
 class GuideExitCodes(unittest.TestCase):
     def test_case_named_on_the_entry_line(self):
         text = "\n".join([
@@ -96,6 +162,7 @@ class GuideExitCodes(unittest.TestCase):
             "- `2`: No governance file found",
         ])
         self.assertEqual(missing_file_exit_codes(text), ["2"])
+        self.assertEqual(empty_file_exit_codes(text), [])
 
     def test_case_named_in_a_sub_bullet(self):
         text = "\n".join([
@@ -110,6 +177,7 @@ class GuideExitCodes(unittest.TestCase):
             "  - `governance-file-empty`: a governance file was found and is empty.",
         ])
         self.assertEqual(missing_file_exit_codes(text), ["2"])
+        self.assertEqual(empty_file_exit_codes(text), ["2"])
 
 
 if __name__ == "__main__":

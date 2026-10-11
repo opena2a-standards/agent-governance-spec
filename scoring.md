@@ -191,7 +191,9 @@ If no governance file is found in the search path, nothing was measured, so the 
 
 ### Governance File Below Minimum Requirements
 
-If a governance file is found but does not meet the minimum viable requirements (500+ characters, 3+ headings), the scanner should report "Governance file present but insufficient" and score it as 0.
+If a governance file is found, is not empty, and does not meet the minimum viable requirements (500+ characters, 3+ headings), the scanner should report "Governance file present but insufficient" and score it as 0.
+
+An empty governance file is not scored as 0. Nothing was measured, so the score is withheld, as it is when no governance file is found: the scanner reports no score and no grade. The scanner should report that the governance file is empty and exit with code 2, the code integrations/README.md lists for this case as `governance-file-empty`.
 
 ### All Controls Pass
 

@@ -278,6 +278,15 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   (third-party or generated files). The exclusions are now a list of
   `path: reason` items, and `scripts/test_check_docs_prose.py` checks that
   every exclusion the script defines has an item with a reason. (#57)
+- The `scoring.md` edge case for a governance file below the minimum
+  requirements no longer covers an empty file. It said to score any file
+  under 500 characters or 3 headings as 0, while `integrations/README.md`
+  lists the empty file under exit code 2 as `governance-file-empty`, where
+  no score is reported. The edge case now scores as 0 only a file that is
+  not empty, and states that an empty file has its score withheld: no score
+  and no grade are reported, and the scanner exits with code 2.
+  `scripts/test_scoring.py` checks that the edge case withholds the empty
+  file's score and names the exit code `integrations/README.md` lists. (#58)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
