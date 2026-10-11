@@ -64,7 +64,7 @@ If you are building a tool that implements OASB-2 scanning or enforcement, we we
 OASB-2 follows semantic versioning:
 
 - **Patch** (1.0.x): Typo fixes, clarifications, example improvements. No changes to control definitions or scoring.
-- **Minor** (1.x.0): New controls, severity changes, new templates. Backward-compatible -- existing compliant agents remain compliant.
+- **Minor** (1.x.0): New controls, severity changes, new templates. Backward-compatible: existing compliant agents remain compliant.
 - **Major** (x.0.0): Domain restructuring, scoring algorithm changes, breaking changes to conformance levels.
 
 ---
@@ -76,12 +76,15 @@ OASB-2 follows semantic versioning:
 - Detection keywords should be concrete terms that appear in governance files, not abstract concepts.
 - Examples should use realistic agent scenarios, not placeholder text.
 - All Markdown files should use ATX-style headings (#, ##, ###).
+- In prose, do not use a spaced double hyphen, an em dash, or a spaced en dash as a dash. Rewrite the sentence with a period, a comma, a colon, or parentheses. Code blocks, inline code, and the rendered crosswalk files are exempt. The check below does not read `CHANGELOG.md` or the example governance files under `examples/`.
+- Do not name a heading or section "Why this exists" or "Why this matters". State what the reader needs under the existing heading.
+- `python3 scripts/check_docs_prose.py` checks the last two rules across the tracked Markdown files, except `CHANGELOG.md` and the files under `examples/`, and names each `file:line` that breaks them. Run it, with `python3 scripts/check_crosswalks.py`, before opening a pull request.
 
 ---
 
 ## Code of Conduct
 
-Contributors are expected to engage respectfully and constructively. Focus on technical merit. Disagreements about severity levels and domain boundaries are expected and healthy -- resolve them with evidence and reasoning, not authority or volume.
+Contributors are expected to engage respectfully and constructively. Focus on technical merit. Disagreements about severity levels and domain boundaries are expected and healthy. Resolve them with evidence and reasoning, not authority or volume.
 
 ---
 

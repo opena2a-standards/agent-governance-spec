@@ -6,7 +6,7 @@ This document defines how OASB-2 governance coverage is scored, including the pe
 
 ## Overview
 
-OASB-2 scoring measures how thoroughly an agent's governance file covers the applicable controls for its tier. The score reflects governance **coverage**, not governance **quality** -- a control is either detected or not. Evaluating whether the declared governance is actually enforced at runtime is outside the scope of OASB-2 scoring (that is the responsibility of runtime enforcement systems).
+OASB-2 scoring measures how thoroughly an agent's governance file covers the applicable controls for its tier. The score reflects governance **coverage**, not governance **quality**: a control is either detected or not. Evaluating whether the declared governance is actually enforced at runtime is outside the scope of OASB-2 scoring (that is the responsibility of runtime enforcement systems).
 
 ---
 

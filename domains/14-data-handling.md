@@ -8,7 +8,7 @@ The Data Handling domain governs how the agent treats sensitive information incl
 
 AI agents routinely encounter sensitive data in conversations, tool outputs, and retrieved documents. A coding assistant may see API keys in configuration files. A customer service agent may process names, emails, and payment details. A research agent may retrieve documents containing proprietary information.
 
-Without declared data handling policies, agents default to treating all data equivalently -- they may echo credentials in responses, store PII in logs, or pass sensitive fields to external APIs unnecessarily. Data handling governance makes the agent's obligations explicit. It also supports compliance with privacy regulations (GDPR, CCPA, HIPAA) by establishing a baseline of data protection behavior that can be audited.
+Without declared data handling policies, agents default to treating all data equivalently: they may echo credentials in responses, store PII in logs, or pass sensitive fields to external APIs unnecessarily. Data handling governance makes the agent's obligations explicit. It also supports compliance with privacy regulations (GDPR, CCPA, HIPAA) by establishing a baseline of data protection behavior that can be audited.
 
 ## Controls
 
@@ -69,7 +69,7 @@ This agent treats all credentials as sensitive material:
 | **Severity** | LOW |
 | **Applicable tiers** | All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT) |
 
-**Description**: The governance file declares a data minimization principle -- the agent should collect, process, and retain only the data necessary to accomplish its task. Temporary data should be treated as ephemeral and not persisted beyond the current interaction unless explicitly required.
+**Description**: The governance file declares a data minimization principle: the agent should collect, process, and retain only the data necessary to accomplish its task. Temporary data should be treated as ephemeral and not persisted beyond the current interaction unless explicitly required.
 
 **Detection keywords**: `minimiz`, `only collect`, `retention`, `delete`, `purge`, `necessary`, `ephemeral`, `least data`, `need to know`, `data retention`, `dispose`, `temporary`, `transient`
 

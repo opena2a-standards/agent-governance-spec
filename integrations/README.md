@@ -109,6 +109,6 @@ The JSON output includes:
 ```
 
 Exit codes:
-- `0` -- Scan completed (check score for pass/fail)
-- `1` -- Score below `--fail-below` threshold
-- `2` -- No governance file found
+- `0`: Scan completed (check score for pass/fail)
+- `1`: Score below `--fail-below` threshold
+- `2`: No governance file found

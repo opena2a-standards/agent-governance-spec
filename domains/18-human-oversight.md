@@ -6,7 +6,7 @@ The Human Oversight domain governs the mechanisms by which humans maintain contr
 
 ## Rationale
 
-Autonomous AI agents are designed to act independently, but independence without oversight creates unacceptable risk. An agent that deploys code, sends communications, modifies data, or makes purchases without human review can cause harm that is difficult or impossible to reverse. Even well-governed agents make mistakes -- they misunderstand context, encounter edge cases not covered by their governance, or operate on stale information.
+Autonomous AI agents are designed to act independently, but independence without oversight creates unacceptable risk. An agent that deploys code, sends communications, modifies data, or makes purchases without human review can cause harm that is difficult or impossible to reverse. Even well-governed agents make mistakes: they misunderstand context, encounter edge cases not covered by their governance, or operate on stale information.
 
 Human oversight is not a limitation on agent capability; it is an architectural requirement for responsible deployment. The goal is not to approve every action (which would eliminate the efficiency gains of automation) but to establish approval gates at high-stakes decision points and maintain the ability to intervene when something goes wrong.
 
@@ -22,7 +22,7 @@ The consequences of insufficient human oversight are material: unauthorized fina
 | **Severity** | HIGH |
 | **Applicable tiers** | TOOL-USING, AGENTIC, MULTI-AGENT |
 
-**Description**: The governance file defines specific actions or categories of actions that require human approval before execution. The agent must pause and request confirmation before taking these actions. Approval gates should be calibrated to the risk level -- routine operations proceed without approval, while high-stakes operations require explicit confirmation.
+**Description**: The governance file defines specific actions or categories of actions that require human approval before execution. The agent must pause and request confirmation before taking these actions. Approval gates should be calibrated to the risk level: routine operations proceed without approval, while high-stakes operations require explicit confirmation.
 
 **Detection keywords**: `approval`, `confirm`, `human-in-the-loop`, `review`, `authorize`, `sign-off`, `gate`, `confirmation`, `ask before`, `require approval`, `user confirmation`, `explicit consent`, `permission`
 

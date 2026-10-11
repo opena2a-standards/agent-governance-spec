@@ -158,7 +158,7 @@ See [scoring.md](scoring.md) for the full scoring methodology with worked exampl
 OASB-2 is designed to complement, not compete with, existing specifications:
 
 - **Anthropic Soul / OpenAI Model Spec**: These govern the foundation model's behavior. OASB-2 governs the deployed agent built on top of that model. An agent can comply with OASB-2 regardless of which model it uses.
-- **SoulSpec (soulspec.org)**: Defines agent persona and personality. OASB-2 defines agent governance. A SOUL.md can coexist with a SoulSpec persona file -- they address different concerns.
+- **SoulSpec (soulspec.org)**: Defines agent persona and personality. OASB-2 defines agent governance. A SOUL.md can coexist with a SoulSpec persona file: they address different concerns.
 - **Agent Skills (agentskills.io)**: Defines agent capabilities and procedural knowledge. OASB-2 defines behavioral constraints. Skills say what the agent can do; OASB-2 says what it must not do.
 - **NIST AI Agent Standards**: Covers infrastructure, identity, and interoperability. OASB-2 covers behavioral safety. They are complementary layers.
 - **AGENTS.md**: Instructions for AI coding agents about how to work with a codebase. OASB-2 defines safety and governance boundaries. An agent can follow both AGENTS.md (for coding conventions) and SOUL.md (for safety constraints).
@@ -195,7 +195,7 @@ npx hackmyagent scan-soul --json
 
 Enforce governance in your pipeline with zero configuration:
 
-**GitHub Actions** -- add `.github/workflows/governance.yml`:
+**GitHub Actions**. Add `.github/workflows/governance.yml`:
 
 ```yaml
 # Scans SOUL.md on PRs, comments with governance score
@@ -235,9 +235,9 @@ Show your governance conformance:
 ## Adoption Path
 
 **For individual developers** (10 minutes):
-1. `npx hackmyagent harden-soul` -- generates SOUL.md from templates
+1. `npx hackmyagent harden-soul` generates SOUL.md from templates
 2. Edit SOUL.md to match your agent's actual constraints
-3. `npx hackmyagent scan-soul` -- verify coverage
+3. `npx hackmyagent scan-soul` verifies coverage
 4. Copy [GitHub Action](integrations/github-action.yml) to enforce on PRs
 5. Add badge to README
 
@@ -268,7 +268,9 @@ agent-governance-spec/
   crosswalks/                 Static crosswalks to NIST AI RMF 1.0 and the EU AI Act
   scripts/
     check_crosswalks.py       Validates crosswalks/, controls.json and the control registry; --write re-renders
+    check_docs_prose.py       Checks the Markdown prose for the dash and heading rules in CONTRIBUTING.md
     test_check_crosswalks.py  Tests for the validator
+    test_check_docs_prose.py  Tests for the prose check
     test_readme.py            Tests for the README command blocks
   domains/
     README.md                 Domain overview

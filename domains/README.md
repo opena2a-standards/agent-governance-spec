@@ -33,7 +33,7 @@ OASB-2 defines 9 behavioral governance domains, numbered 11-19. They extend OASB
 
 ## Relationship Between Domains
 
-The 9 domains are designed to be orthogonal -- each addresses a distinct governance concern. However, some natural relationships exist:
+The 9 domains are designed to be orthogonal: each addresses a distinct governance concern. However, some natural relationships exist:
 
 - **Trust Hierarchy (11)** informs **Human Oversight (18)**: The trust hierarchy defines who can override whom, which determines the approval gate structure.
 - **Capability Boundaries (12)** connect to **Hardcoded Behaviors (15)**: Denied actions (12) may overlap with safety immutables (15), but they serve different purposes. Denied actions can potentially be changed by operators; hardcoded behaviors cannot.

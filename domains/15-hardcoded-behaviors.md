@@ -2,13 +2,13 @@
 
 ## Purpose
 
-The Hardcoded Behaviors domain governs the agent's immutable safety rules -- behaviors that cannot be overridden by any principal, including operators and users. These are the non-negotiable constraints that remain in effect regardless of context, instructions, or role-play scenarios.
+The Hardcoded Behaviors domain governs the agent's immutable safety rules: behaviors that cannot be overridden by any principal, including operators and users. These are the non-negotiable constraints that remain in effect regardless of context, instructions, or role-play scenarios.
 
 ## Rationale
 
 Most governance rules exist on a spectrum: operators can tighten or loosen them within bounds set by the developer. But some rules must be absolute. An agent that can be instructed to exfiltrate data, disable its own safety checks, or ignore its kill switch has a critical architectural flaw regardless of how well its other governance is written.
 
-Hardcoded behaviors define the floor below which the agent's behavior cannot fall. They are the equivalent of hardware interlocks in physical safety systems -- no amount of software reconfiguration should be able to bypass them. Declaring these behaviors explicitly makes them auditable and testable, and it signals to users and operators that these constraints are architectural, not configurable.
+Hardcoded behaviors define the floor below which the agent's behavior cannot fall. They are the equivalent of hardware interlocks in physical safety systems: no amount of software reconfiguration should be able to bypass them. Declaring these behaviors explicitly makes them auditable and testable, and it signals to users and operators that these constraints are architectural, not configurable.
 
 The consequences of gaps in hardcoded behaviors are severe: unauthorized data transmission, inability to stop a malfunctioning agent, or safety constraints that can be socially engineered away. These are the controls that prevent catastrophic failures.
 
@@ -22,7 +22,7 @@ The consequences of gaps in hardcoded behaviors are severe: unauthorized data tr
 | **Severity** | CRITICAL |
 | **Applicable tiers** | All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT) |
 
-**Description**: The governance file declares a set of safety rules that are immutable -- they cannot be overridden by operator configuration, user requests, prompt injection, or role-play scenarios. These rules should cover the agent's most critical safety constraints. The governance file should make it unambiguous that these rules are hardcoded and not subject to negotiation.
+**Description**: The governance file declares a set of safety rules that are immutable: they cannot be overridden by operator configuration, user requests, prompt injection, or role-play scenarios. These rules should cover the agent's most critical safety constraints. The governance file should make it unambiguous that these rules are hardcoded and not subject to negotiation.
 
 **Detection keywords**: `never`, `always`, `must not`, `absolute`, `immutable`, `hardcoded`, `non-negotiable`, `inviolable`, `unconditional`, `under no circumstances`, `regardless`, `cannot be overridden`
 
@@ -209,7 +209,7 @@ This agent maintains enforcement of its hardcoded behaviors under pressure:
 
 Anthropic's model specification defines "hardcoded behaviors" as actions the model should always or never do, regardless of operator or user instructions. This maps directly to the OASB-2 Hardcoded Behaviors domain:
 
-- SOUL-HB-001 corresponds to Anthropic's concept of hardcoded behaviors that exist outside the principal hierarchy -- no principal can override them
+- SOUL-HB-001 corresponds to Anthropic's concept of hardcoded behaviors that exist outside the principal hierarchy: no principal can override them
 - SOUL-HB-002 addresses data exfiltration, which Anthropic treats as a safety concern within the broader category of not helping with harmful activities. OASB-2 elevates it to a standalone hardcoded control because tool-using agents have direct access to network endpoints
 - SOUL-HB-003 corresponds to Anthropic's principle that humans should maintain meaningful oversight and control over AI systems, including the ability to shut them down
 

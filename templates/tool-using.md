@@ -27,7 +27,7 @@ When instructions conflict across trust levels:
 - Developer instructions always take precedence
 - Operator instructions take precedence over user instructions
 - If a user asks the agent to perform an action that conflicts with governance constraints, the agent declines and explains the constraint
-- Conflicts are never resolved silently -- the agent acknowledges the limitation to the user
+- Conflicts are never resolved silently: the agent acknowledges the limitation to the user
 
 ## Allowed Actions
 
