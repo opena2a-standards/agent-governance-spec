@@ -194,6 +194,13 @@ class CodeSpans(unittest.TestCase):
             self.assertLess(time.perf_counter() - start, 2.0)
 
 
+def docstring(test, obj):
+    """The docstring of obj, or a skip of the test when python3 -OO has stripped it."""
+    if obj.__doc__ is None:
+        test.skipTest("python3 -OO strips docstrings, so {} has none to check".format(obj.__name__))
+    return obj.__doc__
+
+
 class Scope(unittest.TestCase):
     def test_excluded_paths(self):
         for rel in (
@@ -222,8 +229,8 @@ class Scope(unittest.TestCase):
                 self.assertEqual(["b.md"], cdp.tracked_markdown(Path(tmp) / "sub"))
         for function in (cdp.excluded, cdp.listed_markdown, cdp.tracked_markdown):
             with self.subTest(function=function.__name__):
-                self.assertIn("root-relative", function.__doc__.lower())
-                self.assertNotIn("repository-relative", function.__doc__.lower())
+                self.assertIn("root-relative", docstring(self, function).lower())
+                self.assertNotIn("repository-relative", docstring(self, function).lower())
 
     def test_tracked_set_is_the_committed_markdown_minus_exclusions(self):
         rels = cdp.tracked_markdown(cdp.ROOT)
@@ -344,8 +351,8 @@ class CommandLine(unittest.TestCase):
 
     def test_usage_and_docstring_name_the_optional_root_argument(self):
         self.assertTrue(cdp.USAGE.startswith("usage: python3 scripts/check_docs_prose.py [ROOT]\n"))
-        self.assertIn("python3 scripts/check_docs_prose.py [ROOT]", cdp.__doc__)
-        self.assertIn("exit 2", cdp.__doc__)
+        self.assertIn("python3 scripts/check_docs_prose.py [ROOT]", docstring(self, cdp))
+        self.assertIn("exit 2", docstring(self, cdp))
 
 
 def checker_lines(text):
@@ -445,7 +452,7 @@ class Contributing(unittest.TestCase):
         # CONTRIBUTING.md tells the reader the docstring gives the reason for each exclusion.
         self.assertIn("docstring gives the reason for each exclusion",
                       (cdp.ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8"))
-        self.assertEqual([], unreasoned_exclusions(cdp.__doc__))
+        self.assertEqual([], unreasoned_exclusions(docstring(self, cdp)))
 
     def test_exclusion_without_a_reason_is_reported(self):
         doc = (
@@ -504,7 +511,7 @@ class Contributing(unittest.TestCase):
 
     def test_docstring_states_the_readme_exception(self):
         self.assertTrue(
-            readme_exception_statements(checked_list(cdp.__doc__)),
+            readme_exception_statements(checked_list(docstring(self, cdp))),
             "the docstring's Checked list does not say that a README.md in an examples directory is read",
         )
 
@@ -512,7 +519,7 @@ class Contributing(unittest.TestCase):
         # The checker reads README.md and README.mdx, in a directory named example or examples. The names are
         # looked for in the clause that says so, since the rest of its sentence can name "the examples".
         self.assertFalse(cdp.excluded("example/README.mdx"))
-        stated = " ".join(clause for _, clause in readme_exception_clauses(checked_list(cdp.__doc__)))
+        stated = " ".join(clause for _, clause in readme_exception_clauses(checked_list(docstring(self, cdp))))
         for name in sorted(cdp.README_NAMES):
             with self.subTest(name=name):
                 self.assertRegex(stated, re.compile(rf"(?<![\w.-]){re.escape(name)}(?!\w)", re.IGNORECASE))
@@ -527,7 +534,7 @@ class Contributing(unittest.TestCase):
         self.assertTrue(cdp.excluded("vendor/examples/README.md"))
         self.assertFalse(cdp.excluded("examples/pkg/examples/README.md"))
         self.assertFalse(cdp.excluded("examples/example/README.md"))
-        stated = " ".join(readme_exception_statements(checked_list(cdp.__doc__)))
+        stated = " ".join(readme_exception_statements(checked_list(docstring(self, cdp))))
         self.assertRegex(stated, r"\bunless a directory of this item other than example or examples holds it\b")
         self.assertRegex(stated, r"\bunless\b.* another item of this list excludes its path\b")
 
@@ -555,7 +562,7 @@ class Contributing(unittest.TestCase):
         self.assertTrue(cdp.excluded("node_modules/notes.md"))
         self.assertFalse(cdp.excluded("packages/a/node_modules/notes.md"))
         self.assertFalse(cdp.excluded("x/vendor/notes.md"))
-        item = next(i for i in checked_list(cdp.__doc__).split("\n  * ") if "node_modules/" in i)
+        item = next(i for i in checked_list(docstring(self, cdp)).split("\n  * ") if "node_modules/" in i)
         self.assertIn("at the root of the checked directory", " ".join(item.split()))
         self.assertNotIn("repository root", " ".join(item.split()))
         described = checker_lines((cdp.ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8"))
@@ -573,7 +580,7 @@ class Contributing(unittest.TestCase):
         # CHANGELOG.md, the prefixes and the rendered crosswalk prefix match only at the start of the path, so a run on
         # the whole repository reads sub/CHANGELOG.md, sub/changelog.d/1.md and sub/crosswalks/oasb-2-to-a.md. The
         # item of the docstring that names each says so.
-        items = [" ".join(i.split()) for i in checked_list(cdp.__doc__).split("\n  * ")[1:]]
+        items = [" ".join(i.split()) for i in checked_list(docstring(self, cdp)).split("\n  * ")[1:]]
         for name in cdp.EXCLUDED_FILES + cdp.EXCLUDED_PREFIXES + cdp.RENDERED_PREFIXES:
             with self.subTest(name=name):
                 rel = name if name in cdp.EXCLUDED_FILES else name + "a.md"
@@ -740,6 +747,19 @@ class Repository(unittest.TestCase):
         code, out, err = run_main()
         self.assertEqual(0, code, out + err)
         self.assertEqual("", out)
+
+
+class StrippedDocstrings(unittest.TestCase):
+    def test_docstring_tests_skip_with_a_reason_under_python3_OO(self):
+        # python3 -OO sets every __doc__ to None, so each test that reads a docstring skips, and the run passes.
+        if sys.flags.optimize >= 2:
+            self.skipTest("this is the python3 -OO run that the test starts")
+        result = subprocess.run([sys.executable, "-OO", str(Path(__file__).resolve()), "-v"],
+                                capture_output=True, text=True)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("skipped 'python3 -OO strips docstrings, so check_docs_prose has none to check'",
+                      result.stderr)
+        self.assertIn("skipped 'python3 -OO strips docstrings, so excluded has none to check'", result.stderr)
 
 
 if __name__ == "__main__":

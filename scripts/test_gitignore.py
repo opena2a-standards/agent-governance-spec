@@ -55,8 +55,21 @@ class CredentialFiles(unittest.TestCase):
         # The tests check one file name, and git add -f still adds an ignored file, so the docstring names that
         # file and says git ignores it, not that every secrets file is kept out of a commit. It must equal that
         # sentence, so a clause appended to it, such as "so no secrets file can reach a commit", fails.
+        if CredentialFiles.__doc__ is None:
+            self.skipTest("python3 -OO strips docstrings, so CredentialFiles has none to check")
         doc = " ".join(CredentialFiles.__doc__.split())
         self.assertEqual("git ignores secrets.json at the root and in a subdirectory.", doc)
+
+
+class StrippedDocstrings(unittest.TestCase):
+    def test_docstring_test_skips_with_a_reason_under_python3_OO(self):
+        # python3 -OO sets every __doc__ to None, so the test that reads the class docstring skips, and the run passes.
+        if sys.flags.optimize >= 2:
+            self.skipTest("this is the python3 -OO run that the test starts")
+        result = subprocess.run([sys.executable, "-OO", str(Path(__file__).resolve()), "-v"],
+                                capture_output=True, text=True)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("skipped 'python3 -OO strips docstrings, so CredentialFiles has none to check'", result.stderr)
 
 
 if __name__ == "__main__":
