@@ -425,6 +425,14 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   also checked that the phrases "never committed" and "A secrets file" were
   absent, and the entry now says so. A test in `scripts/test_gitignore.py`
   holds the entry to that wording. (#83)
+- `.pre-push-review-not-required` named `python3 scripts/check_crosswalks.py`
+  and `python3 scripts/test_check_crosswalks.py` as the repository's checks,
+  while `CONTRIBUTING.md` runs every `scripts/test_*.py` file with
+  `python3 -m unittest discover -s scripts -p 'test_*.py'` and also asks for
+  `python3 scripts/check_docs_prose.py`. The note now names the two check
+  scripts and that test command, and `scripts/test_pre_push_note.py` holds
+  it to every `scripts/check_*.py` script and to the test command of
+  `CONTRIBUTING.md`. (#85)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
