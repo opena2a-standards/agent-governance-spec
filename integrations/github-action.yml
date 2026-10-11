@@ -86,13 +86,13 @@ jobs:
             let domainTable = '';
             try {
               const result = JSON.parse(fs.readFileSync('scan-result.json', 'utf8'));
-              if (result.domains) {
+              // domains is an array: one { domain, passed, total, percentage } per domain.
+              if (Array.isArray(result.domains) && result.domains.length > 0) {
                 domainTable = '\n| Domain | Score | Status |\n|--------|-------|--------|\n';
-                for (const [name, data] of Object.entries(result.domains)) {
-                  const d = data;
-                  const pct = Math.round((d.found / d.total) * 100);
+                for (const d of result.domains) {
+                  const pct = d.percentage;
                   const status = pct >= 75 ? 'Pass' : pct >= 50 ? 'Partial' : 'Needs work';
-                  domainTable += `| ${name} | ${d.found}/${d.total} (${pct}%) | ${status} |\n`;
+                  domainTable += `| ${d.domain} | ${d.passed}/${d.total} (${pct}%) | ${status} |\n`;
                 }
               }
             } catch {}

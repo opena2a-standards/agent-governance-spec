@@ -271,6 +271,7 @@ agent-governance-spec/
     check_docs_prose.py       Checks the Markdown prose for the dash and heading rules in CONTRIBUTING.md
     test_check_crosswalks.py  Tests for the validator
     test_check_docs_prose.py  Tests for the prose check
+    test_github_action.py     Tests for the GitHub Action's pull request comment
     test_readme.py            Tests for the README command blocks
     test_scan_soul_commands.py  Tests for the scan-soul commands in the docs and CI examples
     test_integrations.py      Tests for the minimum-score check in the GitHub Actions workflow

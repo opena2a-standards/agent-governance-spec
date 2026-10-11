@@ -117,6 +117,13 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `integrations/README.md` shows how to set the variable, and
   `scripts/test_integrations.py` runs the check against scores below, at,
   and above the minimum. (#32)
+- The domain table in the GitHub Action's pull request comment reads the
+  scanner's `domains` array and gives each domain's `passed`/`total` and
+  `percentage`. It read `domains` as an object keyed by domain name with a
+  `found` count, which the scanner does not print, so every row would have
+  shown the array index and `undefined/N (NaN%)`. Tests in
+  `scripts/test_github_action.py` run the comment script on JSON in the
+  scanner's shape. (#34)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
