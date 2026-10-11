@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Tests for the command blocks in README.md.
+"""Tests for the command blocks in README.md and the scan-soul JSON sample in integrations/README.md.
 
 Run from anywhere:  python3 scripts/test_readme.py
 
-Standard library only. The tests read README.md and write nothing.
+Standard library only. The tests read README.md and integrations/README.md and write nothing.
 """
 
+import json
 import re
 import sys
 import unittest
@@ -14,9 +15,25 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 
 README = Path(__file__).resolve().parent.parent / "README.md"
+INTEGRATIONS = README.parent / "integrations" / "README.md"
 FENCE = re.compile(r"^```[^\n]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
+JSON_FENCE = re.compile(r"^```json\n(.*?)^```", re.MULTILINE | re.DOTALL)
+TABLE_KEY = re.compile(r"^\| `([^`]+)` \|", re.MULTILINE)
 COPY_TEMPLATE = re.compile(r"^cp templates/\S+\.md SOUL\.md$")
 EDIT_STEP = "# Edit to match your agent's actual constraints"
+
+# The shape `scan-soul --json` of hackmyagent 0.33.2 prints for a scanned governance file.
+SCAN_KEYS = {
+    "agentProfile", "agentTier", "conformance", "coverage", "criticalFloor", "criticalMissing",
+    "criticalMissingDetail", "domains", "file", "fileReadFailed", "fileSize", "gate", "grade",
+    "hackmyagentVersion", "level", "profileForced", "rawScore", "score", "scoreClamped",
+    "skippedDomains", "tierForced", "totalControls", "totalPassed", "violations", "withheldLinks",
+}
+DOMAIN_KEYS = {"domain", "domainId", "controls", "passed", "total", "percentage"}
+OPTIONAL_DOMAIN_KEYS = {"skippedByProfile"}
+CONTROL_KEYS = {"id", "name", "domain", "keywords", "passed"}
+CONFORMANCE = {"none", "essential", "standard", "hardened"}
+TIERS = {"BASIC", "TOOL-USING", "AGENTIC", "MULTI-AGENT"}
 
 
 def command_blocks(text):
@@ -36,6 +53,49 @@ def template_scans(text):
     return found
 
 
+def scan_sample(text):
+    """The first JSON block of text that holds a scan result, parsed, or None."""
+    for body in JSON_FENCE.findall(text):
+        data = json.loads(body)
+        if isinstance(data, dict) and "score" in data:
+            return data
+    return None
+
+
+def sample_problems(sample):
+    """Each way sample differs from the shape of a scan-soul --json document."""
+    problems = [f"top-level key {key} is not printed by the scanner" for key in sorted(set(sample) - SCAN_KEYS)]
+    problems += [f"top-level key {key} is missing" for key in sorted(SCAN_KEYS - set(sample))]
+    if sample.get("conformance") not in CONFORMANCE:
+        problems.append(f"conformance {sample.get('conformance')!r} is not one of {sorted(CONFORMANCE)}")
+    if sample.get("agentTier") not in TIERS:
+        problems.append(f"agentTier {sample.get('agentTier')!r} is not one of {sorted(TIERS)}")
+    domains = sample.get("domains")
+    if not isinstance(domains, list):
+        return problems + ["domains is not an array"]
+    for entry in domains:
+        keys = set(entry)
+        if not DOMAIN_KEYS <= keys <= DOMAIN_KEYS | OPTIONAL_DOMAIN_KEYS:
+            problems.append(f"domain entry {entry.get('domain')!r} has keys {sorted(keys)}")
+        for control in entry.get("controls", []):
+            if set(control) != CONTROL_KEYS:
+                problems.append(f"control {control.get('id')!r} has keys {sorted(control)}")
+    return problems
+
+
+def table_keys(text):
+    """The keys named in the first column of the Markdown tables in text."""
+    return TABLE_KEY.findall(text)
+
+
+def in_sample(sample, key):
+    """Whether key, a top-level name or a domains[].<name> path, appears in sample."""
+    if key.startswith("domains[]."):
+        name = key[len("domains[]."):]
+        return any(name in entry for entry in sample.get("domains", []))
+    return key in sample
+
+
 class TemplateScans(unittest.TestCase):
     def setUp(self):
         self.text = README.read_text(encoding="utf-8")
@@ -52,6 +112,41 @@ class TemplateScans(unittest.TestCase):
         text = "```bash\ncp templates/tool-using.md SOUL.md\nnpx hackmyagent scan-soul\n```\n"
         (block, copy, scan), = template_scans(text)
         self.assertNotIn(EDIT_STEP, block[copy + 1:scan])
+
+
+class IntegrationsJsonSample(unittest.TestCase):
+    def setUp(self):
+        self.text = INTEGRATIONS.read_text(encoding="utf-8")
+        self.sample = scan_sample(self.text)
+
+    def test_sample_has_the_scanner_shape(self):
+        self.assertIsNotNone(self.sample)
+        self.assertEqual(sample_problems(self.sample), [])
+
+    def test_every_key_in_the_table_is_in_the_sample(self):
+        keys = table_keys(self.text)
+        self.assertGreaterEqual(len(keys), 2)
+        for key in keys:
+            with self.subTest(key=key):
+                self.assertTrue(in_sample(self.sample, key))
+
+    def test_sample_in_another_shape_is_reported(self):
+        text = (
+            '```json\n{"score": 67, "grade": "C", "conformance": "NONE", "file": "SOUL.md",'
+            ' "tier": "AGENTIC", "domains": {"Trust Hierarchy": {"found": 2, "total": 3}},'
+            ' "controls": [{"id": "SOUL-TH-001", "name": "Trust chain defined", "passed": true}]}\n```\n'
+        )
+        problems = sample_problems(scan_sample(text))
+        self.assertIn("top-level key tier is not printed by the scanner", problems)
+        self.assertIn("top-level key controls is not printed by the scanner", problems)
+        self.assertIn("top-level key agentTier is missing", problems)
+        self.assertIn("domains is not an array", problems)
+        self.assertTrue(any(p.startswith("conformance 'NONE'") for p in problems))
+
+    def test_control_with_other_keys_is_reported(self):
+        sample = {"domains": [{"domain": "Trust Hierarchy", "domainId": 11, "passed": 1, "total": 1,
+                               "percentage": 100, "controls": [{"id": "SOUL-TH-001", "passed": True}]}]}
+        self.assertIn("control 'SOUL-TH-001' has keys ['id', 'passed']", sample_problems(sample))
 
 
 if __name__ == "__main__":

@@ -88,25 +88,96 @@ For any CI system, the core command is:
 npx hackmyagent@latest scan-soul --json
 ```
 
-The JSON output includes:
+The sample below is a trimmed `scan-soul --json` run of hackmyagent 0.33.2 on `templates/tool-using.md`, copied to `SOUL.md` without edits. It keeps every top-level key. `domains` keeps two of its nine entries, and the first of them keeps two of its seven controls.
 
 ```json
 {
-  "score": 67,
-  "grade": "C",
-  "conformance": "NONE",
+  "hackmyagentVersion": "0.33.2",
   "file": "SOUL.md",
-  "tier": "AGENTIC",
-  "domains": {
-    "Trust Hierarchy": { "found": 2, "total": 3 },
-    "Capability Boundaries": { "found": 3, "total": 4 }
+  "fileSize": 7542,
+  "fileReadFailed": false,
+  "agentTier": "TOOL-USING",
+  "tierForced": false,
+  "agentProfile": "tool-agent",
+  "profileForced": false,
+  "skippedDomains": ["Agentic Safety"],
+  "domains": [
+    {
+      "domain": "Trust Hierarchy",
+      "domainId": 11,
+      "controls": [
+        {
+          "id": "SOUL-TH-001",
+          "name": "Trust chain defined",
+          "domain": "Trust Hierarchy",
+          "keywords": ["trust", "authority", "principal", "hierarchy", "precedence", "priority"],
+          "passed": true
+        },
+        {
+          "id": "SOUL-TH-004",
+          "name": "Principal identity verification",
+          "domain": "Trust Hierarchy",
+          "keywords": ["authenticate", "verify identity", "principal source", "identity verification", "authenticated principal", "identity claim"],
+          "passed": false
+        }
+      ],
+      "passed": 3,
+      "total": 7,
+      "percentage": 43
+    },
+    {
+      "domain": "Agentic Safety",
+      "domainId": 16,
+      "controls": [],
+      "passed": 0,
+      "total": 0,
+      "percentage": 0,
+      "skippedByProfile": true
+    }
+  ],
+  "score": 49,
+  "rawScore": 49,
+  "scoreClamped": false,
+  "grade": "C",
+  "level": "developing",
+  "conformance": "essential",
+  "criticalFloor": false,
+  "criticalMissing": [],
+  "totalControls": 57,
+  "totalPassed": 25,
+  "violations": [],
+  "withheldLinks": [],
+  "criticalMissingDetail": [],
+  "coverage": {
+    "measured": true,
+    "examined": 57,
+    "total": 57,
+    "unit": "governance control"
   },
-  "controls": [
-    { "id": "SOUL-TH-001", "name": "Trust chain defined", "passed": true },
-    { "id": "SOUL-TH-002", "name": "Conflict resolution", "passed": false }
-  ]
+  "gate": {
+    "failed": false,
+    "reason": null,
+    "exitCode": 0
+  }
 }
 ```
+
+The scanner does not version this document. The keys in the table below carry the result, and they are the ones to code against. The other keys describe how the run was made (tier and profile detection, the file read, the score before clamping, coverage, violations), and a scanner release can add, rename or remove them. To read one of them, pin the scanner version (`npx hackmyagent@0.33.2 scan-soul --json`) and check `hackmyagentVersion`.
+
+| Key | Value |
+|-----|-------|
+| `score` | An integer from 0 to 100. |
+| `grade` | `A`, `B`, `C`, `D` or `F`. |
+| `conformance` | `none`, `essential`, `standard` or `hardened`, in lower case. |
+| `level` | `not-started`, `initial`, `developing`, `standard` or `hardened`. A label taken from the score alone, not a conformance level (see `conformance.md`). |
+| `agentTier` | `BASIC`, `TOOL-USING`, `AGENTIC` or `MULTI-AGENT`. |
+| `file` | The governance file that was scanned. |
+| `criticalMissing` | The IDs of the critical controls that were not found. Any entry makes `conformance` `none`. |
+| `gate` | `failed`, `reason` and `exitCode`: the verdict that the exit code reports. |
+| `domains` | An array with one entry per domain: `domain`, `domainId`, `controls`, `passed`, `total` and `percentage`. A domain that the agent profile leaves out has `skippedByProfile: true` and no controls. |
+| `domains[].controls` | An array with one entry per control the run checked: `id`, `name`, `domain`, `keywords` and `passed`. |
+
+When no governance file is found (exit code 2), `score`, `conformance` and `file` are `null`, and `grade`, `level`, `agentTier`, `domains` and `criticalMissing` are absent.
 
 Exit codes (the same with and without `--json`):
 - `0`: Conformance is Essential or better (every CRITICAL control applicable to the tier was detected; see [conformance.md](../conformance.md)), and no flag failed the run. A low score alone does not fail a run; pass `--fail-below` to set a score floor.

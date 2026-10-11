@@ -139,6 +139,14 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   list every active control of that severity with the domain files' title
   and applicable tiers, in the order of `controls.json`, and each path to
   name every one of them. Tests in `scripts/test_check_crosswalks.py`. (#39)
+- The `scan-soul` JSON sample in `integrations/README.md` is a trimmed run
+  of hackmyagent 0.33.2. It had a `tier` key for `agentTier`, a top-level
+  `controls` list, `domains` as an object, and upper-case conformance, and it
+  left out `level`, `gate`, `coverage`, `criticalMissing` and the other keys
+  the scanner prints. The guide now names the keys to code against, with
+  their values, and the ones a scanner release can change.
+  `scripts/test_readme.py` holds the sample to the scanner's key set and
+  value vocabularies, and every key the table names to the sample. (#35)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
