@@ -337,21 +337,30 @@ def unnamed_exclusions(text):
     return [name for name, form in wanted if form not in described]
 
 
+README_PATTERN = re.compile(
+    r"(?<![\w.-])(?:{})(?!\w)".format("|".join(re.escape(name) for name in sorted(cdp.README_NAMES))), re.IGNORECASE
+)
+EXAMPLE_DIR_PATTERN = re.compile(
+    r"(?<![\w.-])(?:{})(?![\w.-])".format("|".join(re.escape(name) for name in sorted(cdp.EXAMPLE_DIR_NAMES)))
+)
+READ_VERB = re.compile(r"\b(?:checks|reads|(?:is|are) (?:checked|read))\b")
+# A comma, semicolon or colon, or one of these words, starts a new clause.
+CLAUSE_BREAK = re.compile(r"\s*[,;:]\s*|\s+(?=\b(?:except|but|since|because|unless|although|though|whereas|while)\b)")
+
+
 def readme_exception_statements(text):
     """The sentences and parentheticals of text that say the checker reads a README in an examples directory.
 
-    One says so when it names a README file and an examples directory and says "checks", "reads", "is read"
-    or "is checked". "does not read" and "is not checked" hold none of those forms.
+    One says so when one of its clauses names a README file and an examples directory and says "checks",
+    "reads", "is read", "are read", "is checked" or "are checked". "does not read" and "is not checked" hold
+    none of those forms, and a verb in another clause ("is not read, since a tool reads it") or a README
+    named after "except" ("checks every file except `examples/README.md`") is a different clause.
     """
-    readme = "|".join(re.escape(name) for name in sorted(cdp.README_NAMES))
-    directory = "|".join(re.escape(name) for name in sorted(cdp.EXAMPLE_DIR_NAMES))
-    wanted = (
-        re.compile(rf"(?<![\w.-])(?:{readme})(?!\w)", re.IGNORECASE),
-        re.compile(rf"(?<![\w.-])(?:{directory})(?![\w.-])"),
-        re.compile(r"\b(?:checks|reads|(?:is|are) (?:checked|read))\b"),
-    )
     statements = re.split(r"(?<=[.!?])\s+|\s*[()]\s*", " ".join(text.split()))
-    return [s for s in statements if all(pattern.search(s) for pattern in wanted)]
+    return [
+        s for s in statements
+        if any(all(p.search(c) for p in (README_PATTERN, EXAMPLE_DIR_PATTERN, READ_VERB)) for c in CLAUSE_BREAK.split(s))
+    ]
 
 
 def unreasoned_exclusions(doc):
@@ -372,7 +381,7 @@ def readme_exception_gaps(text):
     naming the checker that says nothing "in a directory named" one of the excluded names is read has to
     state the exception itself: the README names, and after them the directory names it applies to.
     """
-    described = " ".join(line for line in text.splitlines() if "check_docs_prose.py" in line)
+    described = checker_lines(text)
     sentence = re.split(r"\.(?:\s|$)", described.partition("in a directory named")[2], maxsplit=1)[0].lower()
     start = sentence.find("`readme")
     exception = sentence[start:] if start >= 0 else ""
@@ -418,8 +427,11 @@ class Contributing(unittest.TestCase):
         self.assertNotIn("CHANGELOG.md", missing)
 
     def test_contributing_states_the_readme_exception_where_it_names_the_directories(self):
-        # A README is read in an example or examples directory wherever that directory is.
+        # A README is read in an example or examples directory at any depth, unless an excluded prefix holds it.
         self.assertFalse(cdp.excluded("docs/examples/README.md"))
+        for prefix in cdp.EXCLUDED_PREFIXES + cdp.RENDERED_PREFIXES:
+            with self.subTest(prefix=prefix):
+                self.assertTrue(cdp.excluded(prefix + "x/examples/README.md"))
         text = (cdp.ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
         self.assertEqual([], readme_exception_gaps(text))
 
@@ -451,18 +463,34 @@ class Contributing(unittest.TestCase):
             "the docstring's Checked list does not say that a README.md in an examples directory is read",
         )
 
+    def test_docstring_names_every_readme_and_directory_the_exception_covers(self):
+        # The checker reads README.md and README.mdx, in a directory named example or examples.
+        self.assertFalse(cdp.excluded("example/README.mdx"))
+        stated = " ".join(readme_exception_statements(checked_list(cdp.__doc__)))
+        for name in sorted(cdp.README_NAMES):
+            with self.subTest(name=name):
+                self.assertRegex(stated, re.compile(rf"(?<![\w.-]){re.escape(name)}(?!\w)", re.IGNORECASE))
+        for name in sorted(cdp.EXAMPLE_DIR_NAMES):
+            with self.subTest(name=name):
+                self.assertRegex(stated, rf"(?<![\w.-]){re.escape(name)}(?![\w.-])")
+
     def test_text_without_the_readme_exception_is_reported(self):
         for text in (
             "It does not read `CHANGELOG.md` or the example governance files under `examples/`.",
             "It does not read the files under `examples/`, `examples/README.md` among them.",
             "Anything in an examples directory is data a tool reads. A README.md describes a directory to a person.",
             "A README.md in an examples directory is not read.",
+            "A README.md in an examples directory is not read, since only a tool reads it.",
+            "A README.md in an examples directory is not read since only a tool reads it.",
+            "It checks every Markdown file except `examples/README.md`.",
         ):
             self.assertEqual([], readme_exception_statements(text), text)
         for text in (
             "It does not read the files under `examples/` (it checks `examples/README.md`).",
             "A README.md in an examples directory\n    is read, since it describes the examples to a person.",
             "A readme.mdx in an example directory is checked.",
+            "README.md files in examples directories are read.",
+            "README.mdx files in example directories are checked.",
         ):
             self.assertEqual(1, len(readme_exception_statements(text)), text)
 

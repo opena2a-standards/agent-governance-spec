@@ -293,7 +293,8 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   that it reads nothing in a directory named `example` or `examples`. The
   README exception now sits with the directory names: a `README.md` or
   `README.mdx` is read when the only directories of those names it is in are
-  `example` or `examples`, wherever that directory is.
+  `example` or `examples` and its path is outside `node_modules/`,
+  `vendor/`, `dist/`, `build/`, `changelog.d/` and `crosswalks/oasb-2-to-*`.
   `scripts/test_check_docs_prose.py` checks that the sentence naming the
   directories states the exception. (#60)
 - `scripts/test_check_docs_prose.py` checks that CONTRIBUTING.md and the
@@ -301,6 +302,17 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   an examples directory is read. Either statement could be deleted with
   every test still passing, which would leave a reader to conclude from the
   list of skipped directories that `examples/README.md` is not checked. (#61)
+- The docstring of `scripts/check_docs_prose.py` says that a `README.mdx`,
+  and a README in a directory named `example`, are read as well as a
+  `README.md` in an `examples` directory, and that a path another item of
+  its list excludes is not read even then. The test helper that finds a
+  statement of the README exception counted a sentence such as "a
+  `README.md` in an examples directory is not read, since only a tool reads
+  it", where the verb belongs to another clause, and "it checks every file
+  except `examples/README.md`". It now requires the verb to be in the
+  clause that names the README. `scripts/test_check_docs_prose.py` checks
+  that the docstring names both README files and both directory names, and
+  that a README under an excluded prefix is not read. (#64)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
