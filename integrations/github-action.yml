@@ -57,7 +57,7 @@ jobs:
       - name: Run governance scan
         id: scan
         run: |
-          npx hackmyagent@latest scan-soul --format json > scan-result.json 2>&1 || true
+          npx hackmyagent@latest scan-soul --json > scan-result.json || true
           SCORE=$(jq -r '.score // 0' scan-result.json 2>/dev/null || echo "0")
           GRADE=$(jq -r '.grade // "F"' scan-result.json 2>/dev/null || echo "F")
           CONFORMANCE=$(jq -r '.conformance // "NONE"' scan-result.json 2>/dev/null || echo "NONE")

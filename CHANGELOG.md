@@ -97,6 +97,16 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   unedited template scans as partial coverage. `scripts/test_readme.py`
   checks that every README command block that copies a template edits it
   before scanning. (#27)
+- README.md, `integrations/README.md`, and the GitHub Actions and GitLab CI
+  examples under `integrations/` request JSON from `scan-soul` with
+  `--json`. They passed `--format json`, which the scanner rejects as an
+  unknown option, so both CI examples stopped before they read a score. The
+  GitHub Actions example no longer writes stderr into `scan-result.json`,
+  where the notice npm prints when it installs the scanner on a new runner
+  made the file unreadable as JSON. `scripts/test_scan_soul_commands.py`
+  checks that every `scan-soul` command in the Markdown and YAML files uses
+  an option the scanner lists, and that a `--json` command keeps stderr out
+  of its output. (#31)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

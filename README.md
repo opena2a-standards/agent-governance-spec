@@ -248,7 +248,7 @@ Show your governance conformance:
 
 **For organizations**:
 1. Set minimum OASB-2 conformance level per agent risk tier
-2. Use JSON output (`--format json`) for compliance dashboards
+2. Use JSON output (`--json`) for compliance dashboards
 3. Integrate with existing GRC tooling via structured scan results
 
 ---
@@ -272,6 +272,7 @@ agent-governance-spec/
     test_check_crosswalks.py  Tests for the validator
     test_check_docs_prose.py  Tests for the prose check
     test_readme.py            Tests for the README command blocks
+    test_scan_soul_commands.py  Tests for the scan-soul commands in the docs and CI examples
   domains/
     README.md                 Domain overview
     11-trust-hierarchy.md     Domain 11: Trust Hierarchy

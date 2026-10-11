@@ -17,7 +17,7 @@ governance-scan:
         - constitution.md
         - agent-config.yaml
   script:
-    - npx hackmyagent@latest scan-soul --format json > scan-result.json || true
+    - npx hackmyagent@latest scan-soul --json > scan-result.json || true
     - |
       SCORE=$(node -e "const r=require('./scan-result.json'); console.log(r.score || 0)")
       GRADE=$(node -e "const r=require('./scan-result.json'); console.log(r.grade || 'F')")

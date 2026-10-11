@@ -85,7 +85,7 @@ Add governance scanning to your package.json:
 For any CI system, the core command is:
 
 ```bash
-npx hackmyagent@latest scan-soul --format json
+npx hackmyagent@latest scan-soul --json
 ```
 
 The JSON output includes:
