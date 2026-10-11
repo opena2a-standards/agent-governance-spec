@@ -53,11 +53,10 @@ class CredentialFiles(unittest.TestCase):
 
     def test_docstring_claims_only_what_the_tests_check(self):
         # The tests check one file name, and git add -f still adds an ignored file, so the docstring names that
-        # file and says git ignores it, not that every secrets file is kept out of a commit.
+        # file and says git ignores it, not that every secrets file is kept out of a commit. It must equal that
+        # sentence, so a clause appended to it, such as "so no secrets file can reach a commit", fails.
         doc = " ".join(CredentialFiles.__doc__.split())
-        self.assertIn("git ignores secrets.json at the root and in a subdirectory", doc)
-        self.assertNotIn("never committed", doc)
-        self.assertNotIn("A secrets file", doc)
+        self.assertEqual("git ignores secrets.json at the root and in a subdirectory.", doc)
 
 
 if __name__ == "__main__":
