@@ -254,8 +254,8 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `scripts/test_readme.py` holds the entry to the file's Version and Status
   lines. (#49)
 - CONTRIBUTING.md names every path `scripts/check_docs_prose.py` does not
-  read: it listed `CHANGELOG.md` and `examples/` only, and left out
-  `changelog.d/`, LICENSE files, the rendered crosswalk files, the
+  read: it listed `CHANGELOG.md`, `examples/` and the rendered crosswalk
+  files only, and left out `changelog.d/`, LICENSE files, the
   `node_modules/`, `vendor/`, `dist/` and `build/` trees, and the test,
   fixture, corpus, golden and snapshot directories.
   `scripts/test_check_docs_prose.py` checks that CONTRIBUTING.md names each
