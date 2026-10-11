@@ -263,7 +263,7 @@ agent-governance-spec/
   README.md                   Overview and quickstart
   LICENSE                     Apache-2.0
   CONTRIBUTING.md             How to contribute
-  specification.md            Full formal specification (v1.0)
+  specification.md            Full formal specification (version 1.0.0-draft, status Draft)
   scoring.md                  Scoring methodology
   conformance.md              Conformance levels
   CHANGELOG.md                Changes by version

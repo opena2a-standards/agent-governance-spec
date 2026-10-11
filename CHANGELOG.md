@@ -249,6 +249,17 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `score` is `null` and there is no `grade` field. `scripts/test_scoring.py`
   checks that the edge case promises no score or grade value and names the
   exit code `integrations/README.md` lists. (#44)
+- README Repository Structure gives `specification.md` the version and
+  status the file states, 1.0.0-draft and Draft, in place of "v1.0".
+  `scripts/test_readme.py` holds the entry to the file's Version and Status
+  lines. (#49)
+- CONTRIBUTING.md names every path `scripts/check_docs_prose.py` does not
+  read: it listed `CHANGELOG.md` and `examples/` only, and left out
+  `changelog.d/`, LICENSE files, the rendered crosswalk files, the
+  `node_modules/`, `vendor/`, `dist/` and `build/` trees, and the test,
+  fixture, corpus, golden and snapshot directories.
+  `scripts/test_check_docs_prose.py` checks that CONTRIBUTING.md names each
+  exclusion the script defines. (#49)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
