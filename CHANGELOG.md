@@ -155,6 +155,17 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   green. `scripts/test_readme.py` checks that every badge URL in the three
   files reads as label `OASB-2`, a message and a colour, and that each level
   has one colour. (#38)
+- The README Adoption Path no longer labels `--fail-below 40` as Essential,
+  or 60 and 75 as Standard and Hardened. Essential is both CRITICAL controls
+  passing, with no minimum score: under hackmyagent 0.33.2 a governance file
+  that scores 10 with both present scans as `essential`, and
+  `--fail-below 40` fails it. The steps now say that `--fail-below 40` keeps
+  grade C or better, that the scanner fails the job on a missing CRITICAL
+  control without the flag, which is the Essential gate, that 60 and 75 are
+  the minimum scores of Standard and Hardened, and that the level is read
+  from the `conformance` field. `scripts/test_readme.py` checks that
+  `README.md`, `integrations/README.md` and `conformance.md` label no score
+  with a conformance level. (#47)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

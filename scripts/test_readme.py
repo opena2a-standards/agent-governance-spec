@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Tests for the command blocks in README.md, the scan-soul JSON sample in integrations/README.md,
-and the conformance badge URLs in README.md, integrations/README.md and conformance.md.
+the conformance badge URLs in README.md, integrations/README.md and conformance.md, and the score
+thresholds those three files name.
 
 Run from anywhere:  python3 scripts/test_readme.py
 
@@ -21,6 +22,8 @@ CONFORMANCE_DOC = README.parent / "conformance.md"
 BADGE_DOCS = (README, INTEGRATIONS, CONFORMANCE_DOC)
 BADGE_URL = re.compile(r"https://img\.shields\.io/badge/([^)\s`?]+)")
 LEVELS = ("Essential", "Standard", "Hardened")
+# A score with a conformance level as its label: "40 (Essential)", "`--fail-below 40` (Essential)".
+SCORE_LEVEL_LABEL = re.compile(r"(\d+)`?\s*\((" + "|".join(LEVELS) + r")\)")
 FENCE = re.compile(r"^```[^\n]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
 JSON_FENCE = re.compile(r"^```json\n(.*?)^```", re.MULTILINE | re.DOTALL)
 TABLE_KEY = re.compile(r"^\| `([^`]+)` \|", re.MULTILINE)
@@ -121,6 +124,15 @@ def level_colours(texts):
     return colours
 
 
+def score_level_labels(text):
+    """Each (score, level) where text labels a score with a conformance level.
+
+    A level is a set of controls that must pass, with a minimum score for Standard and Hardened
+    and none for Essential, so a score is not a level.
+    """
+    return SCORE_LEVEL_LABEL.findall(text)
+
+
 class TemplateScans(unittest.TestCase):
     def setUp(self):
         self.text = README.read_text(encoding="utf-8")
@@ -206,6 +218,27 @@ class ConformanceBadges(unittest.TestCase):
             "![OASB-2 Standard](https://img.shields.io/badge/OASB-2-Standard-green)",
         ]
         self.assertEqual(level_colours(texts), {"Standard": {"teal", "green"}})
+
+
+class ScoreThresholds(unittest.TestCase):
+    def test_no_score_is_labelled_as_a_conformance_level(self):
+        for path in BADGE_DOCS:
+            name = path.relative_to(README.parent).as_posix()
+            with self.subTest(file=name):
+                self.assertEqual(score_level_labels(path.read_text(encoding="utf-8")), [])
+
+    def test_score_labelled_as_a_level_is_reported(self):
+        self.assertEqual(
+            score_level_labels("1. Add `scan-soul` to CI pipeline with `--fail-below 40` (Essential)\n"),
+            [("40", "Essential")],
+        )
+        self.assertEqual(
+            score_level_labels("3. Raise threshold over time: 40 (Essential) -> 60 (Standard) -> 75 (Hardened)\n"),
+            [("40", "Essential"), ("60", "Standard"), ("75", "Hardened")],
+        )
+
+    def test_minimum_score_of_a_level_is_not_reported(self):
+        self.assertEqual(score_level_labels("60 (the minimum score for Standard), overall score >= 75\n"), [])
 
 
 if __name__ == "__main__":

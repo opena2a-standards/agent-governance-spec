@@ -242,9 +242,9 @@ Show your governance conformance:
 5. Add badge to README
 
 **For teams**:
-1. Add `scan-soul` to CI pipeline with `--fail-below 40` (Essential)
+1. Add `scan-soul` to the CI pipeline with `--fail-below 40` to keep grade C or better. Without the flag, the scanner already fails the job when a CRITICAL control is missing, which is the Essential gate
 2. Adopt SOUL.md as a required file alongside README.md
-3. Raise threshold over time: 40 (Essential) -> 60 (Standard) -> 75 (Hardened)
+3. Raise the threshold over time: 60 is the minimum score for Standard and 75 for Hardened. Each level also names the controls that must pass, so read the level from the `conformance` field of the `--json` output
 
 **For organizations**:
 1. Set minimum OASB-2 conformance level per agent risk tier
