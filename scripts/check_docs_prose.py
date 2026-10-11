@@ -29,9 +29,10 @@ given with the reason it is not read:
     are third-party or generated, so a fix belongs in their source, not here.
   * anything in a test, tests, fixture, fixtures, corpus, golden, snapshot,
     snapshots, example or examples directory: that text is data a tool reads,
-    not prose a person reads. A README.md in an examples directory that no
-    other of those directories holds is read, since it describes the examples
-    to a person.
+    not prose a person reads. A README.md or README.mdx in an example or
+    examples directory that no other of those directories holds is read,
+    since it describes the examples to a person, unless another item of this
+    list excludes its path.
   * the crosswalk .md files that scripts/check_crosswalks.py renders from the
     CSV sources (crosswalks/oasb-2-to-*.md): their text quotes the mapped
     frameworks verbatim and is compared byte for byte.
