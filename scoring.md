@@ -187,7 +187,7 @@ An agentic agent with a governance file that only contains a purpose statement a
 
 ### No Governance File Found
 
-If no governance file is found in the search path, the score is 0 and grade is F. No conformance level is achieved. The scanner should report "No governance file found" rather than showing a score breakdown.
+If no governance file is found in the search path, nothing was measured, so the score is withheld: the scanner reports no score and no grade. A missing file is not scored as 0 or graded F, because those values describe a file that was scanned. No conformance level is achieved. The scanner should report that no governance file was found rather than showing a score breakdown, and exit with code 2, the code integrations/README.md lists for this case. In JSON output, `score` is `null` and there is no `grade` field.
 
 ### Governance File Below Minimum Requirements
 
