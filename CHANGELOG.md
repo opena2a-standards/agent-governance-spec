@@ -313,6 +313,27 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   clause that names the README. `scripts/test_check_docs_prose.py` checks
   that the docstring names both README files and both directory names, and
   that a README under an excluded prefix is not read. (#64)
+- The docstring of `scripts/check_docs_prose.py` and `CONTRIBUTING.md` say
+  that `node_modules/`, `vendor/`, `dist/` and `build/` are skipped only at
+  the repository root, which is where the check matches them. Both now
+  state that the README exception does not override the other exclusions,
+  so `vendor/examples/README.md` is not read; `CONTRIBUTING.md` did not.
+  The test of the README exception helper in
+  `scripts/test_check_docs_prose.py` counted "is not read and only a tool
+  reads it", "is not read when the checker reads the tree", "reads no
+  README.md" and "checks every file other than" or "apart from
+  `examples/README.md`" as statements that the README is read. A clause
+  now counts only when it names the README, the directory and the verb
+  between the same two breaks and holds none of "not", "no" and "never".
+  The breaks are the edges of a sentence or parenthetical, a comma, a
+  semicolon, a colon, and the words "except", "but", "since", "because",
+  "unless", "although", "though", "whereas", "while", "other than" and
+  "apart from"; "and" and "when" are not breaks. The test that the
+  docstring names both directory names looked at the whole sentence, which
+  also says "the examples", so it could not fail; it now looks at the clause
+  that states the exception. New tests give one case per break, check that
+  the docstring names both limits of the exception, and check that the
+  break pattern splits a long run of spaces in linear time. (#66)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
