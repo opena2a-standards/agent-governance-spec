@@ -20,15 +20,23 @@ Standard library only. Exit 0 when the prose is clean; exit 1 after printing
 one "file:line: message" line per finding; exit 2 after printing a usage
 message when ROOT is not a directory or more than one argument is given.
 
-Checked: every file git tracks that ends in .md or .mdx, except CHANGELOG.md
-and changelog.d/ (history is not rewritten), LICENSE files, and anything under
-node_modules/, vendor/, dist/, build/, or a test, fixture, corpus, golden,
-snapshot or examples directory (that text is data a tool reads, not prose a
-person reads) other than a README.md in an examples directory that no other
-of those directories holds, and the crosswalk .md files that scripts/check_crosswalks.py
-renders from the CSV sources (their text quotes the mapped frameworks verbatim
-and is compared byte for byte). Outside git, the working tree is walked with
-the same rules.
+Checked: every file git tracks that ends in .md or .mdx, except these, each
+given with the reason it is not read:
+  * CHANGELOG.md and changelog.d/: history is not rewritten.
+  * LICENSE files: a license is legal text reproduced word for word from its
+    publisher, and rewording it would change the terms it grants.
+  * anything under node_modules/, vendor/, dist/ or build/: the files there
+    are third-party or generated, so a fix belongs in their source, not here.
+  * anything in a test, tests, fixture, fixtures, corpus, golden, snapshot,
+    snapshots, example or examples directory: that text is data a tool reads,
+    not prose a person reads. A README.md in an examples directory that no
+    other of those directories holds is read, since it describes the examples
+    to a person.
+  * the crosswalk .md files that scripts/check_crosswalks.py renders from the
+    CSV sources (crosswalks/oasb-2-to-*.md): their text quotes the mapped
+    frameworks verbatim and is compared byte for byte.
+
+Outside git, the working tree is walked with the same rules.
 
 Skipped inside a checked file: fenced code blocks (a fence closes at a line
 that holds only a run of its own character at least as long as the run that

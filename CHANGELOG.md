@@ -271,6 +271,13 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
 - `CONTRIBUTING.md` names the command that runs the tests under `scripts/`,
   `python3 -m unittest discover -s scripts -p 'test_*.py'`, and says that
   the GitLab job tests need bash and node on PATH. (#55)
+- The docstring of `scripts/check_docs_prose.py` gives the reason for each
+  path the check does not read, as CONTRIBUTING.md says it does. It gave
+  none for LICENSE files (a license is legal text reproduced word for word)
+  or for the `node_modules/`, `vendor/`, `dist/` and `build/` trees
+  (third-party or generated files). The exclusions are now a list of
+  `path: reason` items, and `scripts/test_check_docs_prose.py` checks that
+  every exclusion the script defines has an item with a reason. (#57)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
