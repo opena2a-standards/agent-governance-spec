@@ -316,6 +316,32 @@ class CommandLine(unittest.TestCase):
         self.assertIn("exit 2", cdp.__doc__)
 
 
+def unnamed_exclusions(text):
+    """The exclusions of the checker that the lines of text naming the checker leave out."""
+    described = " ".join(line for line in text.splitlines() if "check_docs_prose.py" in line)
+    wanted = [("LICENSE", "LICENSE")]
+    wanted += [(name, "`" + name) for name in cdp.EXCLUDED_FILES + cdp.EXCLUDED_PREFIXES + cdp.RENDERED_PREFIXES]
+    wanted += [(name, "`" + name + "`") for name in sorted(cdp.EXCLUDED_DIR_NAMES)]
+    return [name for name, form in wanted if form not in described]
+
+
+class Contributing(unittest.TestCase):
+    """CONTRIBUTING.md names every path the checker does not read."""
+
+    def test_contributing_names_every_exclusion(self):
+        text = (cdp.ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+        self.assertEqual([], unnamed_exclusions(text))
+
+    def test_partial_list_is_reported(self):
+        text = "- `python3 scripts/check_docs_prose.py` skips `CHANGELOG.md` and the files under `examples/`.\n"
+        missing = unnamed_exclusions(text)
+        self.assertIn("changelog.d/", missing)
+        self.assertIn("LICENSE", missing)
+        self.assertIn("crosswalks/oasb-2-to-", missing)
+        self.assertIn("fixtures", missing)
+        self.assertNotIn("CHANGELOG.md", missing)
+
+
 class Repository(unittest.TestCase):
     def test_committed_prose_passes(self):
         code, out, err = run_main()

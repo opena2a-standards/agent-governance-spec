@@ -35,6 +35,11 @@ RUNTIME_CLAIM = re.compile(
 FENCE = re.compile(r"^```[^\n]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
 JSON_FENCE = re.compile(r"^```json\n(.*?)^```", re.MULTILINE | re.DOTALL)
 TABLE_KEY = re.compile(r"^\| `([^`]+)` \|", re.MULTILINE)
+SPEC_VERSION = re.compile(r"^\*\*Version\*\*:\s*(\S+)", re.MULTILINE)
+SPEC_STATUS = re.compile(r"^\*\*Status\*\*:\s*(\S+)", re.MULTILINE)
+SPEC_ENTRY = re.compile(r"^specification\.md\s+(.*)$")
+# A version claim such as "v1.0", "1.0.0" or "1.0.0-draft".
+VERSION_CLAIM = re.compile(r"\bv?\d+\.\d+(?:\.\d+)?(?:-[0-9A-Za-z]+)?")
 COPY_TEMPLATE = re.compile(r"^cp templates/\S+\.md SOUL\.md$")
 EDIT_STEP = "# Edit to match your agent's actual constraints"
 HARDEN_SOUL = re.compile(r"\bharden-soul\b")
@@ -212,6 +217,11 @@ def example_rows(text):
 def declared_tiers(text):
     """The tiers a governance file says its agent is, as "the BASIC tier" or "an AGENTIC tier agent"."""
     return sorted(set(DECLARED_TIER.findall(text)))
+
+
+def specification_entries(text):
+    """The description of specification.md in each repository structure block of text."""
+    return [m.group(1) for block in command_blocks(text) for line in block if (m := SPEC_ENTRY.match(line))]
 
 
 class TemplateScans(unittest.TestCase):
@@ -472,6 +482,30 @@ class ExamplesReadme(unittest.TestCase):
         source = (EXAMPLES / "coding-agent-soul.md").read_text(encoding="utf-8")
         denied = source.split("### Denied Actions", 1)[1].split("\n#", 1)[0]
         self.assertIn("- " + quotes[0], denied.splitlines())
+
+
+class SpecificationEntry(unittest.TestCase):
+    """The repository structure entry for specification.md states the version and status the file states."""
+
+    def setUp(self):
+        spec = SPECIFICATION.read_text(encoding="utf-8")
+        self.version = SPEC_VERSION.search(spec).group(1)
+        self.status = SPEC_STATUS.search(spec).group(1)
+        self.entries = specification_entries(README.read_text(encoding="utf-8"))
+
+    def test_readme_lists_specification_once(self):
+        self.assertEqual(1, len(self.entries))
+
+    def test_entry_names_the_specification_version_and_status(self):
+        for entry in self.entries:
+            with self.subTest(entry=entry):
+                self.assertEqual([self.version], VERSION_CLAIM.findall(entry))
+                self.assertIn(self.status, entry)
+
+    def test_entry_with_a_stale_version_is_reported(self):
+        entry, = specification_entries("```\nagent-governance-spec/\n  specification.md    Full formal specification (v1.0)\n```\n")
+        self.assertNotEqual([self.version], VERSION_CLAIM.findall(entry))
+        self.assertNotIn(self.status, entry)
 
 
 if __name__ == "__main__":
