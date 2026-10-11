@@ -147,6 +147,14 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   their values, and the ones a scanner release can change.
   `scripts/test_readme.py` holds the sample to the scanner's key set and
   value vocabularies, and every key the table names to the sample. (#35)
+- The conformance badge URLs in `conformance.md` and `integrations/README.md`
+  returned "404: badge not found": shields.io splits a static badge path on
+  single dashes, so `OASB-2-Essential-blue` had four parts. They now use the
+  README's `OASB--2` form, which renders "OASB-2: Essential", and one colour
+  per level in all three files: Essential blue, Standard teal, Hardened
+  green. `scripts/test_readme.py` checks that every badge URL in the three
+  files reads as label `OASB-2`, a message and a colour, and that each level
+  has one colour. (#38)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

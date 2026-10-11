@@ -222,9 +222,9 @@ An OASB-2 audit report SHOULD include:
 Projects MAY display conformance badges in their documentation:
 
 ```markdown
-![OASB-2 Essential](https://img.shields.io/badge/OASB-2-Essential-blue)
-![OASB-2 Standard](https://img.shields.io/badge/OASB-2-Standard-green)
-![OASB-2 Hardened](https://img.shields.io/badge/OASB-2-Hardened-purple)
+![OASB-2 Essential](https://img.shields.io/badge/OASB--2-Essential-blue)
+![OASB-2 Standard](https://img.shields.io/badge/OASB--2-Standard-teal)
+![OASB-2 Hardened](https://img.shields.io/badge/OASB--2-Hardened-green)
 ```
 
 Badge claims SHOULD be backed by a recent scan report (no older than the last governance file modification).

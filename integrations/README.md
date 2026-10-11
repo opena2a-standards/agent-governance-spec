@@ -41,16 +41,16 @@ variables:
 Add a governance badge to your README:
 
 ```markdown
-[![Agent Governance](https://img.shields.io/badge/OASB-2-Conformant-teal)](https://github.com/opena2a-org/agent-governance-spec)
+[![Agent Governance](https://img.shields.io/badge/OASB--2-Conformant-teal)](https://github.com/opena2a-org/agent-governance-spec)
 ```
 
 After running `scan-soul`, use the appropriate badge for your conformance level:
 
 | Level | Badge |
 |-------|-------|
-| Essential | `![OASB-2 Essential](https://img.shields.io/badge/OASB-2-Essential-blue)` |
-| Standard | `![OASB-2 Standard](https://img.shields.io/badge/OASB-2-Standard-teal)` |
-| Hardened | `![OASB-2 Hardened](https://img.shields.io/badge/OASB-2-Hardened-green)` |
+| Essential | `![OASB-2 Essential](https://img.shields.io/badge/OASB--2-Essential-blue)` |
+| Standard | `![OASB-2 Standard](https://img.shields.io/badge/OASB--2-Standard-teal)` |
+| Hardened | `![OASB-2 Hardened](https://img.shields.io/badge/OASB--2-Hardened-green)` |
 
 ## Pre-commit Hook
 

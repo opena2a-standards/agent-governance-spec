@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Tests for the command blocks in README.md and the scan-soul JSON sample in integrations/README.md.
+"""Tests for the command blocks in README.md, the scan-soul JSON sample in integrations/README.md,
+and the conformance badge URLs in README.md, integrations/README.md and conformance.md.
 
 Run from anywhere:  python3 scripts/test_readme.py
 
-Standard library only. The tests read README.md and integrations/README.md and write nothing.
+Standard library only. The tests read README.md, integrations/README.md and conformance.md and write nothing.
 """
 
 import json
@@ -16,6 +17,10 @@ sys.dont_write_bytecode = True
 
 README = Path(__file__).resolve().parent.parent / "README.md"
 INTEGRATIONS = README.parent / "integrations" / "README.md"
+CONFORMANCE_DOC = README.parent / "conformance.md"
+BADGE_DOCS = (README, INTEGRATIONS, CONFORMANCE_DOC)
+BADGE_URL = re.compile(r"https://img\.shields\.io/badge/([^)\s`?]+)")
+LEVELS = ("Essential", "Standard", "Hardened")
 FENCE = re.compile(r"^```[^\n]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
 JSON_FENCE = re.compile(r"^```json\n(.*?)^```", re.MULTILINE | re.DOTALL)
 TABLE_KEY = re.compile(r"^\| `([^`]+)` \|", re.MULTILINE)
@@ -96,6 +101,26 @@ def in_sample(sample, key):
     return key in sample
 
 
+def badge_parts(path):
+    """The (label, message, colour) shields.io reads from a static badge path, or None when it reads no badge.
+
+    A single dash separates the three parts, and a double dash stands for one dash inside a part.
+    """
+    parts = [part.replace("\0", "-") for part in path.replace("--", "\0").split("-")]
+    return tuple(parts) if len(parts) == 3 and all(parts) else None
+
+
+def level_colours(texts):
+    """For each conformance level, the set of colours its badges in texts use, whether or not the label is escaped."""
+    colours = {}
+    for text in texts:
+        for path in BADGE_URL.findall(text):
+            message, colour = path.rsplit("-", 2)[-2:]
+            if message in LEVELS:
+                colours.setdefault(message, set()).add(colour)
+    return colours
+
+
 class TemplateScans(unittest.TestCase):
     def setUp(self):
         self.text = README.read_text(encoding="utf-8")
@@ -147,6 +172,40 @@ class IntegrationsJsonSample(unittest.TestCase):
         sample = {"domains": [{"domain": "Trust Hierarchy", "domainId": 11, "passed": 1, "total": 1,
                                "percentage": 100, "controls": [{"id": "SOUL-TH-001", "passed": True}]}]}
         self.assertIn("control 'SOUL-TH-001' has keys ['id', 'passed']", sample_problems(sample))
+
+
+class ConformanceBadges(unittest.TestCase):
+    def setUp(self):
+        self.texts = {path.relative_to(README.parent).as_posix(): path.read_text(encoding="utf-8")
+                      for path in BADGE_DOCS}
+
+    def test_every_badge_reads_oasb_2_and_a_message(self):
+        for name, text in self.texts.items():
+            paths = BADGE_URL.findall(text)
+            self.assertGreaterEqual(len(paths), 3, name)
+            for path in paths:
+                with self.subTest(file=name, badge=path):
+                    parts = badge_parts(path)
+                    self.assertIsNotNone(parts)
+                    self.assertEqual(parts[0], "OASB-2")
+
+    def test_each_level_has_one_colour(self):
+        colours = level_colours(self.texts.values())
+        self.assertEqual(set(colours), set(LEVELS))
+        for level in LEVELS:
+            with self.subTest(level=level):
+                self.assertEqual(len(colours[level]), 1, sorted(colours[level]))
+
+    def test_single_dash_after_oasb_reads_no_badge(self):
+        self.assertIsNone(badge_parts("OASB-2-Essential-blue"))
+        self.assertEqual(badge_parts("OASB--2-Essential-blue"), ("OASB-2", "Essential", "blue"))
+
+    def test_level_in_two_colours_is_reported(self):
+        texts = [
+            "![OASB-2 Standard](https://img.shields.io/badge/OASB--2-Standard-teal)",
+            "![OASB-2 Standard](https://img.shields.io/badge/OASB-2-Standard-green)",
+        ]
+        self.assertEqual(level_colours(texts), {"Standard": {"teal", "green"}})
 
 
 if __name__ == "__main__":
