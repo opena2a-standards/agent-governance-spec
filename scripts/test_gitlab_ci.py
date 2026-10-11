@@ -9,6 +9,10 @@ stand-in for `npx hackmyagent@latest scan-soul` that accepts the scanner's
 options and rejects any other option, and check what the job prints, the exit
 status, and the files its artifacts name. They write only to a temporary
 directory.
+
+The tests that run the job need bash and node on PATH. Without either they
+fail and name the missing program; they are not skipped, so a machine without
+node does not pass this file with the job untested.
 """
 
 import os
@@ -19,6 +23,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.dont_write_bytecode = True
 
@@ -27,6 +32,8 @@ JOB = ROOT / "integrations" / "gitlab-ci.yml"
 GUIDE = ROOT / "integrations" / "README.md"
 FENCE = re.compile(r"^```[^\n]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
 DOTENV_LINE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+# The job's script is run with bash, and it reads the scan result with node.
+REQUIRED_PROGRAMS = ("bash", "node")
 
 # The governance file names `hackmyagent scan-soul --help` (hackmyagent 0.33.2)
 # says the scanner searches, in its priority order.
@@ -179,8 +186,21 @@ def guide_minimum():
     raise AssertionError("integrations/README.md sets no MIN_GOVERNANCE_SCORE")
 
 
-@unittest.skipUnless(shutil.which("bash") and shutil.which("node"), "bash or node is not installed")
+def missing_programs():
+    """The programs the job's script needs that are not on PATH."""
+    return [name for name in REQUIRED_PROGRAMS if shutil.which(name) is None]
+
+
 class GovernanceScanJob(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        missing = missing_programs()
+        if missing:
+            raise AssertionError(
+                "the governance-scan job's script runs under bash and calls node; "
+                f"not on PATH: {', '.join(missing)}"
+            )
+
     def test_job_prints_the_score_and_grade_of_the_scan(self):
         result, _ = run_job(score=72, grade="C")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -222,6 +242,36 @@ class GovernanceScanJob(unittest.TestCase):
     def test_scan_result_is_kept_as_an_artifact(self):
         paths = items(nested(nested(job_lines(), "artifacts"), "paths"))
         self.assertIn("scan-result.json", paths)
+
+
+class MissingPrograms(unittest.TestCase):
+    """Without bash or node the job tests fail; a skip would pass the file with the job untested."""
+
+    def run_job_tests_without(self, *absent):
+        """The result of the job tests on a PATH that has none of the absent programs."""
+        which = shutil.which
+
+        def find(name, *args, **kwargs):
+            return None if name in absent else which(name, *args, **kwargs)
+
+        suite = unittest.defaultTestLoader.loadTestsFromTestCase(GovernanceScanJob)
+        result = unittest.TestResult()
+        with mock.patch("shutil.which", find):
+            suite.run(result)
+        return result
+
+    def test_missing_node_fails_the_job_tests(self):
+        result = self.run_job_tests_without("node")
+        self.assertFalse(result.wasSuccessful())
+        self.assertEqual(result.skipped, [])
+        self.assertEqual(result.testsRun, 0)
+        (_, report), = result.errors
+        self.assertIn("not on PATH: node", report)
+
+    def test_missing_bash_and_node_are_both_named(self):
+        result = self.run_job_tests_without("bash", "node")
+        (_, report), = result.errors
+        self.assertIn("not on PATH: bash, node", report)
 
 
 class TriggerList(unittest.TestCase):

@@ -191,9 +191,7 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   declared behavior. `scripts/test_readme.py` checks that README.md claims no
   runtime enforcement. (#45)
 - The GitLab CI example prints `Governance Score: NN/100 (Grade: X)` and
-  enforces `MIN_GOVERNANCE_SCORE`. Its scan used `--format json`, an option
-  `scan-soul` rejects, so `scan-result.json` held no JSON and the job ended
-  before the score was read; it now uses `--json`. The job no longer declares
+  enforces `MIN_GOVERNANCE_SCORE`. The job no longer declares
   `scan-result.json` as a `dotenv` report, which takes `KEY=VALUE` lines, and
   keeps the file under `artifacts: paths:`. Its `changes:` list adds
   `.github/copilot-instructions.md` and `.clinerules`, so it names all ten
@@ -217,6 +215,32 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   creates SOUL.md when there is none. `scripts/test_readme.py` checks that
   no README description of `harden-soul` promises prompts or an interactive
   mode. (#46)
+- The minimum score in the `integrations/README.md` examples for GitHub
+  Actions and GitLab CI is 40, which keeps grade C or better, as the README
+  Adoption Path has it. It was 60, the minimum score for Standard, which
+  fails the job on `templates/tool-using.md` scanned as copied: hackmyagent
+  0.33.2 scores that file 49. The guide says so and says when to raise the
+  value. `scripts/test_readme.py` checks that no minimum the guide sets is
+  above the score in its `scan-soul` sample, and that the sample's
+  `fileSize` is the template's. (#53)
+- The README domain table says that reversibility, among what Agentic Safety
+  governs, is for MULTI-AGENT only, as SOUL-AS-004 is.
+  `scripts/test_readme.py` checks that a README line naming reversibility
+  names the tier. (#53)
+- `examples/README.md` lists the three example files with the tier each
+  declares, and says that a scanner run at the repository root reads them as
+  governance files, so a finding under `examples/` describes the example. It
+  names the one denied action of `coding-agent-soul.md` that hackmyagent
+  0.33.2 `secure --ci` reports as a Remote Instruction Fetch, a false
+  positive on a line that forbids the pattern. (#53)
+- `scripts/test_gitlab_ci.py` fails, and names the program, when `bash` or
+  `node` is not on PATH. It skipped the seven tests that run the job, so a
+  machine without node passed the file with the job untested. (#53)
+- The `scripts/test_readme.py` check on `harden-soul` descriptions matches
+  the wording of an interactive mode (guided, interactive, wizard, asks,
+  prompts you). It matched any use of "prompt" or "question", so a
+  description such as "adds a section on prompt injection" would have
+  failed. (#53)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

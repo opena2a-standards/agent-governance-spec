@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Tests for the command blocks in README.md and its statement of scope, the scan-soul JSON sample
-in integrations/README.md, the conformance badge URLs in README.md, integrations/README.md and
-conformance.md, and the score thresholds those three files name.
+"""Tests for the command blocks in README.md, its statement of scope and its domain table, the
+scan-soul JSON sample and the minimum scores in integrations/README.md, the conformance badge URLs
+in README.md, integrations/README.md and conformance.md, the score thresholds those three files
+name, and the list of example files in examples/README.md.
 
 Run from anywhere:  python3 scripts/test_readme.py
 
-Standard library only. The tests read README.md, integrations/README.md, conformance.md and
-specification.md and write nothing.
+Standard library only. The tests read README.md, integrations/README.md, conformance.md,
+specification.md, templates/tool-using.md and the files under examples/, and write nothing.
 """
 
 import json
@@ -38,8 +39,13 @@ COPY_TEMPLATE = re.compile(r"^cp templates/\S+\.md SOUL\.md$")
 EDIT_STEP = "# Edit to match your agent's actual constraints"
 HARDEN_SOUL = re.compile(r"\bharden-soul\b")
 # harden-soul asks no questions: it appends template sections for missing
-# domains, so no description of it may promise prompts or an interactive mode.
-PROMPT_CLAIM = re.compile(r"\b(guided|interactive(ly)?|prompts?|prompting|wizard|questions?)\b", re.IGNORECASE)
+# domains, so no description of it may promise an interactive mode. The words
+# are the ones for that mode. "prompt" and "question" alone are not among
+# them, because they also name what a section is about ("prompt injection");
+# "prompt" counts only as what the command does to the reader.
+PROMPT_CLAIM = re.compile(
+    r"\b(guided|interactive(ly)?|wizard|asks?|asking|prompt(s|ed|ing)? (you|the user))\b", re.IGNORECASE
+)
 
 # The shape `scan-soul --json` of hackmyagent 0.33.2 prints for a scanned governance file.
 SCAN_KEYS = {
@@ -53,6 +59,23 @@ OPTIONAL_DOMAIN_KEYS = {"skippedByProfile"}
 CONTROL_KEYS = {"id", "name", "domain", "keywords", "passed"}
 CONFORMANCE = {"none", "essential", "standard", "hardened"}
 TIERS = {"BASIC", "TOOL-USING", "AGENTIC", "MULTI-AGENT"}
+
+# The template the scan-soul sample in integrations/README.md is a run of, copied without edits.
+TEMPLATE = README.parent / "templates" / "tool-using.md"
+# A minimum score the guide sets: a `gh variable set` command or a GitLab `variables:` entry.
+GUIDE_MINIMUM = re.compile(r"\bMIN_GOVERNANCE_SCORE(?: --body |:\s*\"?)(\d+)")
+
+# The tier columns of the applicability matrix in specification.md section 3.5, in order.
+TIER_COLUMNS = ("BASIC", "TOOL-USING", "AGENTIC", "MULTI-AGENT")
+MATRIX_HEADER = "| Control ID | " + " | ".join(TIER_COLUMNS) + " |"
+REVERSIBILITY_CONTROL = "SOUL-AS-004"
+REVERSIBILITY = re.compile(r"\breversib", re.IGNORECASE)
+
+EXAMPLES = README.parent / "examples"
+EXAMPLES_README = EXAMPLES / "README.md"
+EXAMPLE_ROW = re.compile(r"^\| \[`([^`]+)`\]\(([^)]+)\) \| [^|]+ \| ([A-Z-]+) \|$", re.MULTILINE)
+DECLARED_TIER = re.compile(r"\b(" + "|".join(TIER_COLUMNS) + r") tier\b")
+BLOCKQUOTE = re.compile(r"^> (.+)$", re.MULTILINE)
 
 
 def command_blocks(text):
@@ -160,6 +183,35 @@ def harden_soul_descriptions(text):
     prose = FENCE.sub("", text)
     found.extend(line.strip() for line in prose.splitlines() if HARDEN_SOUL.search(line))
     return found
+
+
+def guide_minimums(text):
+    """Each MIN_GOVERNANCE_SCORE value that a command or YAML block of text sets."""
+    return [int(value) for body in FENCE.findall(text) for value in GUIDE_MINIMUM.findall(body)]
+
+
+def matrix_tiers(spec, control):
+    """The tiers the section 3.5 matrix of spec marks Yes for control."""
+    row = re.search(r"^\| " + re.escape(control) + r" \|((?: (?:Yes|--) \|){4})$", spec, re.MULTILINE)
+    if MATRIX_HEADER not in spec or row is None:
+        return None
+    cells = [cell.strip() for cell in row.group(1).strip("|").split("|")]
+    return [tier for tier, cell in zip(TIER_COLUMNS, cells) if cell == "Yes"]
+
+
+def untiered_reversibility(text):
+    """Each line of text that names reversibility without naming MULTI-AGENT, the one tier it applies to."""
+    return [line for line in text.splitlines() if REVERSIBILITY.search(line) and "MULTI-AGENT" not in line]
+
+
+def example_rows(text):
+    """Each (file name, link target, tier) row of the example table in text."""
+    return EXAMPLE_ROW.findall(text)
+
+
+def declared_tiers(text):
+    """The tiers a governance file says its agent is, as "the BASIC tier" or "an AGENTIC tier agent"."""
+    return sorted(set(DECLARED_TIER.findall(text)))
 
 
 class TemplateScans(unittest.TestCase):
@@ -312,6 +364,114 @@ class HardenSoulDescriptions(unittest.TestCase):
         for line in lines:
             with self.subTest(line=line):
                 self.assertIsNotNone(PROMPT_CLAIM.search(line))
+
+    def test_each_wording_of_an_interactive_mode_is_reported(self):
+        claims = (
+            "`harden-soul` walks through guided prompts",
+            "`harden-soul` is interactive",
+            "`harden-soul` runs a wizard",
+            "`harden-soul` asks which domains to add",
+            "`harden-soul` prompts you for each missing domain",
+        )
+        for claim in claims:
+            with self.subTest(claim=claim):
+                self.assertIsNotNone(PROMPT_CLAIM.search(claim))
+
+    def test_description_of_the_generated_content_is_not_reported(self):
+        # "prompt" and "question" also name what a section is about.
+        descriptions = (
+            "`harden-soul` adds a section on prompt injection",
+            "`harden-soul` appends the system prompt boundaries the file lacks",
+            "`harden-soul` leaves open questions about scope to the author",
+        )
+        for description in descriptions:
+            with self.subTest(description=description):
+                self.assertEqual(harden_soul_descriptions(description + "\n"), [description])
+                self.assertIsNone(PROMPT_CLAIM.search(description))
+
+
+class GuideMinimumScore(unittest.TestCase):
+    """The guide's sample is the scan of templates/tool-using.md as copied, so the minimum the
+    guide tells a reader to set must not fail the job on that file."""
+
+    def setUp(self):
+        self.text = INTEGRATIONS.read_text(encoding="utf-8")
+        self.sample = scan_sample(self.text)
+
+    def test_guide_sets_a_minimum_for_github_and_for_gitlab(self):
+        self.assertEqual(len(guide_minimums(self.text)), 2)
+
+    def test_sample_is_the_scan_of_the_template(self):
+        self.assertIn("`templates/tool-using.md`, copied to `SOUL.md` without edits", self.text)
+        size = len(TEMPLATE.read_bytes().replace(b"\r\n", b"\n"))
+        self.assertEqual(self.sample["fileSize"], size, "scan the template again and update the sample")
+
+    def test_no_minimum_is_above_the_score_of_the_template(self):
+        for minimum in guide_minimums(self.text):
+            with self.subTest(minimum=minimum):
+                self.assertLessEqual(minimum, self.sample["score"])
+
+    def test_both_ways_of_setting_the_minimum_are_read(self):
+        text = (
+            "```bash\ngh variable set MIN_GOVERNANCE_SCORE --body 60\n```\n"
+            "```yaml\nvariables:\n  MIN_GOVERNANCE_SCORE: \"75\"\n```\n"
+            "Set `MIN_GOVERNANCE_SCORE` to 90 later.\n"
+        )
+        self.assertEqual(guide_minimums(text), [60, 75])
+
+
+class ReversibilityTier(unittest.TestCase):
+    """SOUL-AS-004 (Reversibility Preference) applies to MULTI-AGENT only, so a README line that
+    lists reversibility among what a domain governs names the tier."""
+
+    def test_specification_marks_the_control_for_multi_agent_only(self):
+        spec = SPECIFICATION.read_text(encoding="utf-8")
+        self.assertEqual(matrix_tiers(spec, REVERSIBILITY_CONTROL), ["MULTI-AGENT"])
+
+    def test_readme_names_the_tier_where_it_names_reversibility(self):
+        self.assertEqual(untiered_reversibility(README.read_text(encoding="utf-8")), [])
+
+    def test_line_without_the_tier_is_reported(self):
+        line = "| Agentic Safety | 16 | 10 | Iteration limits, budget caps, timeouts, reversibility |"
+        self.assertEqual(untiered_reversibility(line + "\n"), [line])
+
+    def test_control_marked_for_two_tiers_is_read_as_two(self):
+        spec = MATRIX_HEADER + "\n| SOUL-AS-004 | -- | -- | Yes | Yes |\n"
+        self.assertEqual(matrix_tiers(spec, REVERSIBILITY_CONTROL), ["AGENTIC", "MULTI-AGENT"])
+
+
+class ExamplesReadme(unittest.TestCase):
+    """examples/README.md lists each example file with the tier the file declares, and says that
+    a scanner reads the files as governance files."""
+
+    def setUp(self):
+        self.assertTrue(EXAMPLES_README.is_file(), "examples/README.md is missing")
+        self.text = EXAMPLES_README.read_text(encoding="utf-8")
+        self.rows = example_rows(self.text)
+
+    def test_every_example_file_has_a_row(self):
+        files = sorted(path.name for path in EXAMPLES.glob("*.md") if path != EXAMPLES_README)
+        self.assertGreaterEqual(len(files), 3)
+        self.assertEqual(sorted(name for name, _, _ in self.rows), files)
+        for name, target, _ in self.rows:
+            with self.subTest(file=name):
+                self.assertEqual(target, name)
+
+    def test_each_row_gives_the_tier_the_file_declares(self):
+        for name, _, tier in self.rows:
+            with self.subTest(file=name):
+                declared = declared_tiers((EXAMPLES / name).read_text(encoding="utf-8"))
+                self.assertEqual(declared, [tier])
+
+    def test_readme_says_a_scanner_reads_the_examples(self):
+        self.assertIn("scanned and scored on purpose", self.text)
+
+    def test_the_quoted_line_is_a_denied_action_of_the_coding_agent_example(self):
+        quotes = BLOCKQUOTE.findall(self.text)
+        self.assertEqual(len(quotes), 1)
+        source = (EXAMPLES / "coding-agent-soul.md").read_text(encoding="utf-8")
+        denied = source.split("### Denied Actions", 1)[1].split("\n#", 1)[0]
+        self.assertIn("- " + quotes[0], denied.splitlines())
 
 
 if __name__ == "__main__":
