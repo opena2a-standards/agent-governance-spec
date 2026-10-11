@@ -79,6 +79,15 @@ class CommittedExport(unittest.TestCase):
         cc.check_registry_table(errors, cc.SPECIFICATION, text, self.entries, dict(domain_order))
         self.assertEqual(errors, [])
 
+    def test_conformance_levels_list_every_critical_and_high_control_of_the_domain_files(self):
+        _, _, attributes = cc.load_domains([])
+        errors = []
+        text = (cc.ROOT / cc.CONFORMANCE).read_text(encoding="utf-8")
+        cc.check_conformance_levels(errors, cc.CONFORMANCE, text, self.entries, attributes)
+        self.assertEqual(errors, [])
+        for _, _, severity in cc.CONFORMANCE_LEVELS:
+            self.assertTrue(any(e["severity"] == severity for e in self.entries), severity)
+
     def test_one_entry_per_control_heading_with_the_section_8_2_members(self):
         exported = json.loads((cc.ROOT / cc.CONTROLS_EXPORT).read_text(encoding="utf-8"))
         self.assertEqual(list(exported), ["controls"])
@@ -457,6 +466,127 @@ class RegistryTable(unittest.TestCase):
         self.assertEqual(errors, ["RED specification.md: heading '### 5.3 Complete Control Registry' not found"])
 
 
+CONFORMANCE = """# Conformance Levels
+
+### CRITICAL Controls
+
+| Control ID | Name | Applicable Tiers |
+|-----------|------|-----------------|
+| SOUL-TH-001 | First control | All tiers |
+
+### Path to Essential
+
+1. A first step (satisfies SOUL-TH-001)
+
+### HIGH Controls
+
+| Control ID | Name | Applicable Tiers |
+|-----------|------|-----------------|
+{rows}
+
+### Path to Standard
+
+{steps}
+
+---
+
+## Level 3: Hardened
+
+Mentions SOUL-TH-003 outside the path section.
+"""
+
+
+class ConformanceLevels(unittest.TestCase):
+    ENTRIES = [
+        {"id": "SOUL-TH-001", "title": "First Control", "domain": 11, "severity": "CRITICAL", "status": "active"},
+        {"id": "SOUL-TH-002", "title": "Second Control", "domain": 11, "severity": "HIGH", "status": "active"},
+        {"id": "SOUL-TH-003", "title": "Third Control", "domain": 11, "severity": "HIGH", "status": "active"},
+        {"id": "SOUL-TH-004", "title": "Fourth Control", "domain": 11, "severity": "HIGH", "status": "deprecated"},
+        {"id": "SOUL-TH-005", "title": "Fifth Control", "domain": 11, "severity": "HIGH", "status": "draft"},
+        {"id": "SOUL-TH-006", "title": "Sixth Control", "domain": 11, "severity": "MEDIUM", "status": "active"},
+    ]
+    ATTRIBUTES = {
+        "SOUL-TH-001": ("x", {"Applicable tiers": "All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT)"}),
+        "SOUL-TH-002": ("x", {"Applicable tiers": "All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT)"}),
+        "SOUL-TH-003": ("x", {"Applicable tiers": "AGENTIC, MULTI-AGENT"}),
+        "SOUL-TH-004": ("x", {"Applicable tiers": "AGENTIC, MULTI-AGENT"}),
+        "SOUL-TH-005": ("x", {"Applicable tiers": "AGENTIC, MULTI-AGENT"}),
+        "SOUL-TH-006": ("x", {"Applicable tiers": "AGENTIC, MULTI-AGENT"}),
+    }
+    ROWS = [
+        "| SOUL-TH-002 | Second control | All tiers |",
+        "| SOUL-TH-003 | Third control | AGENTIC, MULTI-AGENT |",
+    ]
+    STEPS = ["1. A second step (satisfies SOUL-TH-002)", "2. A third step (satisfies SOUL-TH-003)"]
+
+    def check(self, rows=ROWS, steps=STEPS):
+        errors = []
+        text = CONFORMANCE.format(rows="\n".join(rows), steps="\n".join(steps))
+        cc.check_conformance_levels(errors, "conformance.md", text, self.ENTRIES, self.ATTRIBUTES)
+        return errors
+
+    def test_every_active_control_of_the_severity_listed_and_named_in_the_path_is_green(self):
+        self.assertEqual(self.check(), [])
+
+    def test_missing_high_control_is_red_in_the_table_and_the_path(self):
+        self.assertEqual(self.check(rows=self.ROWS[:1], steps=self.STEPS[:1]), [
+            "RED conformance.md: the table under '### HIGH Controls' has no row for SOUL-TH-003",
+            "RED conformance.md: the section '### Path to Standard' names no step for SOUL-TH-003",
+        ])
+
+    def test_deprecated_draft_and_other_severity_rows_are_red(self):
+        rows = self.ROWS + [
+            "| SOUL-TH-004 | Fourth control | AGENTIC, MULTI-AGENT |",
+            "| SOUL-TH-005 | Fifth control | AGENTIC, MULTI-AGENT |",
+            "| SOUL-TH-001 | First control | All tiers |",
+        ]
+        self.assertEqual(self.check(rows=rows), [
+            "RED conformance.md:19: 'SOUL-TH-004' under '### HIGH Controls' is not an active HIGH control in domains/",
+            "RED conformance.md:20: 'SOUL-TH-005' under '### HIGH Controls' is not an active HIGH control in domains/",
+            "RED conformance.md:21: 'SOUL-TH-001' under '### HIGH Controls' is not an active HIGH control in domains/",
+        ])
+
+    def test_name_and_tiers_that_differ_from_the_domain_files_are_red(self):
+        self.assertEqual(self.check(rows=[
+            "| SOUL-TH-002 | Second | All tiers |",
+            "| SOUL-TH-003 | Third control | All tiers |",
+        ]), [
+            "RED conformance.md:17: Name 'Second' of SOUL-TH-002 differs from the domain heading 'Second Control'",
+            "RED conformance.md:18: Applicable Tiers 'All tiers' of SOUL-TH-003 differs from the attribute table "
+            "'AGENTIC, MULTI-AGENT'",
+        ])
+
+    def test_repeated_reordered_and_short_rows_are_red(self):
+        self.assertEqual(self.check(rows=list(reversed(self.ROWS)) + [self.ROWS[0], "| SOUL-TH-003 | Third |"]), [
+            "RED conformance.md:19: SOUL-TH-002 is repeated under '### HIGH Controls'",
+            "RED conformance.md:20: row has 2 cells; expected 3",
+            "RED conformance.md: the rows under '### HIGH Controls' are not in domain order then NNN",
+        ])
+
+    def test_control_named_only_outside_the_path_section_is_red(self):
+        self.assertEqual(self.check(steps=self.STEPS[:1]), [
+            "RED conformance.md: the section '### Path to Standard' names no step for SOUL-TH-003",
+        ])
+
+    def test_missing_headings_and_header_are_red(self):
+        errors = []
+        cc.check_conformance_levels(errors, "conformance.md", "# Conformance Levels\n", self.ENTRIES, self.ATTRIBUTES)
+        self.assertEqual(errors, [
+            "RED conformance.md: heading '### CRITICAL Controls' not found",
+            "RED conformance.md: heading '### HIGH Controls' not found",
+        ])
+        text = CONFORMANCE.format(rows="\n".join(self.ROWS), steps="\n".join(self.STEPS))
+        errors = []
+        cc.check_conformance_levels(errors, "conformance.md", text.replace("| Control ID | Name |", "| ID | Name |"),
+                                    self.ENTRIES, self.ATTRIBUTES)
+        self.assertEqual(errors, [
+            "RED conformance.md: the table under '### CRITICAL Controls' must have the header "
+            "| Control ID | Name | Applicable Tiers |",
+            "RED conformance.md: the table under '### HIGH Controls' must have the header "
+            "| Control ID | Name | Applicable Tiers |",
+        ])
+
+
 class LineEndingPins(unittest.TestCase):
     def test_the_byte_checked_files_are_pinned_to_lf(self):
         paths = [f"crosswalks/{spec[kind]}" for spec in cc.CROSSWALK_SET for kind in ("csv", "md")]
@@ -478,7 +608,7 @@ class MainRun(unittest.TestCase):
             root = Path(tmp)
             shutil.copytree(cc.DOMAINS, root / "domains")
             shutil.copytree(cc.CROSSWALKS, root / "crosswalks")
-            for name in ("README.md", cc.CONTROLS_EXPORT, cc.SPECIFICATION):
+            for name in ("README.md", cc.CONTROLS_EXPORT, cc.SPECIFICATION, cc.CONFORMANCE):
                 shutil.copyfile(cc.ROOT / name, root / name)
             if edit:
                 edit(root)
@@ -517,6 +647,23 @@ class MainRun(unittest.TestCase):
         self.assertIn(f"RED specification.md:{lineno}: Name 'Trust chain Defined' of SOUL-TH-001 differs from the "
                       "domain heading 'Trust Chain Defined'\n", out)
         self.assertIn("\n1 problem(s) found", out)
+
+    def test_high_control_missing_from_conformance_is_red(self):
+        row = "| SOUL-IH-004 | Input validation and sanitization | All tiers |"
+        self.assertIn(row, (cc.ROOT / cc.CONFORMANCE).read_text(encoding="utf-8").splitlines())
+
+        def drift(root):
+            path = root / cc.CONFORMANCE
+            path.write_text(path.read_text(encoding="utf-8").replace(row + "\n", "", 1), encoding="utf-8")
+        code, out, _ = self.run_main([], drift)
+        self.assertEqual(code, 1, out)
+        self.assertIn("RED conformance.md: the table under '### HIGH Controls' has no row for SOUL-IH-004\n", out)
+        self.assertIn("\n1 problem(s) found", out)
+
+    def test_missing_conformance_file_is_red(self):
+        code, out, _ = self.run_main([], lambda root: (root / cc.CONFORMANCE).unlink())
+        self.assertEqual(code, 1, out)
+        self.assertIn("RED conformance.md: file is missing\n", out)
 
     def test_write_restores_controls_json(self):
         rendered = (cc.ROOT / cc.CONTROLS_EXPORT).read_bytes()

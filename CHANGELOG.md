@@ -131,6 +131,14 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   unreadable, or empty; exit `0` requires Essential conformance. Each case
   names its `gate.reason`. `scripts/test_integrations_readme.py` checks that
   each `gate.reason` is listed under the exit code the scanner gives it. (#36)
+- The Standard level in `conformance.md` lists all 12 HIGH controls. Its
+  table omitted SOUL-IH-004, SOUL-HB-005, SOUL-HB-008, and SOUL-HO-008, and
+  the Path to Standard steps omitted those four and SOUL-HV-001; each step
+  now names the control it satisfies, grouped by the tiers it applies to.
+  `scripts/check_crosswalks.py` now requires the CRITICAL and HIGH tables to
+  list every active control of that severity with the domain files' title
+  and applicable tiers, in the order of `controls.json`, and each path to
+  name every one of them. Tests in `scripts/test_check_crosswalks.py`. (#39)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

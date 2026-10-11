@@ -26,7 +26,11 @@ The two crosswalk CSV files are canonical. This script:
     file to match byte for byte;
   * requires the registry table in specification.md section 5.3 to give, for
     each control, the ID, heading title, domain name, and severity of the
-    domain files, in the order of controls.json.
+    domain files, in the order of controls.json;
+  * requires the CRITICAL and HIGH controls tables in conformance.md to list
+    every active control of that severity, with the heading title and the
+    applicable tiers of the domain files, in the order of controls.json, and
+    the Path to Essential and Path to Standard steps to name each of them.
 
 Run from anywhere:  python3 scripts/check_crosswalks.py
 Re-render the .md files and controls.json:  python3 scripts/check_crosswalks.py --write
@@ -75,6 +79,13 @@ STATUSES = ("draft", "active", "deprecated")
 # ASCII digits without leading zeros; \d would also accept other scripts' digits.
 ENTRY_VERSION = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 REGISTRY_HEADING = "### 5.3 Complete Control Registry"
+CONFORMANCE = "conformance.md"
+# (table heading, path heading, severity): the controls a conformance level adds.
+CONFORMANCE_LEVELS = (
+    ("### CRITICAL Controls", "### Path to Essential", "CRITICAL"),
+    ("### HIGH Controls", "### Path to Standard", "HIGH"),
+)
+CONFORMANCE_HEADER = ["Control ID", "Name", "Applicable Tiers"]
 
 BANNED_WORDS = (
     "compliant", "compliance", "conforms", "conformity", "certified", "meets",
@@ -412,6 +423,20 @@ def check_replacement_chains(errors, statuses, links):
             fail(errors, where, f"Replaced by chain {path} ends at a draft control; it must end at an active control")
 
 
+def table_after(lines, heading):
+    """The rows of the first table after the line heading, as (line number, cells); None when heading is absent."""
+    if heading not in lines:
+        return None
+    start = lines.index(heading) + 1
+    rows = []
+    for lineno, line in enumerate(lines[start:], start=start + 1):
+        if line.startswith("|"):
+            rows.append((lineno, [cell.strip() for cell in line.strip()[1:-1].split("|")]))
+        elif rows:
+            break
+    return rows
+
+
 def check_registry_table(errors, rel, text, entries, domain_names):
     """Require the registry table of specification.md section 5.3 to match the domain files.
 
@@ -420,15 +445,10 @@ def check_registry_table(errors, rel, text, entries, domain_names):
     of the attribute table.
     """
     lines = text.splitlines()
-    if REGISTRY_HEADING not in lines:
+    rows = table_after(lines, REGISTRY_HEADING)
+    if rows is None:
         fail(errors, rel, f"heading {REGISTRY_HEADING!r} not found")
         return
-    rows = []
-    for lineno, line in enumerate(lines[lines.index(REGISTRY_HEADING) + 1:], start=lines.index(REGISTRY_HEADING) + 2):
-        if line.startswith("|"):
-            rows.append((lineno, [cell.strip() for cell in line.strip()[1:-1].split("|")]))
-        elif rows:
-            break
     if len(rows) < 2 or rows[0][1] != ["ID", "Name", "Domain", "Severity"]:
         fail(errors, rel, "the registry table under section 5.3 must have the header | ID | Name | Domain | Severity |")
         return
@@ -462,6 +482,74 @@ def check_registry_table(errors, rel, text, entries, domain_names):
             fail(errors, rel, f"the registry table under section 5.3 has no row for {cid}")
     if seen != [cid for cid in order if cid in seen]:
         fail(errors, rel, "the registry rows under section 5.3 are not in domain order then NNN")
+
+
+def tiers_cell(value):
+    """The Applicable Tiers cell of conformance.md for an Applicable tiers attribute: All (...) is All tiers."""
+    if value is not None and (value == "All" or value.startswith("All (")):
+        return "All tiers"
+    return value
+
+
+def check_conformance_levels(errors, rel, text, entries, attributes):
+    """Require the CRITICAL and HIGH controls of conformance.md to be those of the domain files.
+
+    Essential requires every applicable CRITICAL control and Standard every
+    applicable HIGH control, and only an active control is applicable
+    (specification.md section 8.2). So each table of CONFORMANCE_LEVELS has one
+    row per active control of its severity, in the order of controls.json,
+    giving the ID, the heading title as Name (letter case aside, so the table
+    may use sentence case), and the Applicable tiers of the attribute table,
+    with All (...) written as All tiers. The path section that follows the
+    table names each of those controls.
+    """
+    lines = text.splitlines()
+    for heading, path_heading, severity in CONFORMANCE_LEVELS:
+        rows = table_after(lines, heading)
+        if rows is None:
+            fail(errors, rel, f"heading {heading!r} not found")
+            continue
+        if len(rows) < 2 or rows[0][1] != CONFORMANCE_HEADER:
+            fail(errors, rel, f"the table under {heading!r} must have the header "
+                              f"| {' | '.join(CONFORMANCE_HEADER)} |")
+            continue
+        listed = [e for e in entries if e["severity"] == severity and e["status"] == "active"]
+        expected = {e["id"]: e for e in listed}
+        order = [e["id"] for e in listed]
+        seen = []
+        for lineno, cells in rows[2:]:
+            where = f"{rel}:{lineno}"
+            if len(cells) != 3:
+                fail(errors, where, f"row has {len(cells)} cells; expected 3")
+                continue
+            cid, name, tiers = cells
+            if cid not in expected:
+                fail(errors, where, f"{cid!r} under {heading!r} is not an active {severity} control in domains/")
+                continue
+            if cid in seen:
+                fail(errors, where, f"{cid} is repeated under {heading!r}")
+                continue
+            seen.append(cid)
+            title = expected[cid]["title"]
+            if name.lower() != title.lower():
+                fail(errors, where, f"Name {name!r} of {cid} differs from the domain heading {title!r}")
+            want = tiers_cell(attributes[cid][1].get("Applicable tiers"))
+            if tiers != want:
+                fail(errors, where, f"Applicable Tiers {tiers!r} of {cid} differs from the attribute table {want!r}")
+        for cid in order:
+            if cid not in seen:
+                fail(errors, rel, f"the table under {heading!r} has no row for {cid}")
+        if seen != [cid for cid in order if cid in seen]:
+            fail(errors, rel, f"the rows under {heading!r} are not in domain order then NNN")
+        if path_heading not in lines:
+            fail(errors, rel, f"heading {path_heading!r} not found")
+            continue
+        start = lines.index(path_heading) + 1
+        end = next((i for i in range(start, len(lines)) if lines[i].startswith("#")), len(lines))
+        section = "\n".join(lines[start:end])
+        for cid in order:
+            if not re.search(rf"\b{re.escape(cid)}\b", section):
+                fail(errors, rel, f"the section {path_heading!r} names no step for {cid}")
 
 
 def render_controls_json(entries):
@@ -792,6 +880,12 @@ def main(argv):
                              dict(domain_order))
     else:
         fail(errors, SPECIFICATION, "file is missing")
+    conformance_path = ROOT / CONFORMANCE
+    if conformance_path.is_file():
+        check_conformance_levels(errors, CONFORMANCE, conformance_path.read_text(encoding="utf-8"), entries,
+                                 attributes)
+    else:
+        fail(errors, CONFORMANCE, "file is missing")
     check_ruled_digests(errors)
     check_required_prose(errors)
     scan_banned(errors)

@@ -65,10 +65,14 @@ For an agent with no governance file:
 | SOUL-TH-001 | Trust chain defined | All tiers |
 | SOUL-CB-001 | Allowed actions declared | TOOL-USING, AGENTIC, MULTI-AGENT |
 | SOUL-CB-002 | Denied actions declared | TOOL-USING, AGENTIC, MULTI-AGENT |
-| SOUL-HB-002 | No data exfiltration | All tiers |
-| SOUL-HB-003 | Kill switch | All tiers |
-| SOUL-HO-001 | Approval gates | TOOL-USING, AGENTIC, MULTI-AGENT |
 | SOUL-IH-001 | Instruction override defense | All tiers |
+| SOUL-IH-004 | Input validation and sanitization | All tiers |
+| SOUL-HB-002 | No data exfiltration | All tiers |
+| SOUL-HB-003 | Kill switch / emergency stop | All tiers |
+| SOUL-HB-005 | Constraint immutability guarantee | All tiers |
+| SOUL-HB-008 | Enforcement resilience under pressure | AGENTIC, MULTI-AGENT |
+| SOUL-HO-001 | Approval gates | TOOL-USING, AGENTIC, MULTI-AGENT |
+| SOUL-HO-008 | Escalation triggers for runaway detection | AGENTIC, MULTI-AGENT |
 | SOUL-HV-001 | Pre-action risk assessment | TOOL-USING, AGENTIC, MULTI-AGENT |
 
 ### What Standard Means
@@ -77,23 +81,35 @@ A Standard-conformant agent has declared governance across all high-priority are
 
 - Who it trusts and in what order (trust hierarchy)
 - What it can and cannot do (capability boundaries)
-- How it defends against prompt injection (injection hardening)
-- That it will not exfiltrate data (hardcoded behavior)
+- How it defends against prompt injection and validates its inputs (injection hardening)
+- That it will not exfiltrate data, and that its immutable constraints cannot be changed or bypassed (hardcoded behavior)
 - That it can be stopped (kill switch)
-- When it requires human approval (oversight gates)
+- When it requires human approval, and when runaway behavior is escalated (oversight gates)
+- That it assesses the risk of an action before taking it (harm avoidance)
 
 This level is appropriate for agents in production that interact with users, handle data, or perform actions with real-world consequences.
 
 ### Path to Standard
 
-For an Essential-conformant agent, add:
+For an Essential-conformant agent at any tier, add:
 
-1. A trust hierarchy section defining principals and priority order
-2. Explicit lists of allowed and denied actions
-3. A statement about instruction override defense
-4. A declaration against data exfiltration
-5. A kill switch or emergency stop mechanism
-6. Defined approval gates for high-risk actions
+1. A trust hierarchy section defining principals and priority order (satisfies SOUL-TH-001)
+2. A statement about instruction override defense (satisfies SOUL-IH-001)
+3. A requirement to validate and sanitize all inputs before processing them (satisfies SOUL-IH-004)
+4. A declaration against data exfiltration (satisfies SOUL-HB-002)
+5. A kill switch or emergency stop mechanism (satisfies SOUL-HB-003)
+6. A statement that the immutable constraints are permanent and cannot be changed at runtime (satisfies SOUL-HB-005)
+
+For a TOOL-USING, AGENTIC, or MULTI-AGENT agent, also add:
+
+7. Explicit lists of allowed and denied actions (satisfies SOUL-CB-001 and SOUL-CB-002)
+8. Defined approval gates for high-risk actions (satisfies SOUL-HO-001)
+9. An instruction to assess the risks and consequences of an action before taking it (satisfies SOUL-HV-001)
+
+For an AGENTIC or MULTI-AGENT agent, also add:
+
+10. A fail-safe enforcement mechanism that keeps the hardcoded behaviors in force under adversarial or high-load conditions (satisfies SOUL-HB-008)
+11. Escalation triggers that detect runaway behavior or malfunction and escalate it (satisfies SOUL-HO-008)
 
 The overall score must reach at least 60, which typically requires some MEDIUM controls in addition to the HIGH controls.
 
