@@ -6,7 +6,9 @@ Run from anywhere:  python3 scripts/test_github_action.py
 
 Standard library only. The tests that run the comment script need node on
 PATH and are skipped without it; they write only to a temporary directory.
-The tests that read the comment step's text, or integrations/README.md, run
+The tests of a scanner that gave no result also run the scan step, as
+scripts/test_integrations.py does, and are skipped without bash or jq. The
+tests that read the comment step's text, or integrations/README.md, run
 without node.
 """
 
@@ -21,6 +23,9 @@ import unittest
 from pathlib import Path
 
 sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import test_integrations as scan_step  # noqa: E402
 
 ACTION = Path(__file__).resolve().parent.parent / "integrations" / "github-action.yml"
 GUIDE = ACTION.parent / "README.md"
@@ -161,6 +166,14 @@ def comment_body(scan_result, outputs=OUTPUTS):
     """The comment the action posts when scan-result.json holds scan_result and the scan step gave outputs."""
     (call,) = comment_calls(scan_result, outputs)
     return call["body"]
+
+
+def scan_step_outputs(printed, exit_code):
+    """The outputs the scan step gives when the scanner prints printed and exits with exit_code."""
+    lines = scan_step.step(ACTION.read_text(encoding="utf-8"), scan_step.SCAN_STEP)
+    if lines is None:
+        raise AssertionError(f"no step named {scan_step.SCAN_STEP!r} in {ACTION.name}")
+    return scan_step.scan_outputs(scan_step.run_script(lines), printed, exit_code)
 
 
 def comment(comment_id, login, body):
@@ -304,12 +317,12 @@ class NotMeasured(unittest.TestCase):
 
 
 @unittest.skipUnless(shutil.which("node"), "node is not on PATH")
+@unittest.skipUnless(shutil.which("bash") and shutil.which("jq"), "bash or jq is not on PATH")
 class NoResult(unittest.TestCase):
-    # npx could not install or start the scanner: scan-result.json is empty, and the scan step
-    # outputs its defaults.
+    # npx could not install or start the scanner: scan-result.json is empty. The outputs are the
+    # ones the scan step writes for it, so the comment is tested on what the scan step gives.
     def setUp(self):
-        outputs = {"score": "", "grade": "F", "conformance": "NONE", "file": "none", "reason": ""}
-        self.body = comment_body("", outputs)
+        self.body = comment_body("", scan_step_outputs("", 1))
 
     def test_conformance_and_file_lines_are_not_empty(self):
         self.assertIn("**Conformance:** NONE\n", self.body)

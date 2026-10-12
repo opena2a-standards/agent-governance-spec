@@ -669,6 +669,15 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   digits fails the job like one above 100. The header of each example and
   `integrations/README.md` state the range. Tests in
   `scripts/test_integrations.py` and `scripts/test_gitlab_ci.py`. (#117)
+- The `NoResult` tests in `scripts/test_github_action.py`, added for #114,
+  gave the comment script the scan step's default outputs as written in
+  the test, so they also passed against the workflow from before that fix,
+  whose scan step output an empty conformance and file for an empty
+  `scan-result.json`. They now run the "Run governance scan" step on an
+  empty result, with the stand-in for `npx` from
+  `scripts/test_integrations.py`, and give its outputs to the comment
+  script, so they fail against that workflow. They need bash and jq as
+  well as node, and are skipped without them. (#118)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
