@@ -9,6 +9,7 @@ and are skipped without it; they write only to a temporary directory.
 """
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -20,8 +21,16 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 
 ACTION = Path(__file__).resolve().parent.parent / "integrations" / "github-action.yml"
-OUTPUT = re.compile(r"\$\{\{\s*steps\.scan\.outputs\.(\w+)\s*\}\}")
-OUTPUTS = {"score": "67", "grade": "C", "conformance": "NONE", "file": "SOUL.md"}
+COMMENT_STEP = "Comment on PR"
+OUTPUT = re.compile(r"^\$\{\{\s*steps\.scan\.outputs\.(\w+)\s*\}\}$")
+OUTPUTS = {"score": "67", "grade": "C", "conformance": "NONE", "file": "SOUL.md", "reason": ""}
+
+# A domain the agent profile leaves out, as the scanner prints it for
+# templates/tool-using.md (profile tool-agent).
+SKIPPED_DOMAIN = {
+    "domain": "Agentic Safety", "domainId": 16, "controls": [],
+    "passed": 0, "total": 0, "percentage": 0, "skippedByProfile": True,
+}
 
 # The scanner prints `domains` as an array, one entry per domain. The counts
 # are from a scan of examples/coding-agent-soul.md; controls are left out.
@@ -57,32 +66,64 @@ new AsyncFunction('require', 'github', 'context', script)(require, github, conte
 """
 
 
-def comment_script(text):
-    """The `script: |` block of the action, with its indentation removed as YAML reads it."""
+def indent(line):
+    return len(line) - len(line.lstrip())
+
+
+def block(lines, start):
+    """The lines after lines[start] that are blank or indented deeper than it."""
+    end = start + 1
+    while end < len(lines) and (not lines[end].strip() or indent(lines[end]) > indent(lines[start])):
+        end += 1
+    return lines[start + 1:end]
+
+
+def comment_step(text):
+    """The lines of the step that posts the comment, the "- name:" line first."""
     lines = text.splitlines()
+    start = next(i for i, line in enumerate(lines) if line.strip() == f"- name: {COMMENT_STEP}")
+    return [lines[start]] + block(lines, start)
+
+
+def comment_script(text):
+    """The `script: |` block of the comment step, with its indentation removed as YAML reads it."""
+    lines = comment_step(text)
     start = next(i for i, line in enumerate(lines) if line.strip() == "script: |")
-    key_indent = len(lines[start]) - len(lines[start].lstrip())
-    block = []
-    for line in lines[start + 1:]:
-        if line.strip() and len(line) - len(line.lstrip()) <= key_indent:
-            break
-        block.append(line)
-    first = next(line for line in block if line.strip())
-    indent = len(first) - len(first.lstrip())
-    return "\n".join(line[indent:] for line in block).rstrip() + "\n"
+    body = block(lines, start)
+    first = next(line for line in body if line.strip())
+    return "\n".join(line[indent(first):] for line in body).rstrip() + "\n"
 
 
-def comment_body(scan_result):
-    """The comment the action posts when scan-result.json holds scan_result."""
-    script = OUTPUT.sub(lambda m: OUTPUTS[m.group(1)], comment_script(ACTION.read_text(encoding="utf-8")))
+def comment_env(text):
+    """The env: mapping of the comment step: variable name to the scan output it reads."""
+    lines = comment_step(text)
+    start = next((i for i, line in enumerate(lines) if line.strip() == "env:"), None)
+    if start is None:
+        return {}
+    names = {}
+    for line in block(lines, start):
+        if line.strip():
+            name, _, value = line.strip().partition(":")
+            match = OUTPUT.match(value.strip())
+            if not match:
+                raise AssertionError(f"env {name} does not read a scan output: {value.strip()}")
+            names[name] = match.group(1)
+    return names
+
+
+def comment_body(scan_result, outputs=OUTPUTS):
+    """The comment the action posts when scan-result.json holds scan_result and the scan step gave outputs."""
+    text = ACTION.read_text(encoding="utf-8")
+    env = {name: outputs[output] for name, output in comment_env(text).items()}
+    env["PATH"] = os.environ.get("PATH", "/usr/bin:/bin")
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)
         (work / "scan-result.json").write_text(scan_result, encoding="utf-8")
-        (work / "comment.js").write_text(script, encoding="utf-8")
+        (work / "comment.js").write_text(comment_script(text), encoding="utf-8")
         (work / "harness.js").write_text(HARNESS, encoding="utf-8")
         run = subprocess.run(
             ["node", str(work / "harness.js"), str(work / "comment.js")],
-            cwd=work, capture_output=True, text=True, timeout=60,
+            cwd=work, env=env, capture_output=True, text=True, timeout=60,
         )
     if run.returncode != 0:
         raise AssertionError(f"comment script failed:\n{run.stderr}")
@@ -124,6 +165,52 @@ class NoDomains(unittest.TestCase):
         body = comment_body(json.dumps({"domains": {"Trust Hierarchy": {"found": 2, "total": 3}}}))
         self.assertNotIn("| Domain |", body)
         self.assertNotIn("undefined", body)
+
+
+@unittest.skipUnless(shutil.which("node"), "node is not on PATH")
+class ProfileSkippedDomain(unittest.TestCase):
+    def setUp(self):
+        self.body = comment_body(json.dumps(dict(SCAN, domains=SCAN["domains"] + [SKIPPED_DOMAIN])))
+
+    def test_domain_the_profile_leaves_out_is_not_applicable(self):
+        self.assertIn("| Agentic Safety | Skipped by profile | Not applicable |", self.body)
+        self.assertNotIn("0/0", self.body)
+
+    def test_scored_domains_keep_their_rows(self):
+        self.assertIn("| Trust Hierarchy | 3/7 (43%) | Needs work |", self.body)
+
+
+class StepOutputs(unittest.TestCase):
+    def test_comment_script_reads_no_expression(self):
+        # The values reach the script through env:, so a quote in one cannot end a string literal.
+        self.assertNotIn("${{", comment_script(ACTION.read_text(encoding="utf-8")))
+
+    def test_comment_step_passes_each_scan_output_through_env(self):
+        self.assertEqual(
+            sorted(comment_env(ACTION.read_text(encoding="utf-8")).values()),
+            ["conformance", "file", "grade", "reason", "score"],
+        )
+
+    @unittest.skipUnless(shutil.which("node"), "node is not on PATH")
+    def test_quotes_in_an_output_are_printed_as_written(self):
+        body = comment_body(json.dumps(SCAN), dict(OUTPUTS, file="it's \"SOUL\".md"))
+        self.assertIn("**File:** `it's \"SOUL\".md`", body)
+
+
+@unittest.skipUnless(shutil.which("node"), "node is not on PATH")
+class NotMeasured(unittest.TestCase):
+    # A run that found no governance file exits 2 with a null score; the scan step outputs it as empty.
+    def setUp(self):
+        scan = {"file": None, "score": None, "conformance": None,
+                "gate": {"failed": True, "reason": "no-governance-file", "exitCode": 2}}
+        self.body = comment_body(json.dumps(scan), dict(OUTPUTS, score="", grade="F", reason="no-governance-file"))
+
+    def test_score_line_names_the_gate_reason(self):
+        self.assertIn("**Score:** not measured (`no-governance-file`)", self.body)
+
+    def test_no_score_or_grade_is_shown(self):
+        self.assertNotIn("/100", self.body)
+        self.assertNotIn("Grade:", self.body)
 
 
 if __name__ == "__main__":

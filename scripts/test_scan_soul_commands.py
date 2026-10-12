@@ -25,6 +25,10 @@ SCANNER_OPTIONS = {
     "--no-contribute", "--ci", "--explain", "-h", "--help",
 }
 COMMAND = re.compile(r"\bhackmyagent(?:@\S+)? scan-soul\b(.*)$")
+# The CI examples, which run the scanner on every pull request.
+CI_EXAMPLES = ("integrations/github-action.yml", "integrations/gitlab-ci.yml")
+SCANNER_SPEC = re.compile(r"\bnpx hackmyagent(?:@(\S+))? scan-soul\b")
+EXACT_VERSION = re.compile(r"\d+\.\d+\.\d+")
 # The arguments end at a closing quote or backtick, or at a shell operator.
 ARGS_END = re.compile(r"[`\"'>|&;]")
 STDERR_INTO_OUTPUT = re.compile(r"2>&1|&>")
@@ -77,6 +81,20 @@ class ScanSoulCommands(unittest.TestCase):
         for path, number, rest in self.commands:
             with self.subTest(at=f"{path}:{number}"):
                 self.assertFalse(json_mixed_with_stderr(rest))
+
+    def test_ci_examples_pin_one_scanner_release_that_the_guide_names(self):
+        # An unpinned npx install takes whatever release is current on each run.
+        guide = (ROOT / "integrations" / "README.md").read_text(encoding="utf-8")
+        versions = set()
+        for path in CI_EXAMPLES:
+            specs = SCANNER_SPEC.findall((ROOT / path).read_text(encoding="utf-8"))
+            with self.subTest(path=path):
+                self.assertEqual(len(specs), 1)
+                self.assertRegex(specs[0], f"^{EXACT_VERSION.pattern}$")
+            versions.update(specs)
+        self.assertEqual(len(versions), 1)
+        (version,) = versions
+        self.assertIn(f"pin hackmyagent {version}", guide)
 
     def test_unknown_option_is_reported(self):
         (_, rest), = scan_commands("npx hackmyagent@latest scan-soul --format json > scan-result.json || true\n")

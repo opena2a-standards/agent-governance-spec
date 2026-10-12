@@ -346,12 +346,17 @@ class CommandLine(unittest.TestCase):
     def test_argument_that_is_not_a_directory_prints_usage_and_exits_2(self):
         with tempfile.TemporaryDirectory() as tmp:
             write_tree(tmp, {"README.md": "Plain prose.\n"})
-            for argument in ("--help", "-h", "", str(Path(tmp) / "README.md"), str(Path(tmp) / "missing")):
+            for argument in ("--version", "-x", "", str(Path(tmp) / "README.md"), str(Path(tmp) / "missing")):
                 with self.subTest(argument=argument):
                     code, out, err = run_main(argument)
                     self.assertEqual(2, code)
                     self.assertEqual("", out)
                     self.assertEqual(f"scripts/check_docs_prose.py: not a directory: {argument}\n{cdp.USAGE}\n", err)
+
+    def test_help_flag_prints_usage_and_exits_0(self):
+        for flag in ("--help", "-h"):
+            with self.subTest(flag=flag):
+                self.assertEqual((0, f"{cdp.USAGE}\n", ""), run_main(flag))
 
     def test_more_than_one_argument_prints_usage_and_exits_2(self):
         with tempfile.TemporaryDirectory() as tmp:

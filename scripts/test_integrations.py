@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
-"""Tests for the minimum-score check in integrations/github-action.yml.
+"""Tests for the scan and minimum-score steps in integrations/github-action.yml.
 
 Run from anywhere:  python3 scripts/test_integrations.py
 
-Standard library only. The workflow is read as text, not parsed as YAML, and
-the tests write nothing. The "Check minimum score" script is run with bash
-(or sh when bash is missing) to show that it fails the job below the minimum.
+Standard library only. The workflow is read as text, not parsed as YAML. The
+"Check minimum score" script is run with bash (or sh when bash is missing) to
+show that it fails the job below the minimum. The "Run governance scan" script
+is run with bash and jq, with a stand-in for npx that prints a recorded scanner
+result; those tests write only to a temporary directory and are skipped
+without bash or jq.
 """
 
+import json
+import os
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import textwrap
 import unittest
 from pathlib import Path
@@ -21,8 +27,27 @@ sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / "integrations" / "github-action.yml"
 GUIDE = ROOT / "integrations" / "README.md"
+SCAN_STEP = "Run governance scan"
 CHECK_STEP = "Check minimum score"
 MIN_SCORE_EXPRESSION = "${{ vars.MIN_GOVERNANCE_SCORE || '0' }}"
+
+# The `gate.reason` of each run that measured nothing (exit code 2), with the
+# words the check prints for it.
+NOT_MEASURED = {
+    "no-governance-file": "no governance file was found",
+    "governance-file-unreadable": "the governance file could not be read",
+    "governance-file-empty": "the governance file is empty",
+}
+
+# What `scan-soul --json` prints, trimmed to the keys the scan step reads,
+# for a scored file and for a run that found no governance file.
+SCORED = {"file": "SOUL.md", "score": 49, "grade": "C", "conformance": "essential",
+          "gate": {"failed": False, "reason": None, "exitCode": 0}}
+NO_FILE = {"file": None, "score": None, "conformance": None,
+           "gate": {"failed": True, "reason": "no-governance-file", "exitCode": 2}}
+
+# Stands in for npx: prints the recorded result and exits with its gate exit code.
+FAKE_NPX = '#!/bin/sh\ncat "$SCAN_FIXTURE"\nexit "$SCAN_EXIT"\n'
 
 EXPRESSION = re.compile(r"\$\{\{(.*?)\}\}")
 INPUT_REF = re.compile(r"\binputs\.([A-Za-z0-9_-]+)")
@@ -98,17 +123,51 @@ def run_script(lines):
     return None
 
 
-def run_check(script, score, minimum):
-    """The exit status of script run with SCORE and MIN_SCORE set, as the step's env: sets them."""
+def check_result(script, score, minimum, reason=""):
+    """script run with SCORE, MIN_SCORE and REASON set, as the step's env: sets them."""
     shell = shutil.which("bash") or shutil.which("sh")
-    result = subprocess.run(
+    return subprocess.run(
         [shell, "-e", "-c", script],
-        env={"PATH": "/usr/bin:/bin", "SCORE": score, "MIN_SCORE": minimum},
+        env={"PATH": "/usr/bin:/bin", "SCORE": score, "MIN_SCORE": minimum, "REASON": reason},
         capture_output=True,
         text=True,
         timeout=60,
     )
-    return result.returncode
+
+
+def run_check(script, score, minimum, reason=""):
+    """The exit status of the check script."""
+    return check_result(script, score, minimum, reason).returncode
+
+
+def scan_outputs(script, result, exit_code):
+    """The step outputs the scan script writes when the scanner prints result and exits with exit_code."""
+    with tempfile.TemporaryDirectory() as tmp:
+        work = Path(tmp)
+        bin_dir = work / "bin"
+        bin_dir.mkdir()
+        npx = bin_dir / "npx"
+        npx.write_text(FAKE_NPX, encoding="utf-8")
+        npx.chmod(0o755)
+        (work / "fixture.json").write_text(result, encoding="utf-8")
+        output = work / "github-output"
+        output.write_text("", encoding="utf-8")
+        run = subprocess.run(
+            [shutil.which("bash"), "-e", "-c", script],
+            cwd=work,
+            env={
+                "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '/usr/bin:/bin')}",
+                "GITHUB_OUTPUT": str(output),
+                "SCAN_FIXTURE": str(work / "fixture.json"),
+                "SCAN_EXIT": str(exit_code),
+            },
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if run.returncode != 0:
+            raise AssertionError(f"scan step failed:\n{run.stderr}")
+        return dict(line.partition("=")[::2] for line in output.read_text(encoding="utf-8").splitlines())
 
 
 class MinimumScore(unittest.TestCase):
@@ -149,12 +208,77 @@ class MinimumScore(unittest.TestCase):
             with self.subTest(score=score, minimum=minimum):
                 self.assertEqual(run_check(script, score, minimum) == 0, passes)
 
+    def test_check_reads_the_gate_reason_of_the_scan(self):
+        self.assertEqual(step_env(self.step).get("REASON"), "${{ steps.scan.outputs.reason }}")
+
+    def test_run_that_measured_nothing_names_the_reason_instead_of_a_score(self):
+        script = run_script(self.step)
+        for reason, words in NOT_MEASURED.items():
+            with self.subTest(reason=reason):
+                result = check_result(script, "", "60", reason)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(words, result.stdout)
+                self.assertIn(reason, result.stdout)
+                self.assertNotIn("below minimum", result.stdout)
+
+    def test_run_that_measured_nothing_passes_without_a_minimum(self):
+        script = run_script(self.step)
+        for reason in NOT_MEASURED:
+            with self.subTest(reason=reason):
+                result = check_result(script, "", "0", reason)
+                self.assertEqual(result.returncode, 0)
+                self.assertIn(NOT_MEASURED[reason], result.stdout)
+
+    def test_gate_reason_is_tested_before_the_score(self):
+        # A score of 0 next to a not-measured reason is the old `// 0` default, not a measurement.
+        result = check_result(run_script(self.step), "0", "60", "governance-file-empty")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(NOT_MEASURED["governance-file-empty"], result.stdout)
+        self.assertNotIn("below minimum", result.stdout)
+
+    def test_scored_run_with_a_failing_gate_reason_is_still_compared(self):
+        script = run_script(self.step)
+        self.assertEqual(run_check(script, "72", "60", "critical-control-missing"), 0)
+        self.assertEqual(run_check(script, "52", "60", "critical-control-missing"), 1)
+
     def test_guide_names_the_variable_the_workflow_reads(self):
         guide = GUIDE.read_text(encoding="utf-8")
         (variable,) = VARS_REF.findall(step_env(self.step)["MIN_SCORE"])
         self.assertIn(f"`{variable}`", guide)
         self.assertIn(variable, self.text.split("\nname:", 1)[0])
         self.assertNotIn("fail-below` input", guide)
+
+
+@unittest.skipUnless(shutil.which("bash") and shutil.which("jq"), "bash or jq is not on PATH")
+class ScanStep(unittest.TestCase):
+    def setUp(self):
+        lines = step(WORKFLOW.read_text(encoding="utf-8"), SCAN_STEP)
+        self.assertIsNotNone(lines, f"no step named {SCAN_STEP!r} in {WORKFLOW.name}")
+        self.script = run_script(lines)
+
+    def test_scored_run_outputs_its_score(self):
+        outputs = scan_outputs(self.script, json.dumps(SCORED), 0)
+        self.assertEqual(outputs["score"], "49")
+        self.assertEqual(outputs["grade"], "C")
+        self.assertEqual(outputs["reason"], "")
+
+    def test_run_that_measured_nothing_outputs_no_score_and_its_reason(self):
+        outputs = scan_outputs(self.script, json.dumps(NO_FILE), 2)
+        self.assertEqual(outputs["score"], "")
+        self.assertEqual(outputs["reason"], "no-governance-file")
+
+    def test_output_that_is_not_json_outputs_no_score(self):
+        outputs = scan_outputs(self.script, "error: unknown option '--format'\n", 1)
+        self.assertEqual(outputs["score"], "")
+        self.assertEqual(outputs["reason"], "")
+
+    def test_scan_and_check_together_name_the_missing_file(self):
+        outputs = scan_outputs(self.script, json.dumps(NO_FILE), 2)
+        check = run_script(step(WORKFLOW.read_text(encoding="utf-8"), CHECK_STEP))
+        result = check_result(check, outputs["score"], "60", outputs["reason"])
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(NOT_MEASURED["no-governance-file"], result.stdout)
+        self.assertNotIn("score 0", result.stdout)
 
 
 class Helpers(unittest.TestCase):

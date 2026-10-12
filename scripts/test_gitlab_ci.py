@@ -5,16 +5,18 @@ Run from anywhere:  python3 scripts/test_gitlab_ci.py
 
 Standard library only. The tests read the job and integrations/README.md, run
 the job's script with bash -eo pipefail, as the GitLab runner does, against a
-stand-in for `npx hackmyagent@latest scan-soul` that accepts the scanner's
+stand-in for `npx hackmyagent@0.33.2 scan-soul` that accepts the scanner's
 options and rejects any other option, and check what the job prints, the exit
-status, and the files its artifacts name. They write only to a temporary
-directory.
+status, and the files its artifacts name. The stand-in prints a scored result,
+or a recorded one such as the result of a run that measured nothing. They
+write only to a temporary directory.
 
 The tests that run the job need bash and node on PATH. Without either they
 fail and name the missing program; they are not skipped, so a machine without
 node does not pass this file with the job untested.
 """
 
+import json
 import os
 import re
 import shutil
@@ -50,10 +52,19 @@ SCANNED_NAMES = [
     "agent-config.yaml",
 ]
 
-# Stands in for `npx hackmyagent@latest scan-soul`. The option lists are the
-# ones `hackmyagent scan-soul --help` (hackmyagent 0.33.2) prints. Like the
-# scanner, the stand-in writes an unknown option error to stderr and exits 1,
-# and with --json it prints the scan result as JSON on stdout.
+# The `gate.reason` of each run that measured nothing (exit code 2), with the
+# words the job prints for it.
+NOT_MEASURED = {
+    "no-governance-file": "no governance file was found",
+    "governance-file-unreadable": "the governance file could not be read",
+    "governance-file-empty": "the governance file is empty",
+}
+
+# Stands in for `npx hackmyagent@0.33.2 scan-soul`, the release the job pins.
+# The option lists are the ones `hackmyagent scan-soul --help` (hackmyagent
+# 0.33.2) prints. Like the scanner, the stand-in writes an unknown option error
+# to stderr and exits 1. With SCAN_OUTPUT set it prints that text; otherwise,
+# with --json, it prints a scored result as JSON on stdout.
 SCANNER = """#!@PYTHON@
 import json
 import os
@@ -64,7 +75,7 @@ FLAGS = ("--json", "-v", "--verbose", "--deep", "--static-only", "--publish",
 VALUE_OPTIONS = ("--tier", "--profile", "--fail-below", "--registry-url")
 
 args = sys.argv[1:]
-if args[:2] != ["hackmyagent@latest", "scan-soul"]:
+if args[:2] != ["hackmyagent@0.33.2", "scan-soul"]:
     sys.exit("stand-in: unexpected command: " + " ".join(args))
 args = args[2:]
 as_json = False
@@ -78,12 +89,15 @@ while args:
     elif option.startswith("-"):
         sys.stderr.write("error: unknown option '" + option + "'\\n(run with --help for usage)\\n")
         sys.exit(1)
-score = int(os.environ["SCAN_SCORE"])
-grade = os.environ["SCAN_GRADE"]
-if as_json:
-    print(json.dumps(dict(file="SOUL.md", score=score, grade=grade), indent=2))
+if "SCAN_OUTPUT" in os.environ:
+    sys.stdout.write(os.environ["SCAN_OUTPUT"])
 else:
-    print("SOUL.md: " + str(score) + "/100 (" + grade + ")")
+    score = int(os.environ["SCAN_SCORE"])
+    grade = os.environ["SCAN_GRADE"]
+    if as_json:
+        print(json.dumps(dict(file="SOUL.md", score=score, grade=grade), indent=2))
+    else:
+        print("SOUL.md: " + str(score) + "/100 (" + grade + ")")
 sys.exit(int(os.environ["SCAN_EXIT"]))
 """
 
@@ -146,8 +160,17 @@ def dotenv_reports(lines):
     return []
 
 
-def run_job(score, grade="C", min_score=None, scanner_exit=0):
-    """Run the job's script and return the completed process and the content of each dotenv report file."""
+def no_measurement(reason):
+    """What `scan-soul --json` prints for a run that measured nothing, trimmed to the keys the job reads."""
+    return json.dumps({"file": None, "score": None, "conformance": None,
+                       "gate": {"failed": True, "reason": reason, "exitCode": 2}})
+
+
+def run_job(score=None, grade="C", min_score=None, scanner_exit=0, output=None):
+    """Run the job's script and return the completed process and the content of each dotenv report file.
+
+    The stand-in prints output when it is given, and a scored result for score and grade otherwise.
+    """
     lines = job_lines()
     script = "\n".join(items(nested(lines, "script"))) + "\n"
     with tempfile.TemporaryDirectory() as work:
@@ -160,10 +183,13 @@ def run_job(score, grade="C", min_score=None, scanner_exit=0):
         project.mkdir()
         env = {
             "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '/usr/bin:/bin')}",
-            "SCAN_SCORE": str(score),
-            "SCAN_GRADE": grade,
             "SCAN_EXIT": str(scanner_exit),
         }
+        if output is None:
+            env["SCAN_SCORE"] = str(score)
+            env["SCAN_GRADE"] = grade
+        else:
+            env["SCAN_OUTPUT"] = output
         if min_score is not None:
             env["MIN_GOVERNANCE_SCORE"] = str(min_score)
         result = subprocess.run(
@@ -229,6 +255,39 @@ class GovernanceScanJob(unittest.TestCase):
         result, _ = run_job(score=minimum, min_score=minimum)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_run_that_measured_nothing_names_the_reason_instead_of_a_score(self):
+        for reason, words in NOT_MEASURED.items():
+            with self.subTest(reason=reason):
+                result, _ = run_job(output=no_measurement(reason), scanner_exit=2, min_score=40)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn(words, result.stdout)
+                self.assertIn(reason, result.stdout)
+                self.assertNotIn("Governance Score", result.stdout)
+                self.assertNotIn("below minimum", result.stdout)
+
+    def test_run_that_measured_nothing_passes_without_a_minimum(self):
+        for reason, words in NOT_MEASURED.items():
+            with self.subTest(reason=reason):
+                result, _ = run_job(output=no_measurement(reason), scanner_exit=2)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn(words, result.stdout)
+
+    def test_output_that_is_not_json_is_not_reported_as_score_0(self):
+        result, _ = run_job(output="error: unknown option '--format'\n", scanner_exit=1, min_score=40)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("the scan reported no score", result.stdout)
+        self.assertNotIn("Governance Score", result.stdout)
+        self.assertNotIn("below minimum", result.stdout)
+
+    def test_scored_run_with_a_failing_gate_reason_is_still_compared(self):
+        for score, code in ((72, 0), (52, 1)):
+            with self.subTest(score=score):
+                output = json.dumps({"file": "SOUL.md", "score": score, "grade": "C",
+                                     "gate": {"failed": True, "reason": "critical-control-missing", "exitCode": 1}})
+                result, _ = run_job(output=output, scanner_exit=1, min_score=60)
+                self.assertEqual(result.returncode, code, result.stdout + result.stderr)
+                self.assertIn(f"Governance Score: {score}/100 (Grade: C)", result.stdout)
+
     def test_dotenv_reports_hold_key_value_lines(self):
         _, reports = run_job(score=72)
         for name, text in reports.items():
@@ -242,6 +301,13 @@ class GovernanceScanJob(unittest.TestCase):
     def test_scan_result_is_kept_as_an_artifact(self):
         paths = items(nested(nested(job_lines(), "artifacts"), "paths"))
         self.assertIn("scan-result.json", paths)
+
+    def test_artifacts_are_kept_when_the_job_fails(self):
+        # GitLab keeps artifacts only from a job that passed unless `when: always` is set.
+        body = [line for line in nested(job_lines(), "artifacts") if line.strip()]
+        indent = min(len(line) - len(line.lstrip()) for line in body)
+        keys = [line.strip() for line in body if len(line) - len(line.lstrip()) == indent]
+        self.assertIn("when: always", keys)
 
 
 class MissingPrograms(unittest.TestCase):
