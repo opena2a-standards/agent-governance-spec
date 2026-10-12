@@ -168,7 +168,7 @@ def run_job(score, grade="C", min_score=None, scanner_exit=0):
             env["MIN_GOVERNANCE_SCORE"] = str(min_score)
         result = subprocess.run(
             ["bash", "-eo", "pipefail", "-c", script],
-            cwd=project, env=env, capture_output=True, text=True,
+            cwd=project, env=env, capture_output=True, text=True, timeout=60,
         )
         reports = {}
         for name in dotenv_reports(lines):

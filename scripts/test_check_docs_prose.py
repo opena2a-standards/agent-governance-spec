@@ -280,7 +280,7 @@ def run_git(test, root, command, env):
     """Run the git command in root, and skip the test when git is not installed, or with the command and its error
     when the command fails."""
     try:
-        subprocess.run(["git", "-C", str(root), *command], check=True, capture_output=True, env=env)
+        subprocess.run(["git", "-C", str(root), *command], check=True, capture_output=True, env=env, timeout=60)
     except OSError:
         test.skipTest("git is not available")
     except subprocess.CalledProcessError as error:
@@ -697,7 +697,7 @@ def user_environment(home):
 
 def skip_unless_git_is_installed(test):
     try:
-        subprocess.run(["git", "--version"], check=True, capture_output=True)
+        subprocess.run(["git", "--version"], check=True, capture_output=True, timeout=60)
     except (OSError, subprocess.CalledProcessError):
         test.skipTest("git is not available")
 
@@ -716,7 +716,8 @@ class GitRepositories(unittest.TestCase):
             gitconfig = str(Path(home) / ".gitconfig")
             run_git(self, home, ["config", "--file", gitconfig, "core.excludesFile", str(Path(home) / "ignore")], env)
             run_git(self, repo, ["init", "-q"], env)
-            ignored = subprocess.run(["git", "-C", repo, "check-ignore", *paths], capture_output=True, env=env)
+            ignored = subprocess.run(["git", "-C", repo, "check-ignore", *paths], capture_output=True, env=env,
+                                     timeout=60)
             self.assertEqual(paths, ignored.stdout.decode("utf-8").split(), "the global ignore file is not in effect")
             result = unittest.TestResult()
             with mock.patch.dict(os.environ, env, clear=True):
@@ -789,19 +790,26 @@ class StrippedDocstrings(unittest.TestCase):
 class TimeBounds(unittest.TestCase):
     def test_runs_under_python3_O_and_OO_skip_the_time_bounds(self):
         # The python3 -OO run started above, and those under -O and -OO started by test_stripped_docstrings.py,
-        # skip each test that times a scan, so only the run without -O can fail on a loaded machine.
+        # skip each test that times a scan, so only the run without -O can fail on a loaded machine. A skip placed
+        # after the timed call still reports a skip, so the clock of this module fails the test that reads it.
+        # unittest times each test with time.perf_counter too, so only this module's name is replaced.
         for optimize in (1, 2):
             result = unittest.TestResult()
-            with self.subTest(optimize=optimize), mock.patch.object(sys, "flags", mock.Mock(optimize=optimize)):
+            clock = mock.Mock(perf_counter=mock.Mock(side_effect=self.failureException("timed before the skip")))
+            with self.subTest(optimize=optimize), mock.patch.object(sys, "flags", mock.Mock(optimize=optimize)), \
+                    mock.patch.object(sys.modules[__name__], "time", clock):
                 unittest.TestSuite([
                     CodeSpans("test_long_runs_of_backticks_are_scanned_in_linear_time"),
                     Contributing("test_clause_break_splits_a_run_of_whitespace_in_linear_time"),
                 ]).run(result)
+                clock.perf_counter.assert_not_called()
                 self.assertEqual([TIME_BOUND_SKIP] * 2, [reason for _, reason in result.skipped])
 
     def test_the_run_without_python3_O_checks_the_time_bounds(self):
-        with mock.patch.object(sys, "flags", mock.Mock(optimize=0)):
+        # A skip here would report this test as skipped, not failed, so skipTest is replaced and must not be called.
+        with mock.patch.object(sys, "flags", mock.Mock(optimize=0)), mock.patch.object(self, "skipTest") as skip:
             skip_the_time_bound_when_optimized(self)
+        skip.assert_not_called()
 
 
 if __name__ == "__main__":

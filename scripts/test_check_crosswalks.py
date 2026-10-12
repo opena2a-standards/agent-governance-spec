@@ -779,7 +779,7 @@ class LineEndingPins(unittest.TestCase):
         paths.append(cc.CONTROLS_EXPORT)
         try:
             result = subprocess.run(["git", "-C", str(cc.ROOT), "check-attr", "eol", "--"] + paths,
-                                    capture_output=True, text=True, check=True)
+                                    capture_output=True, text=True, check=True, timeout=60)
         except (OSError, subprocess.CalledProcessError):
             self.skipTest("git, or a git work tree, is not available")
         self.assertEqual(result.stdout.splitlines(), [f"{p}: eol: lf" for p in paths])
@@ -952,10 +952,15 @@ class ReadmeTerms(unittest.TestCase):
 
 class TimeBound(unittest.TestCase):
     def test_runs_under_python3_O_and_OO_skip_the_time_bound(self):
+        # A skip placed after the timed call still reports a skip, so the clock of this module fails the test that
+        # reads it. unittest times each test with time.perf_counter too, so only this module's name is replaced.
         for optimize in (1, 2):
             result = unittest.TestResult()
-            with self.subTest(optimize=optimize), mock.patch.object(sys, "flags", mock.Mock(optimize=optimize)):
+            clock = mock.Mock(perf_counter=mock.Mock(side_effect=self.failureException("timed before the skip")))
+            with self.subTest(optimize=optimize), mock.patch.object(sys, "flags", mock.Mock(optimize=optimize)), \
+                    mock.patch.object(sys.modules[__name__], "time", clock):
                 EntryAttributes("test_long_row_that_does_not_match_is_rejected_in_linear_time").run(result)
+                clock.perf_counter.assert_not_called()
                 self.assertEqual([TIME_BOUND_SKIP], [reason for _, reason in result.skipped])
 
     def test_the_run_without_python3_O_checks_the_time_bound(self):
