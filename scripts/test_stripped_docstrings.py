@@ -310,8 +310,8 @@ class ChildRuns(unittest.TestCase):
                  if other is not BINARY_OPERATORS[op]]
         swaps += [(UNARY_OPERATORS, op, other) for op in UNARY_OPERATORS for other in (operator.pos, operator.neg)
                   if other is not UNARY_OPERATORS[op]]
-        # Both tests pass with no swap, so a swap that fails one of them is the swap's doing. A test that failed with
-        # no swap would fail under every swap as well, and this test would pass without checking any swap.
+        # Both tests pass with no swap, so a swap that fails one of them is the swap's doing. Without this check, this
+        # test would pass when one of them failed with no swap and under each swap as well.
         failing = []
         for name in tests:
             result = unittest.TestResult()
@@ -332,8 +332,8 @@ class ChildRuns(unittest.TestCase):
         self.assertEqual([], passed)
 
     def test_the_operator_swap_test_fails_when_a_test_it_runs_fails_with_no_swap(self):
-        # An expected list that is wrong with no swap, such as one that keeps the entry for a run deleted from the
-        # source, fails under every swap too, so the swap test must fail on it instead of counting each swap as held.
+        # An expected list that is wrong with no swap can be wrong under each swap as well, as one that keeps the entry
+        # for a run deleted from the source is, so the swap test must fail on it instead of counting each swap as held.
         name = "test_a_timeout_written_as_arithmetic_that_is_not_a_finite_number_is_reported"
         result = unittest.TestResult()
         with mock.patch.object(ChildRuns, name, lambda test: test.fail("wrong with no swap")):

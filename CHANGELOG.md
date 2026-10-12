@@ -575,14 +575,14 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   the wording the file tests, and a test holds it to that wording. (#105)
 - The test added for #105 in `scripts/test_stripped_docstrings.py`, that
   each operator evaluated as another fails one of the two tests of
-  timeouts written as arithmetic, passed when one of those tests failed
-  with no operator evaluated as another. Such a test fails under every
-  swap as well, so the swap test counted each swap as held without
-  checking any: with the run `timeout=1 / (5 * 0)` deleted from the
-  source and its entry kept in the expected list, the swap test passed.
-  It now runs the two tests once with no swap first and fails unless both
-  pass, and a new test checks that the swap test fails when one of them
-  fails with no swap. (#107)
+  timeouts written as arithmetic, could pass when one of those tests
+  failed with no operator evaluated as another. With the run
+  `timeout=1 / (5 * 0)` deleted from the source of one of them and its
+  entry kept in the expected list, that test failed with no swap and
+  under each swap as well, so the swap test counted each swap as held
+  and passed. It now runs the two tests once with no swap first and fails
+  unless both pass, and a new test checks that the swap test fails when
+  one of them fails with no swap. (#107)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
