@@ -505,8 +505,8 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `scripts/test_stripped_docstrings.py` starts. That test now skips in a
   `python3 -O` run where `ABGS_PYTHON3_O_RUN` is set, so the discover run
   runs each of the two files under `python3 -OO` twice. The `python3 -O`
-  runs of `scripts/test_stripped_docstrings.py` now record each process a
-  test file starts, and the test checks that none of them is a
+  runs that `scripts/test_stripped_docstrings.py` starts now record each
+  process the test file starts, and the test checks that none of them is a
   `python3 -OO` run. The check there that each `subprocess` run in a test
   file has a timeout rejected only a literal `timeout=None`, so a timeout
   held in a name bound to `None` passed; it now accepts only a number
@@ -516,6 +516,20 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   methods of that file start with `test`. The entry now says "no
   module-level function", and a test in that file holds it to that
   wording. (#93)
+- The entry for #93 said that the `python3 -O` runs of
+  `scripts/test_stripped_docstrings.py` record each process a test file
+  starts, which reads as the runs of that file under `python3 -O`. The
+  runs that record are the `python3 -O` runs of each test file that
+  `scripts/test_stripped_docstrings.py` starts, and the entry now says so;
+  a test in that file holds it to that wording. (#95)
+- The check in `scripts/test_stripped_docstrings.py` that each
+  `subprocess` run in a test file has a number written in the call as its
+  timeout accepted only a single number literal, so `timeout=5 * 60` and
+  `timeout=-1` were reported as "a timeout that is not a number". It now
+  also accepts unary `+` and `-`, and `+`, `-`, `*` and `/`, applied to
+  int and float literals; `**` is not accepted. A timeout held in a name,
+  or an expression that reads one, is still reported, now as "a timeout
+  that is not a number written in the call". (#96)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

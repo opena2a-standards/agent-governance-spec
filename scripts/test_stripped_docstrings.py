@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Tests that each test file under scripts/ passes under python3 -OO and
-python3 -O, and that each process a test file starts through the subprocess
-module has a timeout.
+python3 -O, that each process a test file starts through the subprocess
+module has a timeout, and for the wording of the CHANGELOG.md entry about
+the python3 -O runs.
 
 Run from anywhere:  python3 scripts/test_stripped_docstrings.py
 
@@ -9,8 +10,9 @@ Standard library only. python3 -OO strips the docstrings of the files under
 scripts/, so a test that reads one must skip under it. python3 -O keeps
 them, so no test may skip for that reason under it. The tests run each
 scripts/test_*.py file, this one included, once in its own python3 -OO
-process and once in its own python3 -O process, and check that the python3
--O run starts no python3 -OO process; they write no tracked file.
+process and once in its own python3 -O process, check that the python3 -O
+run starts no python3 -OO process, and read CHANGELOG.md; they write no
+tracked file.
 """
 
 import ast
@@ -26,6 +28,7 @@ from unittest import mock
 sys.dont_write_bytecode = True
 
 SCRIPTS = Path(__file__).resolve().parent
+CHANGELOG = SCRIPTS.parent / "CHANGELOG.md"
 
 # Set in the environment of each python3 -O run that the -O test starts.
 PYTHON3_O_RUN = "ABGS_PYTHON3_O_RUN"
@@ -48,6 +51,10 @@ RECORD_STARTS = "\n".join([
 # The subprocess functions that take a timeout, and those that start a process and take none.
 TIMED = {"run", "call", "check_call", "check_output"}
 UNTIMED = {"Popen", "getoutput", "getstatusoutput"}
+# The operators a timeout written in the call may apply to number literals, for example -1 or 5 * 60. ** is not one,
+# since 10 ** 10 ** 10 takes longer to compute than any run it would bound.
+UNARY_OPERATORS = (ast.UAdd, ast.USub)
+BINARY_OPERATORS = (ast.Add, ast.Sub, ast.Mult, ast.Div)
 
 
 def scripts_test_files(test):
@@ -56,6 +63,19 @@ def scripts_test_files(test):
     # This file is among them, so a pattern that matches nothing fails instead of passing with no run.
     test.assertIn(Path(__file__).resolve(), files)
     return files
+
+
+def written_number(node):
+    """Whether the expression is a number written in the call: an int or float literal, or the operators above
+    applied to them."""
+    if isinstance(node, ast.Constant):
+        # isinstance(True, int) holds, so the type is compared exactly and timeout=True is reported.
+        return type(node.value) in (int, float)
+    if isinstance(node, ast.UnaryOp):
+        return isinstance(node.op, UNARY_OPERATORS) and written_number(node.operand)
+    if isinstance(node, ast.BinOp):
+        return isinstance(node.op, BINARY_OPERATORS) and written_number(node.left) and written_number(node.right)
+    return False
 
 
 def untimed_runs(source):
@@ -82,10 +102,11 @@ def untimed_runs(source):
                     (keyword.value for keyword in call.keywords if keyword.arg == "timeout"), None)
                 if timeout is None or (isinstance(timeout, ast.Constant) and timeout.value is None):
                     problems.append((node.lineno, f"subprocess.{node.attr} has no timeout"))
-                # A name or an expression can hold None, for example T = None then timeout=T, so only a number
-                # written in the call counts.
-                elif not (isinstance(timeout, ast.Constant) and type(timeout.value) in (int, float)):
-                    problems.append((node.lineno, f"subprocess.{node.attr} has a timeout that is not a number"))
+                # A name or an expression that reads one can hold None, for example T = None then timeout=T, so only
+                # a number written in the call counts.
+                elif not written_number(timeout):
+                    problems.append((node.lineno,
+                                     f"subprocess.{node.attr} has a timeout that is not a number written in the call"))
     return sorted(problems), has_runs
 
 
@@ -195,8 +216,27 @@ class ChildRuns(unittest.TestCase):
             "subprocess.call(['true'], timeout=True)",
             "subprocess.check_call(['true'], timeout=60.0)",
         ])
-        self.assertEqual(([(3, "subprocess.run has a timeout that is not a number"),
-                           (4, "subprocess.call has a timeout that is not a number")], True), untimed_runs(source))
+        self.assertEqual(([(3, "subprocess.run has a timeout that is not a number written in the call"),
+                           (4, "subprocess.call has a timeout that is not a number written in the call")], True),
+                         untimed_runs(source))
+
+    def test_a_timeout_written_as_arithmetic_on_numbers_is_accepted(self):
+        source = "\n".join([
+            "import subprocess",
+            "T = 60",
+            "subprocess.run(['true'], timeout=5 * 60)",
+            "subprocess.call(['true'], timeout=-1)",
+            "subprocess.check_call(['true'], timeout=+(2.5 * 60 + 30) / 2 - 1)",
+            "subprocess.check_output(['true'], timeout=5 * T)",
+            "subprocess.run(['true'], timeout=-True)",
+            "subprocess.run(['true'], timeout=10 ** 10 ** 10)",
+            "subprocess.run(['true'], timeout=60 if T else None)",
+            "subprocess.run(['true'], timeout=not 0)",
+        ])
+        problem = "has a timeout that is not a number written in the call"
+        self.assertEqual(([(6, f"subprocess.check_output {problem}"), (7, f"subprocess.run {problem}"),
+                           (8, f"subprocess.run {problem}"), (9, f"subprocess.run {problem}"),
+                           (10, f"subprocess.run {problem}")], True), untimed_runs(source))
 
     def test_a_subprocess_function_reached_without_the_module_name_is_reported(self):
         source = "\n".join([
@@ -207,6 +247,22 @@ class ChildRuns(unittest.TestCase):
         ])
         self.assertEqual(([(1, "imports subprocess as sp"), (2, "imports names from subprocess"),
                            (4, "subprocess.call has no timeout")], True), untimed_runs(source))
+
+
+class ChangelogEntry(unittest.TestCase):
+    def test_changelog_entry_says_the_python3_O_runs_that_this_file_starts_record(self):
+        # The -O test records in the python3 -O run of each test file that it starts, so the entry for #93 names the
+        # runs this file starts, not the python3 -O runs of this file.
+        text = " ".join(CHANGELOG.read_text(encoding="utf-8").split())
+        opening = "A `python3 -m unittest discover -s scripts -p 'test_*.py'` run still ran"
+        self.assertIn(opening, text, f"CHANGELOG.md has no entry for #93 that opens with: {opening}")
+        start = text.index(opening)
+        end = text.find("(#93)", start)
+        self.assertNotEqual(-1, end, f"the CHANGELOG.md entry for #93 that opens with {opening!r} has no (#93) after it")
+        entry = text[start:end]
+        self.assertIn("The `python3 -O` runs that `scripts/test_stripped_docstrings.py` starts now record each process "
+                      "the test file starts", entry)
+        self.assertNotIn("runs of `scripts/test_stripped_docstrings.py`", entry)
 
 
 if __name__ == "__main__":
