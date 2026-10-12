@@ -538,6 +538,14 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   float that overflows to infinity or yields NaN, such as `1e400` or
   `1e308 * 10 - 1e308 * 10`, and an int too large for a float are reported
   as "a timeout that is not a number written in the call". (#98)
+- The test of that check for a timeout that is not a finite number held
+  the evaluation of binary `-` and `*`, but not of `/`, binary `+`, or
+  unary `+` and `-`: a check that evaluated one of those as another
+  operator, such as `/` as `//`, passed every test while it accepted
+  `timeout=1 / (1 + -1)` or `timeout=1 / (1 / 2 - 0.5)`, which raise
+  `ZeroDivisionError` when the call runs. The test now also requires
+  `1 / (1 / 2 - 0.5)`, `1 / (1 + -1)` and `1 / (1 - +1)` to be reported.
+  (#103)
 - The comment on the test for #98 said that none of the runs in that test
   has a number written in the call as its timeout, but the last run,
   `timeout=60 / 2`, bounds the run at 30 seconds, and the test expects it

@@ -281,12 +281,17 @@ class ChildRuns(unittest.TestCase):
             "subprocess.check_output(['true'], timeout=1e308 * 10 - 1e308 * 10)",
             "subprocess.run(['true'], timeout=" + "9" * 400 + " / 1)",
             "subprocess.run(['true'], timeout=" + "9" * 400 + ")",
+            "subprocess.call(['true'], timeout=1 / (1 / 2 - 0.5))",
+            "subprocess.check_call(['true'], timeout=1 / (1 + -1))",
+            "subprocess.check_output(['true'], timeout=1 / (1 - +1))",
             "subprocess.run(['true'], timeout=60 / 2)",
         ])
         problem = "has a timeout that is not a number written in the call"
         self.assertEqual(([(2, f"subprocess.run {problem}"), (3, f"subprocess.call {problem}"),
                            (4, f"subprocess.check_call {problem}"), (5, f"subprocess.check_output {problem}"),
-                           (6, f"subprocess.run {problem}"), (7, f"subprocess.run {problem}")], True),
+                           (6, f"subprocess.run {problem}"), (7, f"subprocess.run {problem}"),
+                           (8, f"subprocess.call {problem}"), (9, f"subprocess.check_call {problem}"),
+                           (10, f"subprocess.check_output {problem}")], True),
                          untimed_runs(source))
 
     def test_the_comment_on_the_finite_number_cases_names_the_last_run_as_the_accepted_control(self):
