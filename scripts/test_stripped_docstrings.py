@@ -214,6 +214,10 @@ class NestedRuns(unittest.TestCase):
 
 
 class ChildRuns(unittest.TestCase):
+    # The two tests of timeouts written as arithmetic, which the operator-swap test runs.
+    ARITHMETIC_TIMEOUT_TESTS = ("test_a_timeout_written_as_arithmetic_on_numbers_is_accepted",
+                                "test_a_timeout_written_as_arithmetic_that_is_not_a_finite_number_is_reported")
+
     def test_each_process_that_a_test_file_starts_through_subprocess_has_a_timeout(self):
         # A run that stops responding then fails its own test instead of stalling the whole suite.
         files_with_runs = set()
@@ -302,8 +306,7 @@ class ChildRuns(unittest.TestCase):
         # A check that evaluated one of the operators above as another, for example * as ** or binary - as %, could
         # accept a timeout that raises when the call runs, or report one that bounds the run, so the two tests of
         # timeouts written as arithmetic must not both pass under any such swap.
-        tests = ["test_a_timeout_written_as_arithmetic_on_numbers_is_accepted",
-                 "test_a_timeout_written_as_arithmetic_that_is_not_a_finite_number_is_reported"]
+        tests = self.ARITHMETIC_TIMEOUT_TESTS
         binary = (operator.add, operator.sub, operator.mul, operator.truediv, operator.floordiv, operator.mod,
                   operator.pow)
         swaps = [(BINARY_OPERATORS, op, other) for op in BINARY_OPERATORS for other in binary
@@ -331,16 +334,31 @@ class ChildRuns(unittest.TestCase):
         self.assertEqual(4 * 6 + 2, len(swaps))
         self.assertEqual([], passed)
 
-    def test_the_operator_swap_test_fails_when_a_test_it_runs_fails_with_no_swap(self):
+    def test_the_operator_swap_test_fails_when_a_test_it_runs_fails_or_raises_with_no_swap(self):
         # An expected list that is wrong with no swap can be wrong under each swap as well, as one that keeps the entry
         # for a run deleted from the source is, so the swap test must fail on it instead of counting each swap as held.
-        name = "test_a_timeout_written_as_arithmetic_that_is_not_a_finite_number_is_reported"
-        result = unittest.TestResult()
-        with mock.patch.object(ChildRuns, name, lambda test: test.fail("wrong with no swap")):
-            ChildRuns("test_each_operator_evaluated_as_another_fails_a_test_of_the_timeout_check").run(result)
-        self.assertEqual([], result.errors)
-        self.assertEqual(1, len(result.failures))
-        self.assertIn(repr(name), result.failures[0][1])
+        # A test that raises an error with no swap, as one whose source does not parse does, can raise it under each
+        # swap as well, so the swap test must fail on that too. Each of the two tests is replaced in turn, so a swap
+        # test that checks only one of them with no swap fails here.
+        def fails(test):
+            test.fail("wrong with no swap")
+
+        def raises(test):
+            untimed_runs("import subprocess\nsubprocess.run(['true'], timeout=")
+
+        # The source above does not parse, so raises is an error and not a failure, and a swap test that counted only
+        # failures with no swap fails here.
+        self.assertRaises(SyntaxError, raises, self)
+        for name in self.ARITHMETIC_TIMEOUT_TESTS:
+            for replacement in (fails, raises):
+                with self.subTest(name=name, replacement=replacement.__name__):
+                    result = unittest.TestResult()
+                    with mock.patch.object(ChildRuns, name, replacement):
+                        ChildRuns("test_each_operator_evaluated_as_another_fails_a_test_of_the_timeout_check").run(
+                            result)
+                    self.assertEqual([], result.errors)
+                    self.assertEqual(1, len(result.failures))
+                    self.assertIn(repr(name), result.failures[0][1])
 
     def test_the_comment_on_the_finite_number_cases_names_the_last_run_as_the_accepted_control(self):
         # That test expects its last run, timeout=60 / 2, to be accepted, so its comment says that each run but the

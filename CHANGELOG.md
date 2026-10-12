@@ -583,6 +583,17 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   and passed. It now runs the two tests once with no swap first and fails
   unless both pass, and a new test checks that the swap test fails when
   one of them fails with no swap. (#107)
+- The test added for #107 in `scripts/test_stripped_docstrings.py`
+  replaced only the test of timeouts that are not a finite number, and
+  only with one that fails. A swap test that ran only that test with no
+  swap, or that counted only failures and not errors, still passed it,
+  so the swap test could stop checking the test of timeouts that are
+  accepted, or miss a test that raises, such as one whose source does
+  not parse. It now replaces each of the two tests in turn, once with
+  one that fails and once with one that raises `SyntaxError`, and
+  requires the swap test to fail each time. The two tests are now named
+  once, on the test class, where the swap test and its test both read
+  them. (#109)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
