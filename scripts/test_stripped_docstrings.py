@@ -2,7 +2,8 @@
 """Tests that each test file under scripts/ passes under python3 -OO and
 python3 -O, that each process a test file starts through the subprocess
 module has a timeout, and for the wording of the CHANGELOG.md entry about
-the python3 -O runs and of a comment in this file.
+the python3 -O runs, of a comment in this file, of the docstring of
+written_number and of this docstring.
 
 Run from anywhere:  python3 scripts/test_stripped_docstrings.py
 
@@ -259,6 +260,8 @@ class ChildRuns(unittest.TestCase):
             "subprocess.run(['true'], timeout=5 * 60)",
             "subprocess.call(['true'], timeout=-1)",
             "subprocess.check_call(['true'], timeout=+(2.5 * 60 + 30) / 2 - 1)",
+            "subprocess.call(['true'], timeout=1 / (3 - 1))",
+            "subprocess.check_call(['true'], timeout=1 / (2 + 1))",
             "subprocess.check_output(['true'], timeout=5 * T)",
             "subprocess.run(['true'], timeout=-True)",
             "subprocess.run(['true'], timeout=10 ** 10 ** 10)",
@@ -266,9 +269,9 @@ class ChildRuns(unittest.TestCase):
             "subprocess.run(['true'], timeout=not 0)",
         ])
         problem = "has a timeout that is not a number written in the call"
-        self.assertEqual(([(6, f"subprocess.check_output {problem}"), (7, f"subprocess.run {problem}"),
-                           (8, f"subprocess.run {problem}"), (9, f"subprocess.run {problem}"),
-                           (10, f"subprocess.run {problem}")], True), untimed_runs(source))
+        self.assertEqual(([(8, f"subprocess.check_output {problem}"), (9, f"subprocess.run {problem}"),
+                           (10, f"subprocess.run {problem}"), (11, f"subprocess.run {problem}"),
+                           (12, f"subprocess.run {problem}")], True), untimed_runs(source))
 
     def test_a_timeout_written_as_arithmetic_that_is_not_a_finite_number_is_reported(self):
         # Each run but the last raises when the call runs, or bounds no run, so none is a number written in the call.
@@ -284,6 +287,7 @@ class ChildRuns(unittest.TestCase):
             "subprocess.call(['true'], timeout=1 / (1 / 2 - 0.5))",
             "subprocess.check_call(['true'], timeout=1 / (1 + -1))",
             "subprocess.check_output(['true'], timeout=1 / (1 - +1))",
+            "subprocess.run(['true'], timeout=1 / (5 * 0))",
             "subprocess.run(['true'], timeout=60 / 2)",
         ])
         problem = "has a timeout that is not a number written in the call"
@@ -291,8 +295,32 @@ class ChildRuns(unittest.TestCase):
                            (4, f"subprocess.check_call {problem}"), (5, f"subprocess.check_output {problem}"),
                            (6, f"subprocess.run {problem}"), (7, f"subprocess.run {problem}"),
                            (8, f"subprocess.call {problem}"), (9, f"subprocess.check_call {problem}"),
-                           (10, f"subprocess.check_output {problem}")], True),
+                           (10, f"subprocess.check_output {problem}"), (11, f"subprocess.run {problem}")], True),
                          untimed_runs(source))
+
+    def test_each_operator_evaluated_as_another_fails_a_test_of_the_timeout_check(self):
+        # A check that evaluated one of the operators above as another, for example * as ** or binary - as %, could
+        # accept a timeout that raises when the call runs, or report one that bounds the run, so the two tests of
+        # timeouts written as arithmetic must not both pass under any such swap.
+        tests = ["test_a_timeout_written_as_arithmetic_on_numbers_is_accepted",
+                 "test_a_timeout_written_as_arithmetic_that_is_not_a_finite_number_is_reported"]
+        binary = (operator.add, operator.sub, operator.mul, operator.truediv, operator.floordiv, operator.mod,
+                  operator.pow)
+        swaps = [(BINARY_OPERATORS, op, other) for op in BINARY_OPERATORS for other in binary
+                 if other is not BINARY_OPERATORS[op]]
+        swaps += [(UNARY_OPERATORS, op, other) for op in UNARY_OPERATORS for other in (operator.pos, operator.neg)
+                  if other is not UNARY_OPERATORS[op]]
+        passed = []
+        for table, op, other in swaps:
+            result = unittest.TestResult()
+            with mock.patch.dict(table, {op: other}):
+                for name in tests:
+                    ChildRuns(name).run(result)
+            if result.wasSuccessful():
+                passed.append(f"ast.{op.__name__} as operator.{other.__name__}")
+        # The swaps are found, so a change to the tables fails instead of passing with no swap checked.
+        self.assertEqual(4 * 6 + 2, len(swaps))
+        self.assertEqual([], passed)
 
     def test_the_comment_on_the_finite_number_cases_names_the_last_run_as_the_accepted_control(self):
         # That test expects its last run, timeout=60 / 2, to be accepted, so its comment says that each run but the
@@ -311,6 +339,14 @@ class ChildRuns(unittest.TestCase):
         self.assertEqual("Whether the expression is a number written in the call: an int or float literal, or the "
                          "operators above applied to them, that evaluates to a finite number that fits in a float.",
                          " ".join(written_number.__doc__.split()))
+
+    def test_module_docstring_names_each_docstring_whose_wording_this_file_tests(self):
+        # The test above checks the docstring of written_number and this test checks the module docstring, so the
+        # module docstring names both among the wording that this file tests.
+        if __doc__ is None and sys.flags.optimize >= 2:
+            self.skipTest("python3 -OO strips docstrings, so this file has no module docstring to check")
+        self.assertIn("for the wording of the CHANGELOG.md entry about the python3 -O runs, of a comment in this file, "
+                      "of the docstring of written_number and of this docstring.", " ".join(__doc__.split()))
 
     def test_a_subprocess_function_reached_without_the_module_name_is_reported(self):
         source = "\n".join([
