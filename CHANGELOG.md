@@ -538,6 +538,28 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   float that overflows to infinity or yields NaN, such as `1e400` or
   `1e308 * 10 - 1e308 * 10`, and an int too large for a float are reported
   as "a timeout that is not a number written in the call". (#98)
+- The test of that check for a timeout that is not a finite number did
+  not hold the evaluation of `/`, binary `+`, or unary `+` and `-`: a
+  check that evaluated `/` as `//`, binary `+` as `-`, unary `+` as `-`,
+  or unary `-` as `+` passed every test in
+  `scripts/test_stripped_docstrings.py` while it accepted
+  `timeout=1 / (1 / 2 - 0.5)`, `timeout=1 / (1 + -1)`,
+  `timeout=1 / (1 - +1)`, or `timeout=1 / (1 + -1)` respectively, each of
+  which raises `ZeroDivisionError` when the call runs. The test now also
+  requires `1 / (1 / 2 - 0.5)`, `1 / (1 + -1)` and `1 / (1 - +1)` to be
+  reported. (#103)
+- The comment on the test for #98 said that none of the runs in that test
+  has a number written in the call as its timeout, but the last run,
+  `timeout=60 / 2`, bounds the run at 30 seconds, and the test expects it
+  to be accepted. The comment now names that run as the accepted control,
+  and a test in `scripts/test_stripped_docstrings.py` holds it to that
+  wording. (#101)
+- The docstring of `written_number` in `scripts/test_stripped_docstrings.py`
+  said that it accepts an expression that "evaluates to a finite number",
+  but it also rejects an int too large for a float, which is a finite
+  number. The docstring now says "a finite number that fits in a float", as
+  the entry for #98 does, and a test in the same file holds it to that
+  wording. (#102)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
