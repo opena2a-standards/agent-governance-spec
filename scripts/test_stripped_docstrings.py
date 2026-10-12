@@ -9,13 +9,16 @@ Standard library only. python3 -OO strips the docstrings of the files under
 scripts/, so a test that reads one must skip under it. python3 -O keeps
 them, so no test may skip for that reason under it. The tests run each
 scripts/test_*.py file, this one included, once in its own python3 -OO
-process and once in its own python3 -O process; they write no tracked file.
+process and once in its own python3 -O process, and check that the python3
+-O run starts no python3 -OO process; they write no tracked file.
 """
 
 import ast
+import json
 import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -28,6 +31,19 @@ SCRIPTS = Path(__file__).resolve().parent
 PYTHON3_O_RUN = "ABGS_PYTHON3_O_RUN"
 # The -O test reports each skip under python3 -O whose reason names python3 -OO, so this reason names neither.
 NESTED_SKIP = "the run of this file that started this one runs each test file with docstrings stripped"
+# Runs the test file its second argument names as python3 runs a file, and appends the arguments of each process that
+# file starts to the file its first argument names, one JSON list per line.
+RECORD_STARTS = "\n".join([
+    "import json, os, runpy, sys",
+    "log, sys.argv = sys.argv[1], sys.argv[2:]",
+    "def record(event, args):",
+    "    if event == 'subprocess.Popen':",
+    "        with open(log, 'a', encoding='utf-8') as out:",
+    "            out.write(json.dumps([os.fsdecode(arg) for arg in args[1]]) + '\\n')",
+    "sys.addaudithook(record)",
+    "sys.path[0] = os.path.dirname(os.path.abspath(sys.argv[0]))",
+    "runpy.run_path(sys.argv[0], run_name='__main__')",
+])
 
 # The subprocess functions that take a timeout, and those that start a process and take none.
 TIMED = {"run", "call", "check_call", "check_output"}
@@ -62,11 +78,14 @@ def untimed_runs(source):
                 has_runs = True
                 # A reference that is not called, for example one passed to functools.partial, is reported too.
                 call = calls.get(id(node))
-                if call is None or not any(
-                        keyword.arg == "timeout"
-                        and not (isinstance(keyword.value, ast.Constant) and keyword.value.value is None)
-                        for keyword in call.keywords):
+                timeout = None if call is None else next(
+                    (keyword.value for keyword in call.keywords if keyword.arg == "timeout"), None)
+                if timeout is None or (isinstance(timeout, ast.Constant) and timeout.value is None):
                     problems.append((node.lineno, f"subprocess.{node.attr} has no timeout"))
+                # A name or an expression can hold None, for example T = None then timeout=T, so only a number
+                # written in the call counts.
+                elif not (isinstance(timeout, ast.Constant) and type(timeout.value) in (int, float)):
+                    problems.append((node.lineno, f"subprocess.{node.attr} has a timeout that is not a number"))
     return sorted(problems), has_runs
 
 
@@ -91,11 +110,20 @@ class StrippedDocstrings(unittest.TestCase):
         # The runs of this file that the tests start are optimized, where this test skips, so it starts no further run.
         if sys.flags.optimize >= 1:
             self.skipTest("this run is already optimized, so it starts no python3 -O run")
+        recorded = []
         for path in scripts_test_files(self):
-            with self.subTest(file=path.name):
-                result = subprocess.run([sys.executable, "-O", str(path), "-v"], env={**os.environ, PYTHON3_O_RUN: "1"},
+            with self.subTest(file=path.name), tempfile.TemporaryDirectory() as directory:
+                log = Path(directory) / "started.jsonl"
+                result = subprocess.run([sys.executable, "-O", "-c", RECORD_STARTS, str(log), str(path), "-v"],
+                                        env={**os.environ, PYTHON3_O_RUN: "1"},
                                         capture_output=True, text=True, timeout=300)
                 self.assertEqual(0, result.returncode, result.stderr)
+                started = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()] \
+                    if log.exists() else []
+                recorded += started
+                # The test above runs each test file under python3 -OO, so a test file that runs itself under -OO
+                # skips that run where PYTHON3_O_RUN is set; otherwise a discover run starts a third -OO run of it.
+                self.assertEqual([], [args for args in started if "-OO" in args])
                 skips = [line for line in result.stderr.splitlines()
                          if " ... skipped " in line and "-OO" in line.split(" ... skipped ", 1)[1]]
                 self.assertEqual([], skips)
@@ -104,6 +132,9 @@ class StrippedDocstrings(unittest.TestCase):
                     outcomes = [line.split(" ... ", 1)[-1] for line in result.stderr.splitlines()
                                 if line.startswith("test_each_test_file_passes_under_python3_OO ")]
                     self.assertEqual([f"skipped {NESTED_SKIP!r}"], outcomes)
+        # The test files start git runs under -O too, so a recorder that records nothing fails instead of passing with
+        # no process checked.
+        self.assertNotEqual([], recorded)
 
 
 class NestedRuns(unittest.TestCase):
@@ -155,6 +186,17 @@ class ChildRuns(unittest.TestCase):
         ])
         self.assertEqual(([(3, "subprocess.run has no timeout"), (4, "subprocess.Popen takes no timeout"),
                            (5, "subprocess.check_output has no timeout")], True), untimed_runs(source))
+
+    def test_a_timeout_that_is_not_a_number_written_in_the_call_is_reported(self):
+        source = "\n".join([
+            "import subprocess",
+            "T = None",
+            "subprocess.run(['true'], timeout=T)",
+            "subprocess.call(['true'], timeout=True)",
+            "subprocess.check_call(['true'], timeout=60.0)",
+        ])
+        self.assertEqual(([(3, "subprocess.run has a timeout that is not a number"),
+                           (4, "subprocess.call has a timeout that is not a number")], True), untimed_runs(source))
 
     def test_a_subprocess_function_reached_without_the_module_name_is_reported(self):
         source = "\n".join([
