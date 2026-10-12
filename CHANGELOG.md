@@ -645,6 +645,17 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   a minimum of 0; the GitLab CI example said that any value other than a
   whole number fails the job. Tests in `scripts/test_github_action.py`,
   `scripts/test_integrations.py` and `scripts/test_gitlab_ci.py`. (#114)
+- In the GitHub Action example, a failed artifact upload no longer skips the
+  pull request comment or fails the job. The "Keep scan result" step ran
+  before "Comment on PR", whose `if:` calls no status check function, so
+  GitHub adds `success()` to it: when the upload failed, the comment was
+  skipped and the job failed whatever the score. The upload fails when the
+  artifact storage quota is used up, and on GitHub Enterprise Server, which
+  the README of `actions/upload-artifact@v4` lists as not supported. The
+  step is now the last one, after "Check minimum score", and has
+  `continue-on-error: true`. The workflow header and
+  `integrations/README.md` state the limitation and what to change on
+  GitHub Enterprise Server. Tests in `scripts/test_integrations.py`. (#116)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

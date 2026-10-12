@@ -35,6 +35,8 @@ When the scanner gives no result (`npx` could not install or start it, or it pri
 
 The workflow uploads `scan-result.json` as the `governance-scan-result` artifact, also when the job fails. An npm or scanner error is in the "Run governance scan" step log.
 
+The upload is the last step, after the pull request comment and the minimum score check, and a failed upload does not fail the job. It fails when the artifact storage quota is used up, and on GitHub Enterprise Server, which the README of `actions/upload-artifact@v4` lists as not supported. The run then has no `governance-scan-result` artifact, and the "Keep scan result" step log has the error. On GitHub Enterprise Server, change the `uses:` line of that step to the version that README names for it.
+
 ## GitLab CI
 
 Add the contents of `gitlab-ci.yml` to your `.gitlab-ci.yml`.

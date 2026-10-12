@@ -8,7 +8,9 @@ Standard library only. The workflow is read as text, not parsed as YAML. The
 show that it fails the job below the minimum. The "Run governance scan" script
 is run with bash and jq, with a stand-in for npx that prints a recorded scanner
 result; those tests write only to a temporary directory and are skipped
-without bash or jq.
+without bash or jq. Which steps start when one fails, and whether the job
+fails, is worked out from each step's `if:` and `continue-on-error` as the
+runner applies them; no workflow is run.
 """
 
 import json
@@ -28,6 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / "integrations" / "github-action.yml"
 GUIDE = ROOT / "integrations" / "README.md"
 SCAN_STEP = "Run governance scan"
+COMMENT_STEP = "Comment on PR"
 CHECK_STEP = "Check minimum score"
 MIN_SCORE_EXPRESSION = "${{ vars.MIN_GOVERNANCE_SCORE || '0' }}"
 
@@ -128,6 +131,41 @@ def step_env(lines):
 def step_with(lines):
     """The with: mapping of a step, values as written."""
     return mapping(lines, "with")
+
+
+def step_value(lines, key):
+    """The value of a step's own key as written, or None; a key inside with:, env: or run: is not read."""
+    depth = indent(lines[0]) + 2
+    for line in lines[1:]:
+        if indent(line) == depth and line.strip().startswith(f"{key}:"):
+            return line.strip()[len(key) + 1:].strip()
+    return None
+
+
+def step_starts(condition, job_failed, event):
+    """Whether the runner starts a step with this if: when an earlier step has failed the job or not.
+    GitHub adds success() to a condition that calls no status check function."""
+    if condition is None:
+        return not job_failed
+    if condition == "always()":
+        return True
+    if condition == "github.event_name == 'pull_request'":
+        return not job_failed and event == "pull_request"
+    raise AssertionError(f"if: {condition} is not a condition this test reads")
+
+
+def job_run(text, failing, event="pull_request"):
+    """The named steps the runner starts, in order, and whether the job fails, when each step in
+    failing fails. A step that fails fails the job unless it has continue-on-error: true."""
+    started, job_failed = [], False
+    for name in step_names(text):
+        lines = step(text, name)
+        if not step_starts(step_value(lines, "if"), job_failed, event):
+            continue
+        started.append(name)
+        if name in failing and step_value(lines, "continue-on-error") != "true":
+            job_failed = True
+    return started, job_failed
 
 
 def header(text):
@@ -302,6 +340,7 @@ class ScanResultArtifact(unittest.TestCase):
         uploads = [name for name in steps
                    if any(l.strip().startswith("uses: actions/upload-artifact@") for l in step(self.text, name))]
         self.assertEqual(len(uploads), 1, f"steps that upload an artifact: {uploads}")
+        self.upload_name = uploads[0]
         self.upload = step(self.text, uploads[0])
         self.order = (steps.index(SCAN_STEP), steps.index(uploads[0]))
 
@@ -309,6 +348,32 @@ class ScanResultArtifact(unittest.TestCase):
         self.assertIn("if: always()", [l.strip() for l in self.upload])
         self.assertEqual(step_with(self.upload).get("path"), "scan-result.json")
         self.assertLess(*self.order)
+
+    def test_failed_upload_does_not_skip_the_comment_or_fail_the_job(self):
+        # The upload fails on GitHub Enterprise Server and when the artifact storage quota is used up.
+        started, job_failed = job_run(self.text, {self.upload_name})
+        self.assertIn(COMMENT_STEP, started)
+        self.assertIn(CHECK_STEP, started)
+        self.assertFalse(job_failed, f'a failed "{self.upload_name}" step fails the job')
+
+    def test_upload_is_after_the_comment_and_the_check_and_runs_when_they_fail(self):
+        steps = step_names(self.text)
+        for earlier in (COMMENT_STEP, CHECK_STEP):
+            with self.subTest(step=earlier):
+                self.assertLess(steps.index(earlier), steps.index(self.upload_name))
+                started, job_failed = job_run(self.text, {earlier})
+                self.assertIn(self.upload_name, started)
+                self.assertTrue(job_failed)
+
+    def test_guide_and_header_say_a_failed_upload_leaves_the_comment_and_the_job_result(self):
+        # The limitation is stated for the action version the step uses.
+        uses = step_value(self.upload, "uses")
+        for name, text in (("integrations/README.md", " ".join(GUIDE.read_text(encoding="utf-8").split())),
+                           ("the workflow header", header(self.text))):
+            with self.subTest(text=name):
+                self.assertIn("GitHub Enterprise Server", text)
+                self.assertIn(uses, text)
+                self.assertIn("does not fail the job", text)
 
     def test_no_result_message_names_the_uploaded_artifact_and_the_scan_step_log(self):
         name = step_with(self.upload).get("name")
@@ -387,6 +452,52 @@ class Helpers(unittest.TestCase):
             "jobs: {}\n"
         )
         self.assertEqual(declared_inputs(text), {"fail-below"})
+
+    # The steps as the example had them: the upload before the comment, with no continue-on-error.
+    UPLOAD_FIRST = (
+        "    steps:\n"
+        "      - name: Keep scan result\n"
+        "        if: always()\n"
+        "        uses: actions/upload-artifact@v4\n"
+        "        with:\n"
+        "          if: not-a-step-key\n"
+        "      - name: Comment on PR\n"
+        "        if: github.event_name == 'pull_request'\n"
+        "        uses: actions/github-script@v7\n"
+        "      - name: Check minimum score\n"
+        "        if: always()\n"
+        "        run: exit 0\n"
+    )
+
+    def test_failed_step_skips_a_later_step_without_a_status_check_and_fails_the_job(self):
+        self.assertEqual(
+            job_run(self.UPLOAD_FIRST, {"Keep scan result"}),
+            (["Keep scan result", "Check minimum score"], True),
+        )
+
+    def test_no_failed_step_starts_every_step_of_a_pull_request_run(self):
+        self.assertEqual(
+            job_run(self.UPLOAD_FIRST, set()),
+            (["Keep scan result", "Comment on PR", "Check minimum score"], False),
+        )
+        self.assertEqual(
+            job_run(self.UPLOAD_FIRST, set(), event="push"),
+            (["Keep scan result", "Check minimum score"], False),
+        )
+
+    def test_failed_step_with_continue_on_error_does_not_fail_the_job(self):
+        text = self.UPLOAD_FIRST.replace(
+            "        uses: actions/upload-artifact@v4\n",
+            "        continue-on-error: true\n        uses: actions/upload-artifact@v4\n",
+        )
+        self.assertEqual(
+            job_run(text, {"Keep scan result"}),
+            (["Keep scan result", "Comment on PR", "Check minimum score"], False),
+        )
+
+    def test_condition_the_model_does_not_read_is_reported(self):
+        with self.assertRaises(AssertionError):
+            step_starts("failure() || github.ref == 'refs/heads/main'", False, "push")
 
 
 if __name__ == "__main__":
