@@ -42,6 +42,10 @@ NOT_MEASURED = {
     "governance-file-empty": "the governance file is empty",
 }
 
+# Whole numbers above 100, the highest score. `[` cannot read the last two:
+# 2 ** 63 is one more than the largest number the shell holds.
+ABOVE_100 = ("101", "150", "1000", str(2 ** 63), "9" * 20)
+
 # What `scan-soul --json` prints, trimmed to the keys the scan step reads,
 # for a scored file and for a run that found no governance file.
 SCORED = {"file": "SOUL.md", "score": 49, "grade": "C", "conformance": "essential",
@@ -266,10 +270,26 @@ class MinimumScore(unittest.TestCase):
             ("", "60", False),
             ("72", "60%", False),
             ("72", "", False),
+            ("100", "100", True),
+            ("99", "100", False),
+            ("60", "060", True),
+            ("59", "060", False),
         )
         for score, minimum, passes in cases:
             with self.subTest(score=score, minimum=minimum):
                 self.assertEqual(run_check(script, score, minimum) == 0, passes)
+
+    def test_minimum_above_100_fails_the_check(self):
+        # With a minimum `[` cannot read, the comparison was false and any score passed.
+        script = run_script(self.step)
+        for minimum in ABOVE_100:
+            for score, reason in (("49", ""), ("100", ""), ("", "no-governance-file")):
+                with self.subTest(minimum=minimum, score=score, reason=reason):
+                    result = check_result(script, score, minimum, reason)
+                    self.assertEqual(result.returncode, 1)
+                    self.assertIn(f"MIN_GOVERNANCE_SCORE must be 100 or less, got '{minimum}'", result.stdout)
+                    self.assertNotIn("below minimum", result.stdout)
+                    self.assertEqual(result.stderr, "")
 
     def test_check_reads_the_gate_reason_of_the_scan(self):
         self.assertEqual(step_env(self.step).get("REASON"), "${{ steps.scan.outputs.reason }}")
@@ -329,6 +349,12 @@ class MinimumScore(unittest.TestCase):
         # `|| '0'` reads an empty variable as unset, as the GitLab CI example does.
         self.assertIn("|| '0'", MIN_SCORE_EXPRESSION)
         self.assertIn("Unset or empty, the minimum is 0", header(self.text))
+
+    def test_header_and_guide_say_the_minimum_is_from_0_to_100(self):
+        # The check fails on a whole number above 100; the guide's GitHub Actions section comes first.
+        github_section = GUIDE.read_text(encoding="utf-8").split("\n## GitLab CI\n", 1)[0]
+        self.assertIn("a whole number from 0 to 100", header(self.text))
+        self.assertIn("a whole number from 0 to 100", " ".join(github_section.split()))
 
 
 class ScanResultArtifact(unittest.TestCase):

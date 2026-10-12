@@ -8,13 +8,14 @@
 #   - SOUL.md (or equivalent governance file) in repo root
 #
 # Optional: set a minimum score with the MIN_GOVERNANCE_SCORE repository
-# variable (Settings > Secrets and variables > Actions > Variables). The job
-# fails when the score is below it. Unset or empty, the minimum is 0 and the
-# job only reports the score. When the scan measured nothing (no governance
-# file, or one that is unreadable or empty), the job prints the reason, and
-# fails only when a minimum is set. When the scanner gave no result (it could
-# not be installed or started, or printed no score and no reason), the job
-# fails whether or not a minimum is set.
+# variable (Settings > Secrets and variables > Actions > Variables), a whole
+# number from 0 to 100. The job fails when the score is below it. Unset or
+# empty, the minimum is 0 and the job only reports the score; any other value
+# fails the job. When the scan measured nothing (no governance file, or one
+# that is unreadable or empty), the job prints the reason, and fails only when
+# a minimum is set. When the scanner gave no result (it could not be installed
+# or started, or printed no score and no reason), the job fails whether or not
+# a minimum is set.
 #
 # scan-result.json is uploaded as the governance-scan-result artifact, also
 # when the job fails. An npm or scanner error is in the "Run governance scan"
@@ -191,6 +192,14 @@ jobs:
           case "$MIN_SCORE" in
             ''|*[!0-9]*)
               echo "MIN_GOVERNANCE_SCORE must be a whole number, got '$MIN_SCORE'"
+              exit 1
+              ;;
+            [0-9]|[0-9][0-9]|0[0-9][0-9]|100)
+              ;;
+            *)
+              # Above 100, the highest score. `[` cannot read a number too long for the
+              # shell: the comparison below would be false, and any score would pass.
+              echo "MIN_GOVERNANCE_SCORE must be 100 or less, got '$MIN_SCORE'"
               exit 1
               ;;
           esac

@@ -64,6 +64,10 @@ NOT_MEASURED = {
     "governance-file-empty": "the governance file is empty",
 }
 
+# Whole numbers above 100, the highest score. `[` cannot read the last two:
+# 2 ** 63 is one more than the largest number the shell holds.
+ABOVE_100 = ("101", "150", "1000", str(2 ** 63), "9" * 20)
+
 # Stands in for `npx hackmyagent@0.33.2 scan-soul`, the release the job pins.
 # The option lists are the ones `hackmyagent scan-soul --help` (hackmyagent
 # 0.33.2) prints. Like the scanner, the stand-in writes an unknown option error
@@ -304,6 +308,27 @@ class GovernanceScanJob(unittest.TestCase):
                     self.assertIn(f"MIN_GOVERNANCE_SCORE must be a whole number, got '{minimum}'", result.stdout)
                     self.assertNotRegex(result.stderr, INTEGER_ERROR)
 
+    def test_minimum_above_100_fails_the_job(self):
+        # With a minimum `[` cannot read, the comparison was false and any score passed.
+        scored = {"score": 49}
+        not_measured = {"output": no_measurement("no-governance-file"), "scanner_exit": 2}
+        for minimum in ABOVE_100:
+            for run in (scored, not_measured):
+                with self.subTest(minimum=minimum, run=run):
+                    result, _ = run_job(min_score=minimum, **run)
+                    self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                    self.assertIn(f"MIN_GOVERNANCE_SCORE must be 100 or less, got '{minimum}'", result.stdout)
+                    self.assertNotIn("below minimum", result.stdout)
+                    self.assertNotRegex(result.stderr, INTEGER_ERROR)
+
+    def test_minimum_of_100_or_less_is_compared(self):
+        # 100 is the highest score, and a leading zero does not change the number.
+        for minimum, score, code in (("100", 100, 0), ("100", 99, 1), ("060", 60, 0), ("060", 59, 1)):
+            with self.subTest(minimum=minimum, score=score):
+                result, _ = run_job(score=score, min_score=minimum)
+                self.assertEqual(result.returncode, code, result.stdout + result.stderr)
+                self.assertNotIn("MIN_GOVERNANCE_SCORE must be", result.stdout)
+
     def test_empty_minimum_is_read_as_no_minimum(self):
         scored = {"score": 49}
         not_measured = {"output": no_measurement("no-governance-file"), "scanner_exit": 2}
@@ -407,6 +432,11 @@ class Documentation(unittest.TestCase):
         # The job reads an empty MIN_GOVERNANCE_SCORE as unset; "any other value fails" does not include it.
         self.assertIn("Unset or empty, the minimum is 0", header())
         self.assertIn("Unset or empty, the minimum is 0", guide_section())
+
+    def test_job_and_guide_say_the_minimum_is_from_0_to_100(self):
+        # The job fails on a whole number above 100; "a whole number" alone does not say so.
+        self.assertIn("a whole number from 0 to 100", header())
+        self.assertIn("a whole number from 0 to 100", guide_section())
 
 
 class TriggerList(unittest.TestCase):

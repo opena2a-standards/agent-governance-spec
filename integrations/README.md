@@ -25,7 +25,7 @@ To set a minimum score, create the repository variable `MIN_GOVERNANCE_SCORE` (S
 gh variable set MIN_GOVERNANCE_SCORE --body 40
 ```
 
-The "Check minimum score" step then fails the job when the score is below 40, which keeps grade C or better. Without the variable, or with an empty one, the minimum is 0, and the job reports the score without failing.
+The "Check minimum score" step then fails the job when the score is below 40, which keeps grade C or better. Without the variable, or with an empty one, the minimum is 0, and the job reports the score without failing. The step fails the job when the variable is set to anything other than a whole number from 0 to 100 (`60%` or `150`, for example), with a message naming the variable.
 
 40 is a starting value. `templates/tool-using.md`, scanned as copied, scores 49 (the sample under Custom Integration), so a minimum of 60 fails the job until the file is edited to cover more controls. Raise the variable as coverage grows: 60 is the minimum score for Standard and 75 for Hardened (see [conformance.md](../conformance.md)).
 
@@ -41,7 +41,7 @@ The upload is the last step, after the pull request comment and the minimum scor
 
 Add the contents of `gitlab-ci.yml` to your `.gitlab-ci.yml`.
 
-Set the `MIN_GOVERNANCE_SCORE` variable to a whole number to enforce a minimum. The job fails when the score is below it, and also when the value is set to something that is not a whole number (`60%`, for example). Unset or empty, the minimum is 0. 40 is the same starting value as for GitHub Actions:
+Set the `MIN_GOVERNANCE_SCORE` variable to a whole number from 0 to 100 to enforce a minimum. The job fails when the score is below it, and also when the value is set to anything else (`60%` or `150`, for example). Unset or empty, the minimum is 0. 40 is the same starting value as for GitHub Actions:
 
 ```yaml
 variables:

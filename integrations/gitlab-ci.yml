@@ -3,13 +3,13 @@
 # Add to your .gitlab-ci.yml or include as a template.
 # Scans SOUL.md and reports governance score.
 #
-# Set MIN_GOVERNANCE_SCORE to a whole number to fail the job when the score is
-# below it. Unset or empty, the minimum is 0 and the job only reports the
-# score; any other value fails the job. When the scan measured nothing (no
-# governance file, or one that is unreadable or empty), the job prints the
-# reason, and fails only when a minimum is set. When the scanner gave no result
-# (it could not be installed or started, or printed no score and no reason),
-# the job fails whether or not a minimum is set.
+# Set MIN_GOVERNANCE_SCORE to a whole number from 0 to 100 to fail the job when
+# the score is below it. Unset or empty, the minimum is 0 and the job only
+# reports the score; any other value fails the job. When the scan measured
+# nothing (no governance file, or one that is unreadable or empty), the job
+# prints the reason, and fails only when a minimum is set. When the scanner
+# gave no result (it could not be installed or started, or printed no score
+# and no reason), the job fails whether or not a minimum is set.
 #
 # The scanner version is pinned in the first script line. To move to a newer
 # release, change the version there and check the keys this job reads.
@@ -37,6 +37,14 @@ governance-scan:
       case "$MINIMUM" in
         ''|*[!0-9]*)
           echo "MIN_GOVERNANCE_SCORE must be a whole number, got '$MINIMUM'"
+          exit 1
+          ;;
+        [0-9]|[0-9][0-9]|0[0-9][0-9]|100)
+          ;;
+        *)
+          # Above 100, the highest score. `[` cannot read a number too long for the
+          # shell: the comparison below would be false, and any score would pass.
+          echo "MIN_GOVERNANCE_SCORE must be 100 or less, got '$MINIMUM'"
           exit 1
           ;;
       esac
