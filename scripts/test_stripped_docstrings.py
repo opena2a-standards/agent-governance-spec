@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Tests that each test file under scripts/ passes under python3 -OO and
-python3 -O, and that each process a test file starts through the subprocess
-module has a timeout.
+python3 -O, that each process a test file starts through the subprocess
+module has a timeout, and for the wording of the CHANGELOG.md entry about
+the python3 -O runs.
 
 Run from anywhere:  python3 scripts/test_stripped_docstrings.py
 
@@ -9,8 +10,9 @@ Standard library only. python3 -OO strips the docstrings of the files under
 scripts/, so a test that reads one must skip under it. python3 -O keeps
 them, so no test may skip for that reason under it. The tests run each
 scripts/test_*.py file, this one included, once in its own python3 -OO
-process and once in its own python3 -O process, and check that the python3
--O run starts no python3 -OO process; they write no tracked file.
+process and once in its own python3 -O process, check that the python3 -O
+run starts no python3 -OO process, and read CHANGELOG.md; they write no
+tracked file.
 """
 
 import ast
@@ -26,6 +28,7 @@ from unittest import mock
 sys.dont_write_bytecode = True
 
 SCRIPTS = Path(__file__).resolve().parent
+CHANGELOG = SCRIPTS.parent / "CHANGELOG.md"
 
 # Set in the environment of each python3 -O run that the -O test starts.
 PYTHON3_O_RUN = "ABGS_PYTHON3_O_RUN"
@@ -207,6 +210,22 @@ class ChildRuns(unittest.TestCase):
         ])
         self.assertEqual(([(1, "imports subprocess as sp"), (2, "imports names from subprocess"),
                            (4, "subprocess.call has no timeout")], True), untimed_runs(source))
+
+
+class ChangelogEntry(unittest.TestCase):
+    def test_changelog_entry_says_the_python3_O_runs_that_this_file_starts_record(self):
+        # The -O test records in the python3 -O run of each test file that it starts, so the entry for #93 names the
+        # runs this file starts, not the python3 -O runs of this file.
+        text = " ".join(CHANGELOG.read_text(encoding="utf-8").split())
+        opening = "A `python3 -m unittest discover -s scripts -p 'test_*.py'` run still ran"
+        self.assertIn(opening, text, f"CHANGELOG.md has no entry for #93 that opens with: {opening}")
+        start = text.index(opening)
+        end = text.find("(#93)", start)
+        self.assertNotEqual(-1, end, f"the CHANGELOG.md entry for #93 that opens with {opening!r} has no (#93) after it")
+        entry = text[start:end]
+        self.assertIn("The `python3 -O` runs that `scripts/test_stripped_docstrings.py` starts now record each process "
+                      "the test file starts", entry)
+        self.assertNotIn("runs of `scripts/test_stripped_docstrings.py`", entry)
 
 
 if __name__ == "__main__":
