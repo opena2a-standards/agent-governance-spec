@@ -442,8 +442,12 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `scripts/test_check_docs_prose.py` that hold a scan to 2.0 seconds also
   ran in each `python3 -OO` run of that file, where a loaded machine could
   fail them; they now skip under `python3 -O` and `-OO`, and only the run
-  without `-O` checks the bound. `scripts/test_stripped_docstrings.py` also
-  runs each `scripts/test_*.py` file under `python3 -O`, which keeps
+  without `-O` checks the bound. The test in
+  `scripts/test_check_crosswalks.py` that holds a match to 1.0 second also
+  ran when `scripts/test_stripped_docstrings.py` ran that file under
+  `python3 -OO`; it now skips under `python3 -O` and `-OO` too, and only
+  the run without `-O` checks its bound. `scripts/test_stripped_docstrings.py`
+  also runs each `scripts/test_*.py` file under `python3 -O`, which keeps
   docstrings, and checks that it passes with no skip whose reason names
   `python3 -OO`, so a guard written as `sys.flags.optimize >= 1` instead of
   `>= 2` fails. (#87)

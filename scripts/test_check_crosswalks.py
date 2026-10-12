@@ -239,6 +239,16 @@ class RenderComparison(unittest.TestCase):
         ])
 
 
+TIME_BOUND_SKIP = "the run without -O checks the time bound"
+
+
+def skip_the_time_bound_when_optimized(test):
+    # scripts/test_stripped_docstrings.py runs this file again under python3 -O and -OO, where a missed time bound
+    # would fail that run too, so only the run without -O checks the bound.
+    if sys.flags.optimize >= 1:
+        test.skipTest(TIME_BOUND_SKIP)
+
+
 ACTIVE = ("### SOUL-TH-001: First", [("ID", "SOUL-TH-001"), ("Severity", "HIGH")])
 
 
@@ -349,6 +359,7 @@ class EntryAttributes(unittest.TestCase):
         self.assertEqual(entries[0]["status"], "active")
 
     def test_long_row_that_does_not_match_is_rejected_in_linear_time(self):
+        skip_the_time_bound_when_optimized(self)
         row = "| **x** | " + "** | " * 20000 + "x"
         start = time.perf_counter()
         self.assertIsNone(cc.ATTRIBUTE_ROW.match(row))
@@ -937,6 +948,21 @@ class ReadmeTerms(unittest.TestCase):
                 if term not in defined:
                     lines = [n for n, line in enumerate(self.readme.splitlines(), 1) if term in line.lower()]
                     self.assertEqual(lines, [], f"README.md names {term!r}, which the specification does not")
+
+
+class TimeBound(unittest.TestCase):
+    def test_runs_under_python3_O_and_OO_skip_the_time_bound(self):
+        for optimize in (1, 2):
+            result = unittest.TestResult()
+            with self.subTest(optimize=optimize), mock.patch.object(sys, "flags", mock.Mock(optimize=optimize)):
+                EntryAttributes("test_long_row_that_does_not_match_is_rejected_in_linear_time").run(result)
+                self.assertEqual([TIME_BOUND_SKIP], [reason for _, reason in result.skipped])
+
+    def test_the_run_without_python3_O_checks_the_time_bound(self):
+        # A skip here would report this test as skipped, not failed, so skipTest is replaced and must not be called.
+        with mock.patch.object(sys, "flags", mock.Mock(optimize=0)), mock.patch.object(self, "skipTest") as skip:
+            skip_the_time_bound_when_optimized(self)
+        skip.assert_not_called()
 
 
 if __name__ == "__main__":
