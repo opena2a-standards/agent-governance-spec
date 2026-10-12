@@ -451,6 +451,24 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   docstrings, and checks that it passes with no skip whose reason names
   `python3 -OO`, so a guard written as `sys.flags.optimize >= 1` instead of
   `>= 2` fails. (#87)
+- The helper of `scripts/test_pre_push_note.py` that reads the test command
+  of `CONTRIBUTING.md` was named `test_command`, so pytest ran it as a test,
+  counting one test more than `python3 -m unittest discover` and warning
+  that it returned a value. It is now `discover_command`, and a test checks
+  that no function of the file has a name that starts with `test`. The same
+  file checked that the note held the test command as a substring, so a
+  note that narrowed it with `-k crosswalks` passed; the text from
+  `python3 -m unittest` up to the next `;` must now equal the command. The
+  test of the entry for #80 in `scripts/test_gitignore.py` reported a
+  `ValueError` when the opening words of the entry or its `(#80)` marker
+  were missing; it now reports a failure that names the entry. The module
+  docstring of that file describes each of its test classes, says that the
+  tests read the files in the working tree, not the committed ones, and a
+  test checks that it names each test class. The repository structure in
+  `README.md` listed 7 of the 14 `scripts/test_*.py` files; one `test_*.py`
+  row now stands for all of them, and a test in `scripts/test_readme.py`
+  checks that each script under `scripts/` is listed by name or pattern.
+  (#89)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

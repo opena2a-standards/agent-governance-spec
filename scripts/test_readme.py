@@ -2,14 +2,17 @@
 """Tests for the command blocks in README.md, its statement of scope and its domain table, the
 scan-soul JSON sample and the minimum scores in integrations/README.md, the conformance badge URLs
 in README.md, integrations/README.md and conformance.md, the score thresholds those three files
-name, and the list of example files in examples/README.md.
+name, the list of example files in examples/README.md, and the scripts the repository structure
+in README.md lists.
 
 Run from anywhere:  python3 scripts/test_readme.py
 
 Standard library only. The tests read README.md, integrations/README.md, conformance.md,
-specification.md, templates/tool-using.md and the files under examples/, and write nothing.
+specification.md, templates/tool-using.md, the files under examples/ and the names of the
+scripts under scripts/, and write nothing.
 """
 
+import fnmatch
 import json
 import re
 import sys
@@ -76,6 +79,7 @@ MATRIX_HEADER = "| Control ID | " + " | ".join(TIER_COLUMNS) + " |"
 REVERSIBILITY_CONTROL = "SOUL-AS-004"
 REVERSIBILITY = re.compile(r"\breversib", re.IGNORECASE)
 
+SCRIPTS = README.parent / "scripts"
 EXAMPLES = README.parent / "examples"
 EXAMPLES_README = EXAMPLES / "README.md"
 EXAMPLE_ROW = re.compile(r"^\| \[`([^`]+)`\]\(([^)]+)\) \| [^|]+ \| ([A-Z-]+) \|$", re.MULTILINE)
@@ -222,6 +226,27 @@ def declared_tiers(text):
 def specification_entries(text):
     """The description of specification.md in each repository structure block of text."""
     return [m.group(1) for block in command_blocks(text) for line in block if (m := SPEC_ENTRY.match(line))]
+
+
+def script_entries(text):
+    """The name or pattern of each entry listed under scripts/ in the repository structure blocks of text."""
+    names = []
+    for body in FENCE.findall(text):
+        lines = body.splitlines()
+        for i, line in enumerate(lines):
+            if line.strip() != "scripts/":
+                continue
+            indent = len(line) - len(line.lstrip())
+            for entry in lines[i + 1:]:
+                if not entry.strip() or len(entry) - len(entry.lstrip()) <= indent:
+                    break
+                names.append(entry.split()[0])
+    return names
+
+
+def unlisted_scripts(files, entries):
+    """The file names that no entry names or matches as a pattern."""
+    return [name for name in files if not any(fnmatch.fnmatchcase(name, entry) for entry in entries)]
 
 
 class TemplateScans(unittest.TestCase):
@@ -506,6 +531,32 @@ class SpecificationEntry(unittest.TestCase):
         entry, = specification_entries("```\nagent-governance-spec/\n  specification.md    Full formal specification (v1.0)\n```\n")
         self.assertNotEqual([self.version], VERSION_CLAIM.findall(entry))
         self.assertNotIn(self.status, entry)
+
+
+class ScriptsEntries(unittest.TestCase):
+    """The repository structure lists each script under scripts/, by name or by a pattern such as test_*.py, and
+    lists nothing that matches no script."""
+
+    def setUp(self):
+        self.entries = script_entries(README.read_text(encoding="utf-8"))
+        self.files = sorted(path.name for path in SCRIPTS.glob("*.py"))
+
+    def test_every_script_is_listed(self):
+        self.assertGreaterEqual(len(self.files), 3)
+        self.assertEqual([], unlisted_scripts(self.files, self.entries))
+
+    def test_every_entry_matches_a_script(self):
+        self.assertGreaterEqual(len(self.entries), 1)
+        stale = [entry for entry in self.entries if not any(fnmatch.fnmatchcase(name, entry) for name in self.files)]
+        self.assertEqual([], stale)
+
+    def test_a_test_file_named_by_no_entry_is_reported(self):
+        entries = script_entries("```\nagent-governance-spec/\n  scripts/\n    check_crosswalks.py  Validates\n"
+                                 "    test_readme.py            Tests\n  domains/\n```\n")
+        self.assertEqual(["check_crosswalks.py", "test_readme.py"], entries)
+        files = ["check_crosswalks.py", "test_readme.py", "test_scoring.py"]
+        self.assertEqual(["test_scoring.py"], unlisted_scripts(files, entries))
+        self.assertEqual([], unlisted_scripts(files, ["check_crosswalks.py", "test_*.py"]))
 
 
 if __name__ == "__main__":

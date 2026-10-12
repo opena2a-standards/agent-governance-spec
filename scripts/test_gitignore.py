@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
-"""Tests for the patterns .gitignore holds for credential files, and for the
-wording of the CHANGELOG.md entry about the test of the class docstring.
+"""Tests for the patterns .gitignore holds for credential files, for the run
+of this file under python3 -OO, for the wording of the CHANGELOG.md entry
+about the test of the class docstring, and for this docstring.
 
 Run from anywhere:  python3 scripts/test_gitignore.py
 
-Standard library only. The pattern tests copy .gitignore into a new git
-repository under a temporary directory, with an empty home and no system
-configuration, so only the committed patterns decide what git ignores. The
-changelog test reads the committed CHANGELOG.md. No test writes a tracked
-file.
+Standard library only. The tests read the files in the working tree, which
+may differ from what is committed. CredentialFiles copies .gitignore into a
+new git repository under a temporary directory, with an empty home and no
+system configuration, so only the patterns of .gitignore decide what git
+ignores, and holds its own class docstring to one sentence.
+StrippedDocstrings runs this file in a python3 -OO process and checks that
+it passes with the test of the class docstring skipped, and checks that
+without -OO a missing class docstring is an error, not a skip.
+ChangelogEntry reads CHANGELOG.md and checks the entry for #80, and checks
+that a missing entry is a failure that names it, not an error.
+ModuleDocstring checks that this docstring names each test class of the
+file. No test writes a tracked file.
 """
 
 import os
@@ -27,7 +35,7 @@ CHANGELOG = ROOT / "CHANGELOG.md"
 
 
 def ignored(test, paths):
-    """The paths of the list that the committed .gitignore makes git ignore."""
+    """The paths of the list that .gitignore makes git ignore."""
     with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as repo:
         env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
         env.update(HOME=home, XDG_CONFIG_HOME=str(Path(home) / ".config"), GIT_CONFIG_NOSYSTEM="1")
@@ -95,14 +103,51 @@ class ChangelogEntry(unittest.TestCase):
         # Before #80 the docstring test asserted that the sentence was in the docstring and that "never committed"
         # and "A secrets file" were not, so the entry names both checks and does not say it checked only the first.
         text = " ".join(CHANGELOG.read_text(encoding="utf-8").split())
-        start = text.index("The test that holds the class docstring of the `.gitignore` tests")
-        entry = text[start:text.index("(#80)", start)]
+        opening = "The test that holds the class docstring of the `.gitignore` tests"
+        self.assertIn(opening, text, f"CHANGELOG.md has no entry for #80 that opens with: {opening}")
+        start = text.index(opening)
+        end = text.find("(#80)", start)
+        self.assertNotEqual(-1, end, f"the CHANGELOG.md entry for #80 that opens with {opening!r} has no (#80) after it")
+        entry = text[start:end]
         self.assertIn(
             "checked that the sentence was present and that two phrases of the docstring that #76 replaced, "
             '"never committed" and "A secrets file", were absent',
             entry,
         )
         self.assertNotIn("checked only", entry)
+
+    def test_a_missing_entry_is_a_failure_that_names_it(self):
+        # Without its opening words or its (#80) marker, the entry is reported as a failure that names it, not as
+        # the ValueError of str.index.
+        text = CHANGELOG.read_text(encoding="utf-8")
+        cases = {
+            "opening words": (text.replace("The test that holds", "The test that pins"),
+                              "CHANGELOG.md has no entry for #80 that opens with"),
+            "(#80) marker": (text.replace("(#80)", ""), "has no (#80) after it"),
+        }
+        for removed, (changed, message) in cases.items():
+            with self.subTest(removed=removed):
+                self.assertNotEqual(text, changed)
+                result = unittest.TestResult()
+                changelog = mock.Mock(**{"read_text.return_value": changed})
+                with mock.patch.object(sys.modules[__name__], "CHANGELOG", changelog):
+                    ChangelogEntry("test_entry_says_the_earlier_test_checked_the_sentence_and_two_absent_phrases").run(result)
+                self.assertEqual([], result.errors)
+                self.assertEqual(1, len(result.failures), result.failures)
+                self.assertIn(message, result.failures[0][1])
+
+
+class ModuleDocstring(unittest.TestCase):
+    """The module docstring names each test class of the file."""
+
+    def test_module_docstring_names_each_test_class(self):
+        doc = sys.modules[__name__].__doc__
+        if doc is None and sys.flags.optimize >= 2:
+            self.skipTest("python3 -OO strips docstrings, so this module has none to check")
+        classes = [name for name, value in vars(sys.modules[__name__]).items()
+                   if isinstance(value, type) and issubclass(value, unittest.TestCase) and value.__module__ == __name__]
+        self.assertIn("ModuleDocstring", classes)
+        self.assertEqual([], [name for name in classes if name not in doc.split()])
 
 
 if __name__ == "__main__":

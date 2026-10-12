@@ -272,13 +272,7 @@ agent-governance-spec/
   scripts/
     check_crosswalks.py       Validates crosswalks/, controls.json and the control registry; --write re-renders
     check_docs_prose.py       Checks the Markdown prose for the dash and heading rules in CONTRIBUTING.md
-    test_check_crosswalks.py  Tests for the validator
-    test_check_docs_prose.py  Tests for the prose check
-    test_github_action.py     Tests for the GitHub Action's pull request comment
-    test_integrations_readme.py  Tests for the scan-soul exit codes in integrations/README.md
-    test_readme.py            Tests for the README command blocks, the integrations JSON sample and the badge URLs
-    test_scan_soul_commands.py  Tests for the scan-soul commands in the docs and CI examples
-    test_integrations.py      Tests for the minimum-score check in the GitHub Actions workflow
+    test_*.py                 Tests for the scripts, the docs and the CI examples; CONTRIBUTING.md gives the command that runs them
   domains/
     README.md                 Domain overview
     11-trust-hierarchy.md     Domain 11: Trust Hierarchy
