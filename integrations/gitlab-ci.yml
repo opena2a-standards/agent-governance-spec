@@ -4,7 +4,8 @@
 # Scans SOUL.md and reports governance score.
 #
 # Set MIN_GOVERNANCE_SCORE to a whole number to fail the job when the score is
-# below it; any other value fails the job. When the scan measured nothing (no
+# below it. Unset or empty, the minimum is 0 and the job only reports the
+# score; any other value fails the job. When the scan measured nothing (no
 # governance file, or one that is unreadable or empty), the job prints the
 # reason, and fails only when a minimum is set. When the scanner gave no result
 # (it could not be installed or started, or printed no score and no reason),
@@ -31,6 +32,7 @@ governance-scan:
   script:
     - npx hackmyagent@0.33.2 scan-soul --json > scan-result.json || true
     - |
+      # Unset or empty, the minimum is 0, as in the GitHub Actions example.
       MINIMUM="${MIN_GOVERNANCE_SCORE:-0}"
       case "$MINIMUM" in
         ''|*[!0-9]*)

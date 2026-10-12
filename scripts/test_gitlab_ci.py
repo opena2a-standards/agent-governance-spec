@@ -34,6 +34,10 @@ JOB = ROOT / "integrations" / "gitlab-ci.yml"
 GUIDE = ROOT / "integrations" / "README.md"
 FENCE = re.compile(r"^```[^\n]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
 DOTENV_LINE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+# What `[` prints for a value that is not a number: bash 5.3 prints "integer
+# expected", and bash 5.2 (the node:20-slim image) and older print "integer
+# expression expected".
+INTEGER_ERROR = re.compile(r"\binteger\b.*\bexpected\b")
 # The job's script is run with bash, and it reads the scan result with node.
 REQUIRED_PROGRAMS = ("bash", "node")
 
@@ -298,7 +302,19 @@ class GovernanceScanJob(unittest.TestCase):
                     result, _ = run_job(min_score=minimum, **run)
                     self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
                     self.assertIn(f"MIN_GOVERNANCE_SCORE must be a whole number, got '{minimum}'", result.stdout)
-                    self.assertNotIn("integer expected", result.stderr)
+                    self.assertNotRegex(result.stderr, INTEGER_ERROR)
+
+    def test_empty_minimum_is_read_as_no_minimum(self):
+        scored = {"score": 49}
+        not_measured = {"output": no_measurement("no-governance-file"), "scanner_exit": 2}
+        for run in (scored, not_measured):
+            with self.subTest(run=run):
+                result, _ = run_job(min_score="", **run)
+                unset, _ = run_job(**run)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(result.stdout, unset.stdout)
+                self.assertNotIn("must be a whole number", result.stdout)
+                self.assertNotRegex(result.stderr, INTEGER_ERROR)
 
     def test_scored_run_with_a_failing_gate_reason_is_still_compared(self):
         for score, code in ((72, 0), (52, 1)):
@@ -368,6 +384,29 @@ class MissingPrograms(unittest.TestCase):
         result = self.run_job_tests_without("bash", "node")
         (_, report), = result.errors
         self.assertIn("not on PATH: bash, node", report)
+
+
+def header():
+    """The comment at the top of the job file, as one line of text."""
+    lines = []
+    for line in job_lines():
+        if not line.startswith("#"):
+            break
+        lines.append(line.lstrip("#").strip())
+    return " ".join(line for line in lines if line)
+
+
+def guide_section():
+    """The GitLab CI section of integrations/README.md, as one line of text."""
+    text = GUIDE.read_text(encoding="utf-8").split("\n## GitLab CI\n", 1)[1].split("\n## ", 1)[0]
+    return " ".join(text.split())
+
+
+class Documentation(unittest.TestCase):
+    def test_job_and_guide_say_an_empty_minimum_is_no_minimum(self):
+        # The job reads an empty MIN_GOVERNANCE_SCORE as unset; "any other value fails" does not include it.
+        self.assertIn("Unset or empty, the minimum is 0", header())
+        self.assertIn("Unset or empty, the minimum is 0", guide_section())
 
 
 class TriggerList(unittest.TestCase):
