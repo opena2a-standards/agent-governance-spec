@@ -560,6 +560,19 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   number. The docstring now says "a finite number that fits in a float", as
   the entry for #98 does, and a test in the same file holds it to that
   wording. (#102)
+- The tests of the timeout check in `scripts/test_stripped_docstrings.py`
+  did not hold the evaluation of `*` or of binary `+` and `-`: a check
+  that evaluated `*` as `**`, or binary `+` or `-` as `%`, passed every
+  test in that file. It accepted `timeout=1 / (5 * 0)`, which raises
+  `ZeroDivisionError` when the call runs, and reported
+  `timeout=1 / (2 + 1)` or `timeout=1 / (3 - 1)`, which bound the run.
+  The tests now require `1 / (5 * 0)` to be reported and
+  `1 / (3 - 1)` and `1 / (2 + 1)` to be accepted, and a new test checks
+  that evaluating any of `+`, `-`, `*` and `/` as another of `+`, `-`,
+  `*`, `/`, `//`, `%` and `**`, or unary `+` and `-` as each other, fails
+  one of those tests. The module docstring of that file now names the
+  docstring of `written_number` and the module docstring itself among
+  the wording the file tests, and a test holds it to that wording. (#105)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
