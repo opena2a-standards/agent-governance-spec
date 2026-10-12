@@ -408,6 +408,17 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   commit", still passed. The test now requires the whitespace-normalised
   docstring to equal "git ignores secrets.json at the root and in a
   subdirectory." (#80)
+- The tests that read a docstring, in `scripts/test_gitignore.py` and
+  `scripts/test_check_docs_prose.py`, raised an error under `python3 -OO`,
+  which strips docstrings and leaves `__doc__` as `None`. Each now skips
+  with the reason that `python3 -OO` strips docstrings, and a test in each
+  file runs that file under `python3 -OO` and checks that it passes with
+  those skips. The skip applies only under `python3 -OO`: without it, a
+  test that reads a docstring missing from the source reports an error,
+  and a test in each file sets one docstring to `None` and checks that the
+  test reading it reports an error, not a skip.
+  `scripts/test_stripped_docstrings.py` runs each `scripts/test_*.py` file
+  under `python3 -OO` and checks that it passes. (#81)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
