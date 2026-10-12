@@ -279,6 +279,27 @@ class GovernanceScanJob(unittest.TestCase):
         self.assertNotIn("Governance Score", result.stdout)
         self.assertNotIn("below minimum", result.stdout)
 
+    def test_scanner_that_gave_no_result_fails_without_a_minimum(self):
+        # Nothing printed: npx could not install or start the scanner. Text: it printed no JSON.
+        for output in ("", "error: unknown option '--format'\n"):
+            with self.subTest(output=output):
+                result, _ = run_job(output=output, scanner_exit=1)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn("the scan reported no score", result.stdout)
+                self.assertIn("whether or not a minimum is set", result.stdout)
+                self.assertNotIn("Governance Score", result.stdout)
+
+    def test_minimum_that_is_not_a_whole_number_fails_the_job(self):
+        scored = {"score": 49}
+        not_measured = {"output": no_measurement("no-governance-file"), "scanner_exit": 2}
+        for minimum in ("60%", "forty", "-1", "4.5"):
+            for run in (scored, not_measured):
+                with self.subTest(minimum=minimum, run=run):
+                    result, _ = run_job(min_score=minimum, **run)
+                    self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                    self.assertIn(f"MIN_GOVERNANCE_SCORE must be a whole number, got '{minimum}'", result.stdout)
+                    self.assertNotIn("integer expected", result.stderr)
+
     def test_scored_run_with_a_failing_gate_reason_is_still_compared(self):
         for score, code in ((72, 0), (52, 1)):
             with self.subTest(score=score):

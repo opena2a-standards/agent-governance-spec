@@ -4,8 +4,9 @@ pull request, run on JSON in the shape `hackmyagent scan-soul --json` prints.
 
 Run from anywhere:  python3 scripts/test_github_action.py
 
-Standard library only. The tests need node on PATH to run the comment script
-and are skipped without it; they write only to a temporary directory.
+Standard library only. The tests that run the comment script need node on
+PATH and are skipped without it; they write only to a temporary directory.
+The tests that read the comment step's text run without node.
 """
 
 import json
@@ -46,22 +47,39 @@ SCAN = {
     ],
 }
 
+# The login of a comment posted with the default GITHUB_TOKEN.
+BOT = "github-actions[bot]"
+
 # Runs the comment script as actions/github-script does, as the body of an
 # async function, with stand-ins for the GitHub client and the run context.
+# The comments already on the pull request are read from the file the third
+# argument names. Like the REST API, listComments returns one page of them,
+# 30 when per_page is not given; like octokit, paginate reads each page until
+# one is not full. Each create or update call is printed as JSON.
 HARNESS = """
 const fs = require('fs');
 const script = fs.readFileSync(process.argv[2], 'utf8');
-const bodies = [];
-const record = async (args) => { bodies.push(args.body); return { data: {} }; };
-const github = { rest: { issues: {
-  listComments: async () => ({ data: [] }),
-  createComment: record,
-  updateComment: record,
+const posted = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+const calls = [];
+const listComments = async ({ per_page = 30, page = 1 }) =>
+  ({ data: posted.slice((page - 1) * per_page, page * per_page) });
+const paginate = async (method, params) => {
+  const all = [];
+  for (let page = 1; ; page++) {
+    const { data } = await method({ ...params, page });
+    all.push(...data);
+    if (data.length < (params.per_page || 30)) return all;
+  }
+};
+const github = { paginate, rest: { issues: {
+  listComments,
+  createComment: async (args) => { calls.push({ action: 'create', body: args.body }); return { data: {} }; },
+  updateComment: async (args) => { calls.push({ action: 'update', id: args.comment_id, body: args.body }); return { data: {} }; },
 } } };
 const context = { repo: { owner: 'owner', repo: 'repo' }, issue: { number: 1 } };
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 new AsyncFunction('require', 'github', 'context', script)(require, github, context)
-  .then(() => process.stdout.write(JSON.stringify(bodies)))
+  .then(() => process.stdout.write(JSON.stringify(calls)))
   .catch((err) => { console.error(err); process.exit(1); });
 """
 
@@ -111,8 +129,9 @@ def comment_env(text):
     return names
 
 
-def comment_body(scan_result, outputs=OUTPUTS):
-    """The comment the action posts when scan-result.json holds scan_result and the scan step gave outputs."""
+def comment_calls(scan_result, outputs=OUTPUTS, posted=()):
+    """The create and update calls the action makes when scan-result.json holds scan_result, the scan
+    step gave outputs, and the pull request already has the comments posted, oldest first."""
     text = ACTION.read_text(encoding="utf-8")
     env = {name: outputs[output] for name, output in comment_env(text).items()}
     env["PATH"] = os.environ.get("PATH", "/usr/bin:/bin")
@@ -121,16 +140,28 @@ def comment_body(scan_result, outputs=OUTPUTS):
         (work / "scan-result.json").write_text(scan_result, encoding="utf-8")
         (work / "comment.js").write_text(comment_script(text), encoding="utf-8")
         (work / "harness.js").write_text(HARNESS, encoding="utf-8")
+        (work / "posted.json").write_text(json.dumps(list(posted)), encoding="utf-8")
         run = subprocess.run(
-            ["node", str(work / "harness.js"), str(work / "comment.js")],
+            ["node", str(work / "harness.js"), str(work / "comment.js"), str(work / "posted.json")],
             cwd=work, env=env, capture_output=True, text=True, timeout=60,
         )
     if run.returncode != 0:
         raise AssertionError(f"comment script failed:\n{run.stderr}")
-    bodies = json.loads(run.stdout)
-    if len(bodies) != 1:
-        raise AssertionError(f"expected one comment, got {len(bodies)}")
-    return bodies[0]
+    calls = json.loads(run.stdout)
+    if len(calls) != 1:
+        raise AssertionError(f"expected one comment, got {len(calls)}")
+    return calls
+
+
+def comment_body(scan_result, outputs=OUTPUTS):
+    """The comment the action posts when scan-result.json holds scan_result and the scan step gave outputs."""
+    (call,) = comment_calls(scan_result, outputs)
+    return call["body"]
+
+
+def comment(comment_id, login, body):
+    """A pull request comment as listComments returns it, trimmed to the keys the step reads."""
+    return {"id": comment_id, "user": {"login": login}, "body": body}
 
 
 @unittest.skipUnless(shutil.which("node"), "node is not on PATH")
@@ -195,6 +226,37 @@ class StepOutputs(unittest.TestCase):
     def test_quotes_in_an_output_are_printed_as_written(self):
         body = comment_body(json.dumps(SCAN), dict(OUTPUTS, file="it's \"SOUL\".md"))
         self.assertIn("**File:** `it's \"SOUL\".md`", body)
+
+
+@unittest.skipUnless(shutil.which("node"), "node is not on PATH")
+class ExistingComment(unittest.TestCase):
+    # The comment the step posts on a pull request with no comments, as it would be listed later.
+    def setUp(self):
+        (call,) = comment_calls(json.dumps(SCAN))
+        self.assertEqual(call["action"], "create")
+        self.own = call["body"]
+
+    def test_own_comment_is_updated(self):
+        (call,) = comment_calls(json.dumps(SCAN), posted=[comment(5, BOT, self.own)])
+        self.assertEqual((call["action"], call.get("id")), ("update", 5))
+
+    def test_own_comment_after_the_first_page_is_updated(self):
+        # The REST API lists 30 comments per page unless asked for more.
+        posted = [comment(i, "reviewer", "Looks good.") for i in range(1, 131)] + [comment(131, BOT, self.own)]
+        (call,) = comment_calls(json.dumps(SCAN), posted=posted)
+        self.assertEqual((call["action"], call.get("id")), ("update", 131))
+
+    def test_comment_by_someone_else_is_not_overwritten(self):
+        # A reviewer who names the scan, or quotes the whole comment, keeps their comment.
+        for body in ("Re-run the Agent Governance Scan after the edit.", self.own):
+            with self.subTest(body=body[:30]):
+                (call,) = comment_calls(json.dumps(SCAN), posted=[comment(7, "reviewer", body)])
+                self.assertEqual(call["action"], "create")
+
+    def test_bot_comment_without_the_marker_is_not_overwritten(self):
+        # Another workflow that posts with the default token, and names the scan.
+        (call,) = comment_calls(json.dumps(SCAN), posted=[comment(8, BOT, "## Agent Governance Scan summary")])
+        self.assertEqual(call["action"], "create")
 
 
 @unittest.skipUnless(shutil.which("node"), "node is not on PATH")

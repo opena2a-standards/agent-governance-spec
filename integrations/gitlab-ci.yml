@@ -3,9 +3,12 @@
 # Add to your .gitlab-ci.yml or include as a template.
 # Scans SOUL.md and reports governance score.
 #
-# Set MIN_GOVERNANCE_SCORE to fail the job when the score is below it. When the
-# scan measured nothing (no governance file, or one that is unreadable or
-# empty), the job prints the reason, and fails only when a minimum is set.
+# Set MIN_GOVERNANCE_SCORE to a whole number to fail the job when the score is
+# below it; any other value fails the job. When the scan measured nothing (no
+# governance file, or one that is unreadable or empty), the job prints the
+# reason, and fails only when a minimum is set. When the scanner gave no result
+# (it could not be installed or started, or printed no score and no reason),
+# the job fails whether or not a minimum is set.
 #
 # The scanner version is pinned in the first script line. To move to a newer
 # release, change the version there and check the keys this job reads.
@@ -28,11 +31,17 @@ governance-scan:
   script:
     - npx hackmyagent@0.33.2 scan-soul --json > scan-result.json || true
     - |
+      MINIMUM="${MIN_GOVERNANCE_SCORE:-0}"
+      case "$MINIMUM" in
+        ''|*[!0-9]*)
+          echo "MIN_GOVERNANCE_SCORE must be a whole number, got '$MINIMUM'"
+          exit 1
+          ;;
+      esac
       read_result() { node -e "let r = {}; try { r = require('./scan-result.json'); } catch {} const v = $1; console.log(v == null ? '' : v)"; }
       SCORE=$(read_result "Number.isInteger(r.score) ? r.score : null")
       GRADE=$(read_result "r.grade")
       REASON=$(read_result "r.gate && r.gate.reason")
-      MINIMUM="${MIN_GOVERNANCE_SCORE:-0}"
       # gate.reason first: a run that measured nothing (exit code 2) has no score to compare.
       case "$REASON" in
         no-governance-file) NOT_MEASURED="no governance file was found" ;;
@@ -40,8 +49,11 @@ governance-scan:
         governance-file-empty) NOT_MEASURED="the governance file is empty" ;;
         *) NOT_MEASURED="" ;;
       esac
+      # No score and none of those reasons: the scanner did not run, or printed no result to read.
       if [ -z "$NOT_MEASURED" ] && [ -z "$SCORE" ]; then
-        NOT_MEASURED="the scan reported no score; see scan-result.json"
+        echo "Nothing was measured: the scan reported no score; see scan-result.json (gate.reason: ${REASON:-none})."
+        echo "The scanner gave no result, so the job fails whether or not a minimum is set."
+        exit 1
       fi
       if [ -n "$NOT_MEASURED" ]; then
         echo "Nothing was measured: $NOT_MEASURED (gate.reason: ${REASON:-none})."
