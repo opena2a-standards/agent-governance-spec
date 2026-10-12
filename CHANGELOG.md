@@ -522,6 +522,14 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   runs that record are the `python3 -O` runs of each test file that
   `scripts/test_stripped_docstrings.py` starts, and the entry now says so;
   a test in that file holds it to that wording. (#95)
+- The check in `scripts/test_stripped_docstrings.py` that each
+  `subprocess` run in a test file has a number written in the call as its
+  timeout accepted only a single number literal, so `timeout=5 * 60` and
+  `timeout=-1` were reported as "a timeout that is not a number". It now
+  also accepts unary `+` and `-`, and `+`, `-`, `*` and `/`, applied to
+  int and float literals; `**` is not accepted. A timeout held in a name,
+  or an expression that reads one, is still reported, now as "a timeout
+  that is not a number written in the call". (#96)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

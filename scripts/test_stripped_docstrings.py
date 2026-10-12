@@ -51,6 +51,10 @@ RECORD_STARTS = "\n".join([
 # The subprocess functions that take a timeout, and those that start a process and take none.
 TIMED = {"run", "call", "check_call", "check_output"}
 UNTIMED = {"Popen", "getoutput", "getstatusoutput"}
+# The operators a timeout written in the call may apply to number literals, for example -1 or 5 * 60. ** is not one,
+# since 10 ** 10 ** 10 takes longer to compute than any run it would bound.
+UNARY_OPERATORS = (ast.UAdd, ast.USub)
+BINARY_OPERATORS = (ast.Add, ast.Sub, ast.Mult, ast.Div)
 
 
 def scripts_test_files(test):
@@ -59,6 +63,19 @@ def scripts_test_files(test):
     # This file is among them, so a pattern that matches nothing fails instead of passing with no run.
     test.assertIn(Path(__file__).resolve(), files)
     return files
+
+
+def written_number(node):
+    """Whether the expression is a number written in the call: an int or float literal, or the operators above
+    applied to them."""
+    if isinstance(node, ast.Constant):
+        # isinstance(True, int) holds, so the type is compared exactly and timeout=True is reported.
+        return type(node.value) in (int, float)
+    if isinstance(node, ast.UnaryOp):
+        return isinstance(node.op, UNARY_OPERATORS) and written_number(node.operand)
+    if isinstance(node, ast.BinOp):
+        return isinstance(node.op, BINARY_OPERATORS) and written_number(node.left) and written_number(node.right)
+    return False
 
 
 def untimed_runs(source):
@@ -85,10 +102,11 @@ def untimed_runs(source):
                     (keyword.value for keyword in call.keywords if keyword.arg == "timeout"), None)
                 if timeout is None or (isinstance(timeout, ast.Constant) and timeout.value is None):
                     problems.append((node.lineno, f"subprocess.{node.attr} has no timeout"))
-                # A name or an expression can hold None, for example T = None then timeout=T, so only a number
-                # written in the call counts.
-                elif not (isinstance(timeout, ast.Constant) and type(timeout.value) in (int, float)):
-                    problems.append((node.lineno, f"subprocess.{node.attr} has a timeout that is not a number"))
+                # A name or an expression that reads one can hold None, for example T = None then timeout=T, so only
+                # a number written in the call counts.
+                elif not written_number(timeout):
+                    problems.append((node.lineno,
+                                     f"subprocess.{node.attr} has a timeout that is not a number written in the call"))
     return sorted(problems), has_runs
 
 
@@ -198,8 +216,27 @@ class ChildRuns(unittest.TestCase):
             "subprocess.call(['true'], timeout=True)",
             "subprocess.check_call(['true'], timeout=60.0)",
         ])
-        self.assertEqual(([(3, "subprocess.run has a timeout that is not a number"),
-                           (4, "subprocess.call has a timeout that is not a number")], True), untimed_runs(source))
+        self.assertEqual(([(3, "subprocess.run has a timeout that is not a number written in the call"),
+                           (4, "subprocess.call has a timeout that is not a number written in the call")], True),
+                         untimed_runs(source))
+
+    def test_a_timeout_written_as_arithmetic_on_numbers_is_accepted(self):
+        source = "\n".join([
+            "import subprocess",
+            "T = 60",
+            "subprocess.run(['true'], timeout=5 * 60)",
+            "subprocess.call(['true'], timeout=-1)",
+            "subprocess.check_call(['true'], timeout=+(2.5 * 60 + 30) / 2 - 1)",
+            "subprocess.check_output(['true'], timeout=5 * T)",
+            "subprocess.run(['true'], timeout=-True)",
+            "subprocess.run(['true'], timeout=10 ** 10 ** 10)",
+            "subprocess.run(['true'], timeout=60 if T else None)",
+            "subprocess.run(['true'], timeout=not 0)",
+        ])
+        problem = "has a timeout that is not a number written in the call"
+        self.assertEqual(([(6, f"subprocess.check_output {problem}"), (7, f"subprocess.run {problem}"),
+                           (8, f"subprocess.run {problem}"), (9, f"subprocess.run {problem}"),
+                           (10, f"subprocess.run {problem}")], True), untimed_runs(source))
 
     def test_a_subprocess_function_reached_without_the_module_name_is_reported(self):
         source = "\n".join([
