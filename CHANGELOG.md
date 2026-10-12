@@ -544,6 +544,12 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   to be accepted. The comment now names that run as the accepted control,
   and a test in `scripts/test_stripped_docstrings.py` holds it to that
   wording. (#101)
+- The docstring of `written_number` in `scripts/test_stripped_docstrings.py`
+  said that it accepts an expression that "evaluates to a finite number",
+  but it also rejects an int too large for a float, which is a finite
+  number. The docstring now says "a finite number that fits in a float", as
+  the entry for #98 does, and a test in the same file holds it to that
+  wording. (#102)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

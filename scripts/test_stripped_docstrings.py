@@ -93,7 +93,7 @@ def written_value(node):
 
 def written_number(node):
     """Whether the expression is a number written in the call: an int or float literal, or the operators above
-    applied to them, that evaluates to a finite number."""
+    applied to them, that evaluates to a finite number that fits in a float."""
     value = written_value(node)
     try:
         # A float that overflows to inf, or inf - inf, bounds no run.
@@ -296,6 +296,16 @@ class ChildRuns(unittest.TestCase):
         self.assertIn("Each run but the last raises when the call runs", comment)
         self.assertIn("The last, timeout=60 / 2, is the accepted control", comment)
         self.assertNotIn("Each of these", comment)
+
+    def test_written_number_docstring_says_the_number_fits_in_a_float(self):
+        # An int too large for a float, such as the 400 nines above, is a finite number that written_number rejects,
+        # so its docstring says the number fits in a float. It must equal that sentence, so a docstring that drops
+        # the clause fails.
+        if written_number.__doc__ is None and sys.flags.optimize >= 2:
+            self.skipTest("python3 -OO strips docstrings, so written_number has none to check")
+        self.assertEqual("Whether the expression is a number written in the call: an int or float literal, or the "
+                         "operators above applied to them, that evaluates to a finite number that fits in a float.",
+                         " ".join(written_number.__doc__.split()))
 
     def test_a_subprocess_function_reached_without_the_module_name_is_reported(self):
         source = "\n".join([
