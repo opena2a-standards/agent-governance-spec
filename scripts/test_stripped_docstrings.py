@@ -2,7 +2,7 @@
 """Tests that each test file under scripts/ passes under python3 -OO and
 python3 -O, that each process a test file starts through the subprocess
 module has a timeout, and for the wording of the CHANGELOG.md entry about
-the python3 -O runs.
+the python3 -O runs and of a comment in this file.
 
 Run from anywhere:  python3 scripts/test_stripped_docstrings.py
 
@@ -11,11 +11,12 @@ scripts/, so a test that reads one must skip under it. python3 -O keeps
 them, so no test may skip for that reason under it. The tests run each
 scripts/test_*.py file, this one included, once in its own python3 -OO
 process and once in its own python3 -O process, check that the python3 -O
-run starts no python3 -OO process, and read CHANGELOG.md; they write no
-tracked file.
+run starts no python3 -OO process, and read CHANGELOG.md and the source of
+this file; they write no tracked file.
 """
 
 import ast
+import inspect
 import json
 import math
 import operator
@@ -23,6 +24,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import tokenize
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -131,6 +133,13 @@ def untimed_runs(source):
                     problems.append((node.lineno,
                                      f"subprocess.{node.attr} has a timeout that is not a number written in the call"))
     return sorted(problems), has_runs
+
+
+def comment_text(function):
+    """The comments in the source of the function, without their # marks, joined by single spaces."""
+    lines, _ = inspect.getsourcelines(function)
+    tokens = tokenize.generate_tokens(iter(lines).__next__)
+    return " ".join(" ".join(token.string.lstrip("#").split()) for token in tokens if token.type == tokenize.COMMENT)
 
 
 class StrippedDocstrings(unittest.TestCase):
@@ -262,7 +271,8 @@ class ChildRuns(unittest.TestCase):
                            (10, f"subprocess.run {problem}")], True), untimed_runs(source))
 
     def test_a_timeout_written_as_arithmetic_that_is_not_a_finite_number_is_reported(self):
-        # Each of these raises when the call runs, or bounds no run, so none is a number written in the call.
+        # Each run but the last raises when the call runs, or bounds no run, so none is a number written in the call.
+        # The last, timeout=60 / 2, is the accepted control: it bounds the run at 30 seconds.
         source = "\n".join([
             "import subprocess",
             "subprocess.run(['true'], timeout=60 / 0)",
@@ -278,6 +288,14 @@ class ChildRuns(unittest.TestCase):
                            (4, f"subprocess.check_call {problem}"), (5, f"subprocess.check_output {problem}"),
                            (6, f"subprocess.run {problem}"), (7, f"subprocess.run {problem}")], True),
                          untimed_runs(source))
+
+    def test_the_comment_on_the_finite_number_cases_names_the_last_run_as_the_accepted_control(self):
+        # That test expects its last run, timeout=60 / 2, to be accepted, so its comment says that each run but the
+        # last is reported, not that each of them is.
+        comment = comment_text(ChildRuns.test_a_timeout_written_as_arithmetic_that_is_not_a_finite_number_is_reported)
+        self.assertIn("Each run but the last raises when the call runs", comment)
+        self.assertIn("The last, timeout=60 / 2, is the accepted control", comment)
+        self.assertNotIn("Each of these", comment)
 
     def test_a_subprocess_function_reached_without_the_module_name_is_reported(self):
         source = "\n".join([

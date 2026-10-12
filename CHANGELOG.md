@@ -538,6 +538,12 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   float that overflows to infinity or yields NaN, such as `1e400` or
   `1e308 * 10 - 1e308 * 10`, and an int too large for a float are reported
   as "a timeout that is not a number written in the call". (#98)
+- The comment on the test for #98 said that none of the runs in that test
+  has a number written in the call as its timeout, but the last run,
+  `timeout=60 / 2`, bounds the run at 30 seconds, and the test expects it
+  to be accepted. The comment now names that run as the accepted control,
+  and a test in `scripts/test_stripped_docstrings.py` holds it to that
+  wording. (#101)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
