@@ -530,6 +530,13 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   int and float literals; `**` is not accepted. A timeout held in a name,
   or an expression that reads one, is still reported, now as "a timeout
   that is not a number written in the call". (#96)
+- That check accepted any arithmetic on number literals, so
+  `timeout=60 / 0`, which raises `ZeroDivisionError` when the call runs,
+  passed. It now evaluates the written expression and accepts it only when
+  the value is a finite number that fits in a float: a division by zero, a
+  float that overflows to infinity or yields NaN, such as `1e400` or
+  `1e308 * 10 - 1e308 * 10`, and an int too large for a float are reported
+  as "a timeout that is not a number written in the call". (#98)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

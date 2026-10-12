@@ -17,6 +17,8 @@ tracked file.
 
 import ast
 import json
+import math
+import operator
 import os
 import subprocess
 import sys
@@ -53,8 +55,8 @@ TIMED = {"run", "call", "check_call", "check_output"}
 UNTIMED = {"Popen", "getoutput", "getstatusoutput"}
 # The operators a timeout written in the call may apply to number literals, for example -1 or 5 * 60. ** is not one,
 # since 10 ** 10 ** 10 takes longer to compute than any run it would bound.
-UNARY_OPERATORS = (ast.UAdd, ast.USub)
-BINARY_OPERATORS = (ast.Add, ast.Sub, ast.Mult, ast.Div)
+UNARY_OPERATORS = {ast.UAdd: operator.pos, ast.USub: operator.neg}
+BINARY_OPERATORS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv}
 
 
 def scripts_test_files(test):
@@ -65,17 +67,38 @@ def scripts_test_files(test):
     return files
 
 
-def written_number(node):
-    """Whether the expression is a number written in the call: an int or float literal, or the operators above
-    applied to them."""
+def written_value(node):
+    """The value of an int or float literal, or of the operators above applied to them; None for any other
+    expression, and for one that raises when it is evaluated."""
     if isinstance(node, ast.Constant):
         # isinstance(True, int) holds, so the type is compared exactly and timeout=True is reported.
-        return type(node.value) in (int, float)
-    if isinstance(node, ast.UnaryOp):
-        return isinstance(node.op, UNARY_OPERATORS) and written_number(node.operand)
-    if isinstance(node, ast.BinOp):
-        return isinstance(node.op, BINARY_OPERATORS) and written_number(node.left) and written_number(node.right)
-    return False
+        return node.value if type(node.value) in (int, float) else None
+    if isinstance(node, ast.UnaryOp) and type(node.op) in UNARY_OPERATORS:
+        operand = written_value(node.operand)
+        return None if operand is None else UNARY_OPERATORS[type(node.op)](operand)
+    if isinstance(node, ast.BinOp) and type(node.op) in BINARY_OPERATORS:
+        left, right = written_value(node.left), written_value(node.right)
+        if left is None or right is None:
+            return None
+        try:
+            return BINARY_OPERATORS[type(node.op)](left, right)
+        # 60 / 0 raises ZeroDivisionError when the call runs, and a quotient of ints too large for a float raises
+        # OverflowError.
+        except (ZeroDivisionError, OverflowError):
+            return None
+    return None
+
+
+def written_number(node):
+    """Whether the expression is a number written in the call: an int or float literal, or the operators above
+    applied to them, that evaluates to a finite number."""
+    value = written_value(node)
+    try:
+        # A float that overflows to inf, or inf - inf, bounds no run.
+        return value is not None and math.isfinite(value)
+    except OverflowError:
+        # An int too large for a float raises when the call adds it to the clock.
+        return False
 
 
 def untimed_runs(source):
@@ -237,6 +260,24 @@ class ChildRuns(unittest.TestCase):
         self.assertEqual(([(6, f"subprocess.check_output {problem}"), (7, f"subprocess.run {problem}"),
                            (8, f"subprocess.run {problem}"), (9, f"subprocess.run {problem}"),
                            (10, f"subprocess.run {problem}")], True), untimed_runs(source))
+
+    def test_a_timeout_written_as_arithmetic_that_is_not_a_finite_number_is_reported(self):
+        # Each of these raises when the call runs, or bounds no run, so none is a number written in the call.
+        source = "\n".join([
+            "import subprocess",
+            "subprocess.run(['true'], timeout=60 / 0)",
+            "subprocess.call(['true'], timeout=60 / (1 - 1.0))",
+            "subprocess.check_call(['true'], timeout=1e400)",
+            "subprocess.check_output(['true'], timeout=1e308 * 10 - 1e308 * 10)",
+            "subprocess.run(['true'], timeout=" + "9" * 400 + " / 1)",
+            "subprocess.run(['true'], timeout=" + "9" * 400 + ")",
+            "subprocess.run(['true'], timeout=60 / 2)",
+        ])
+        problem = "has a timeout that is not a number written in the call"
+        self.assertEqual(([(2, f"subprocess.run {problem}"), (3, f"subprocess.call {problem}"),
+                           (4, f"subprocess.check_call {problem}"), (5, f"subprocess.check_output {problem}"),
+                           (6, f"subprocess.run {problem}"), (7, f"subprocess.run {problem}")], True),
+                         untimed_runs(source))
 
     def test_a_subprocess_function_reached_without_the_module_name_is_reported(self):
         source = "\n".join([
