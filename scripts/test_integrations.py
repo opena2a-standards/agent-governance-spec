@@ -104,15 +104,40 @@ def step(text, name):
     return None
 
 
-def step_env(lines):
-    """The env: mapping of a step, values as written."""
+def step_names(text):
+    """The name of each step, in the order the job runs them."""
+    return [line.strip()[len("- name: "):] for line in text.splitlines() if line.strip().startswith("- name: ")]
+
+
+def mapping(lines, key):
+    """The key: mapping of a step, values as written."""
     for i, line in enumerate(lines):
-        if line.strip() == "env:":
+        if line.strip() == f"{key}:":
             return {
-                key.strip(): value.strip()
-                for key, _, value in (l.partition(":") for l in block(lines, i) if l.strip())
+                name.strip(): value.strip()
+                for name, _, value in (l.partition(":") for l in block(lines, i) if l.strip())
             }
     return {}
+
+
+def step_env(lines):
+    """The env: mapping of a step, values as written."""
+    return mapping(lines, "env")
+
+
+def step_with(lines):
+    """The with: mapping of a step, values as written."""
+    return mapping(lines, "with")
+
+
+def header(text):
+    """The comment at the top of the workflow, as one line of text."""
+    lines = []
+    for line in text.splitlines():
+        if not line.startswith("#"):
+            break
+        lines.append(line.lstrip("#").strip())
+    return " ".join(line for line in lines if line)
 
 
 def run_script(lines):
@@ -262,6 +287,38 @@ class MinimumScore(unittest.TestCase):
         self.assertIn(variable, self.text.split("\nname:", 1)[0])
         self.assertNotIn("fail-below` input", guide)
 
+    def test_header_says_an_empty_variable_is_no_minimum(self):
+        # `|| '0'` reads an empty variable as unset, as the GitLab CI example does.
+        self.assertIn("|| '0'", MIN_SCORE_EXPRESSION)
+        self.assertIn("Unset or empty, the minimum is 0", header(self.text))
+
+
+class ScanResultArtifact(unittest.TestCase):
+    """The no-result message points to scan-result.json, so a step must upload it."""
+
+    def setUp(self):
+        self.text = WORKFLOW.read_text(encoding="utf-8")
+        steps = step_names(self.text)
+        uploads = [name for name in steps
+                   if any(l.strip().startswith("uses: actions/upload-artifact@") for l in step(self.text, name))]
+        self.assertEqual(len(uploads), 1, f"steps that upload an artifact: {uploads}")
+        self.upload = step(self.text, uploads[0])
+        self.order = (steps.index(SCAN_STEP), steps.index(uploads[0]))
+
+    def test_scan_result_is_uploaded_after_the_scan_also_when_the_job_fails(self):
+        self.assertIn("if: always()", [l.strip() for l in self.upload])
+        self.assertEqual(step_with(self.upload).get("path"), "scan-result.json")
+        self.assertLess(*self.order)
+
+    def test_no_result_message_names_the_uploaded_artifact_and_the_scan_step_log(self):
+        name = step_with(self.upload).get("name")
+        self.assertTrue(name)
+        result = check_result(run_script(step(self.text, CHECK_STEP)), "", "0", "")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"see the {name} artifact", result.stdout)
+        self.assertIn(f'the "{SCAN_STEP}" step log', result.stdout)
+        self.assertIn(f"`{name}`", GUIDE.read_text(encoding="utf-8"))
+
 
 @unittest.skipUnless(shutil.which("bash") and shutil.which("jq"), "bash or jq is not on PATH")
 class ScanStep(unittest.TestCase):
@@ -293,6 +350,16 @@ class ScanStep(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn(NOT_MEASURED["no-governance-file"], result.stdout)
         self.assertNotIn("score 0", result.stdout)
+
+    def test_scanner_that_printed_nothing_outputs_the_defaults(self):
+        # jq prints nothing and exits 0 on an empty file, so the comment would show empty values.
+        for printed in ("", "\n", "error: unknown option '--format'\n"):
+            with self.subTest(printed=printed):
+                outputs = scan_outputs(self.script, printed, 1)
+                self.assertEqual(
+                    outputs,
+                    {"score": "", "grade": "F", "conformance": "NONE", "file": "none", "reason": ""},
+                )
 
     def test_scanner_that_printed_nothing_fails_the_check_without_a_minimum(self):
         # npx could not install or start the scanner, so scan-result.json is empty.

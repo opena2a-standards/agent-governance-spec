@@ -617,18 +617,34 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   no reason that names a run that measured nothing) fails the job whether or
   not a minimum is set. With no minimum, the GitLab CI job and the GitHub
   Action's check passed it as a run that measured nothing. The GitLab CI job
-  fails with a message naming `MIN_GOVERNANCE_SCORE` when the value is not a
-  whole number, as the GitHub Action does; with `60%` or `forty` it printed
-  "integer expected" and passed. The GitHub Action's pull request comment
-  updates only the comment it wrote, found by a hidden marker and the
-  `github-actions[bot]` author on every page of the comments; it updated
-  the first of the first 30 comments that contained "Agent Governance
-  Scan", whoever wrote it, and created a second comment on a longer thread.
-  The README's GitHub Actions snippet pins hackmyagent 0.33.2, the release
-  the full workflow pins, instead of installing the latest release. Tests in
+  fails with a message naming `MIN_GOVERNANCE_SCORE` when the value is set
+  to something that is not a whole number, as the GitHub Action does; with
+  `60%` or `forty` the bash of its `node:20-slim` image printed "integer
+  expression expected" and the job passed. The GitHub Action's pull request
+  comment updates only the comment it wrote, found by a hidden marker and
+  the `github-actions[bot]` author on every page of the comments; it
+  updated the first of the first 30 comments that contained "Agent
+  Governance Scan", whoever wrote it, and created a second comment on a
+  longer thread. A comment posted by the earlier version has no marker, so
+  on a pull request that has one, the first run after the update posts a
+  new comment, and later runs update that one. The README's GitHub Actions
+  snippet pins hackmyagent 0.33.2, the release the full workflow pins,
+  instead of installing the latest release. Tests in
   `scripts/test_github_action.py`, `scripts/test_integrations.py`,
   `scripts/test_gitlab_ci.py` and `scripts/test_scan_soul_commands.py`.
   (#112)
+- In the GitHub Action example, the pull request comment shows the
+  conformance as `NONE` and the file as `none` when the scanner gave no
+  result; `jq` prints nothing for an empty `scan-result.json`, so the
+  comment had an empty Conformance line and an empty File code span. The
+  workflow uploads `scan-result.json` as the `governance-scan-result`
+  artifact, also when the job fails, and the message for a run in which
+  the scanner gave no result names that artifact and the "Run governance
+  scan" step log; it named `scan-result.json`, which no step uploaded.
+  Both CI examples state that an unset or empty `MIN_GOVERNANCE_SCORE` is
+  a minimum of 0; the GitLab CI example said that any value other than a
+  whole number fails the job. Tests in `scripts/test_github_action.py`,
+  `scripts/test_integrations.py` and `scripts/test_gitlab_ci.py`. (#114)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

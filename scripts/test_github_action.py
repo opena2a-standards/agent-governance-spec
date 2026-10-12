@@ -6,7 +6,8 @@ Run from anywhere:  python3 scripts/test_github_action.py
 
 Standard library only. The tests that run the comment script need node on
 PATH and are skipped without it; they write only to a temporary directory.
-The tests that read the comment step's text run without node.
+The tests that read the comment step's text, or integrations/README.md, run
+without node.
 """
 
 import json
@@ -22,6 +23,9 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 
 ACTION = Path(__file__).resolve().parent.parent / "integrations" / "github-action.yml"
+GUIDE = ACTION.parent / "README.md"
+# The hidden first line of the comment the step posts.
+MARKER = "<!-- agent-governance-scan -->"
 COMMENT_STEP = "Comment on PR"
 OUTPUT = re.compile(r"^\$\{\{\s*steps\.scan\.outputs\.(\w+)\s*\}\}$")
 OUTPUTS = {"score": "67", "grade": "C", "conformance": "NONE", "file": "SOUL.md", "reason": ""}
@@ -258,6 +262,30 @@ class ExistingComment(unittest.TestCase):
         (call,) = comment_calls(json.dumps(SCAN), posted=[comment(8, BOT, "## Agent Governance Scan summary")])
         self.assertEqual(call["action"], "create")
 
+    def test_comment_from_the_earlier_version_gives_one_new_comment(self):
+        # The earlier version of the example posted the same body without the marker line.
+        earlier = self.own.replace(MARKER + "\n", "", 1)
+        self.assertTrue(earlier.startswith("## Agent Governance Scan\n"))
+        (call,) = comment_calls(json.dumps(SCAN), posted=[comment(4, BOT, earlier)])
+        self.assertEqual(call["action"], "create")
+        (call,) = comment_calls(json.dumps(SCAN), posted=[comment(4, BOT, earlier), comment(6, BOT, self.own)])
+        self.assertEqual((call["action"], call.get("id")), ("update", 6))
+
+    def test_comment_with_no_user_is_skipped(self):
+        # The REST API gives a null user for a comment whose author account was deleted.
+        ghost = {"id": 9, "user": None, "body": self.own}
+        (call,) = comment_calls(json.dumps(SCAN), posted=[ghost])
+        self.assertEqual(call["action"], "create")
+        (call,) = comment_calls(json.dumps(SCAN), posted=[ghost, comment(10, BOT, self.own)])
+        self.assertEqual((call["action"], call.get("id")), ("update", 10))
+
+
+class Guide(unittest.TestCase):
+    def test_guide_says_a_comment_from_the_earlier_version_gives_one_new_comment(self):
+        guide = " ".join(GUIDE.read_text(encoding="utf-8").split())
+        self.assertIn("A comment posted by an earlier version of this example has no marker", guide)
+        self.assertIn("the first run after you update the workflow posts a new comment", guide)
+
 
 @unittest.skipUnless(shutil.which("node"), "node is not on PATH")
 class NotMeasured(unittest.TestCase):
@@ -273,6 +301,23 @@ class NotMeasured(unittest.TestCase):
     def test_no_score_or_grade_is_shown(self):
         self.assertNotIn("/100", self.body)
         self.assertNotIn("Grade:", self.body)
+
+
+@unittest.skipUnless(shutil.which("node"), "node is not on PATH")
+class NoResult(unittest.TestCase):
+    # npx could not install or start the scanner: scan-result.json is empty, and the scan step
+    # outputs its defaults.
+    def setUp(self):
+        outputs = {"score": "", "grade": "F", "conformance": "NONE", "file": "none", "reason": ""}
+        self.body = comment_body("", outputs)
+
+    def test_conformance_and_file_lines_are_not_empty(self):
+        self.assertIn("**Conformance:** NONE\n", self.body)
+        self.assertIn("**File:** `none`\n", self.body)
+        self.assertNotIn("``", self.body)
+
+    def test_score_line_says_there_is_no_score(self):
+        self.assertIn("**Score:** not measured (`no score in scan-result.json`)", self.body)
 
 
 if __name__ == "__main__":

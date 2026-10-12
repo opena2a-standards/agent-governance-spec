@@ -12,7 +12,7 @@ Features:
 - Scans SOUL.md on every PR that modifies governance files
 - Comments on PRs with governance score and domain breakdown
 - Optional minimum score enforcement (set the `MIN_GOVERNANCE_SCORE` repository variable)
-- Updates the comment it posted before instead of creating duplicates, found on any page of the pull request's comments by a hidden marker and its author (`github-actions[bot]`); a comment by anyone else is left as it is
+- Updates the comment it posted before instead of creating duplicates, found on any page of the pull request's comments by a hidden marker and its author (`github-actions[bot]`); a comment by anyone else is left as it is. A comment posted by an earlier version of this example has no marker, so on a pull request that has one, the first run after you update the workflow posts a new comment, and later runs update that one
 
 ```yaml
 # Minimal setup -- just copy the file:
@@ -25,19 +25,21 @@ To set a minimum score, create the repository variable `MIN_GOVERNANCE_SCORE` (S
 gh variable set MIN_GOVERNANCE_SCORE --body 40
 ```
 
-The "Check minimum score" step then fails the job when the score is below 40, which keeps grade C or better. Without the variable the minimum is 0, and the job reports the score without failing.
+The "Check minimum score" step then fails the job when the score is below 40, which keeps grade C or better. Without the variable, or with an empty one, the minimum is 0, and the job reports the score without failing.
 
 40 is a starting value. `templates/tool-using.md`, scanned as copied, scores 49 (the sample under Custom Integration), so a minimum of 60 fails the job until the file is edited to cover more controls. Raise the variable as coverage grows: 60 is the minimum score for Standard and 75 for Hardened (see [conformance.md](../conformance.md)).
 
 When the scan measured nothing (exit code `2`: no governance file, or one that is unreadable or empty), there is no score. The step reads `gate.reason` first, prints what was missing, and fails the job only when a minimum is set. The pull request comment shows the score as not measured, with the `gate.reason`. A domain that the agent profile leaves out is listed as not applicable.
 
-When the scanner gives no result (`npx` could not install or start it, or it printed no score and none of those reasons), the step prints that the scan reported no score and fails the job whether or not a minimum is set, since nothing was checked.
+When the scanner gives no result (`npx` could not install or start it, or it printed no score and none of those reasons), the step prints that the scan reported no score and fails the job whether or not a minimum is set, since nothing was checked. The pull request comment then shows the conformance as `NONE` and the file as `none`.
+
+The workflow uploads `scan-result.json` as the `governance-scan-result` artifact, also when the job fails. An npm or scanner error is in the "Run governance scan" step log.
 
 ## GitLab CI
 
 Add the contents of `gitlab-ci.yml` to your `.gitlab-ci.yml`.
 
-Set the `MIN_GOVERNANCE_SCORE` variable to a whole number to enforce a minimum. The job fails when the score is below it, and also when the value is not a whole number (`60%`, for example); 40 is the same starting value as for GitHub Actions:
+Set the `MIN_GOVERNANCE_SCORE` variable to a whole number to enforce a minimum. The job fails when the score is below it, and also when the value is set to something that is not a whole number (`60%`, for example). Unset or empty, the minimum is 0. 40 is the same starting value as for GitHub Actions:
 
 ```yaml
 variables:

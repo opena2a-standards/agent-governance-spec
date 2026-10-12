@@ -9,12 +9,16 @@
 #
 # Optional: set a minimum score with the MIN_GOVERNANCE_SCORE repository
 # variable (Settings > Secrets and variables > Actions > Variables). The job
-# fails when the score is below it. Unset, the minimum is 0 and the job only
-# reports the score. When the scan measured nothing (no governance file, or one
-# that is unreadable or empty), the job prints the reason, and fails only when
-# a minimum is set. When the scanner gave no result (it could not be installed
-# or started, or printed no score and no reason), the job fails whether or not
-# a minimum is set.
+# fails when the score is below it. Unset or empty, the minimum is 0 and the
+# job only reports the score. When the scan measured nothing (no governance
+# file, or one that is unreadable or empty), the job prints the reason, and
+# fails only when a minimum is set. When the scanner gave no result (it could
+# not be installed or started, or printed no score and no reason), the job
+# fails whether or not a minimum is set.
+#
+# scan-result.json is uploaded as the governance-scan-result artifact, also
+# when the job fails. An npm or scanner error is in the "Run governance scan"
+# step log.
 #
 # The scanner version is pinned in the "Run governance scan" step. To move to
 # a newer release, change the version there and check the keys this job reads.
@@ -71,18 +75,28 @@ jobs:
           npx hackmyagent@0.33.2 scan-soul --json > scan-result.json || true
           # A run that measured nothing (exit code 2) has a null score, left empty
           # here, and gate.reason names the case.
-          SCORE=$(jq -r '.score // ""' scan-result.json 2>/dev/null || echo "")
-          GRADE=$(jq -r '.grade // "F"' scan-result.json 2>/dev/null || echo "F")
-          CONFORMANCE=$(jq -r '.conformance // "NONE"' scan-result.json 2>/dev/null || echo "NONE")
-          FILE=$(jq -r '.file // "none"' scan-result.json 2>/dev/null || echo "none")
-          REASON=$(jq -r '.gate.reason // ""' scan-result.json 2>/dev/null || echo "")
+          SCORE=$(jq -r '.score // ""' scan-result.json 2>/dev/null || true)
+          GRADE=$(jq -r '.grade // "F"' scan-result.json 2>/dev/null || true)
+          CONFORMANCE=$(jq -r '.conformance // "NONE"' scan-result.json 2>/dev/null || true)
+          FILE=$(jq -r '.file // "none"' scan-result.json 2>/dev/null || true)
+          REASON=$(jq -r '.gate.reason // ""' scan-result.json 2>/dev/null || true)
+          # jq prints nothing and exits 0 on an empty file, so a default is applied
+          # to an empty value as well as to a file that is not JSON.
           {
             echo "score=$SCORE"
-            echo "grade=$GRADE"
-            echo "conformance=$CONFORMANCE"
-            echo "file=$FILE"
+            echo "grade=${GRADE:-F}"
+            echo "conformance=${CONFORMANCE:-NONE}"
+            echo "file=${FILE:-none}"
             echo "reason=$REASON"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Keep scan result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governance-scan-result
+          path: scan-result.json
+          if-no-files-found: warn
 
       - name: Comment on PR
         if: github.event_name == 'pull_request'
@@ -124,7 +138,9 @@ jobs:
 
             // The comment this workflow wrote is the one with this marker and this author.
             // The default GITHUB_TOKEN posts as github-actions[bot]; change the author if
-            // you pass another token through github-token.
+            // you pass another token through github-token. A comment posted by an earlier
+            // version of this example has no marker, so the first run after an update
+            // posts a new comment, and later runs update that one.
             const marker = '<!-- agent-governance-scan -->';
             const author = 'github-actions[bot]';
 
@@ -190,7 +206,7 @@ jobs:
           case "$SCORE" in
             ''|*[!0-9]*)
               if [ -z "$NOT_MEASURED" ]; then
-                echo "Nothing was measured: the scan reported no score; see scan-result.json (gate.reason: ${REASON:-none})."
+                echo "Nothing was measured: the scan reported no score; see the governance-scan-result artifact and the \"Run governance scan\" step log (gate.reason: ${REASON:-none})."
                 echo "The scanner gave no result, so the job fails whether or not a minimum is set."
                 exit 1
               fi
