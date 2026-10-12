@@ -768,6 +768,10 @@ class StrippedDocstrings(unittest.TestCase):
         # docstring skips, and the run passes.
         if sys.flags.optimize >= 2:
             self.skipTest("this is the python3 -OO run that the test starts")
+        # scripts/test_stripped_docstrings.py runs this file under python3 -OO itself, and sets ABGS_PYTHON3_O_RUN in
+        # the python3 -O run of this file that it starts, so that run starts no third python3 -OO run.
+        if sys.flags.optimize == 1 and "ABGS_PYTHON3_O_RUN" in os.environ:
+            self.skipTest("test_stripped_docstrings.py, which started this run, runs this file with docstrings stripped")
         result = subprocess.run([sys.executable, "-OO", str(Path(__file__).resolve()), "-v"],
                                 capture_output=True, text=True, timeout=300)
         self.assertEqual(0, result.returncode, result.stderr)

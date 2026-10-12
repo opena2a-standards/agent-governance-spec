@@ -11,8 +11,9 @@ new git repository under a temporary directory, with an empty home and no
 system configuration, so only the patterns of .gitignore decide what git
 ignores, and holds its own class docstring to one sentence.
 StrippedDocstrings runs this file in a python3 -OO process and checks that
-it passes with the test of the class docstring skipped, and checks that
-without -OO a missing class docstring is an error, not a skip.
+it passes with the test of the class docstring skipped, except in the
+python3 -O run that scripts/test_stripped_docstrings.py starts, and checks
+that without -OO a missing class docstring is an error, not a skip.
 ChangelogEntry reads CHANGELOG.md and checks the entry for #80, and checks
 that a missing entry is a failure that names it, not an error.
 ModuleDocstring checks that this docstring names each test class of the
@@ -79,6 +80,10 @@ class StrippedDocstrings(unittest.TestCase):
         # the run passes.
         if sys.flags.optimize >= 2:
             self.skipTest("this is the python3 -OO run that the test starts")
+        # scripts/test_stripped_docstrings.py runs this file under python3 -OO itself, and sets ABGS_PYTHON3_O_RUN in
+        # the python3 -O run of this file that it starts, so that run starts no third python3 -OO run.
+        if sys.flags.optimize == 1 and "ABGS_PYTHON3_O_RUN" in os.environ:
+            self.skipTest("test_stripped_docstrings.py, which started this run, runs this file with docstrings stripped")
         result = subprocess.run([sys.executable, "-OO", str(Path(__file__).resolve()), "-v"],
                                 capture_output=True, text=True, timeout=300)
         self.assertEqual(0, result.returncode, result.stderr)

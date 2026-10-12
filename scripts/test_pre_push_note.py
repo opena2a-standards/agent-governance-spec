@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Tests for the commands .pre-push-review-not-required names as the
-repository's checks, and for the names of the helpers of this file.
+repository's checks, for the names of the helpers of this file, and for the
+wording of the CHANGELOG.md entry about the test of those names.
 
 Run from anywhere:  python3 scripts/test_pre_push_note.py
 
 Standard library only. The tests read .pre-push-review-not-required,
-CONTRIBUTING.md, the names of the check scripts under scripts/ and the names
-of the functions of this file, and write nothing.
+CONTRIBUTING.md, CHANGELOG.md, the names of the check scripts under scripts/
+and the names of the functions of this file, and write nothing.
 """
 
 import inspect
@@ -20,6 +21,7 @@ sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parent.parent
 NOTE = ROOT / ".pre-push-review-not-required"
 CONTRIBUTING = ROOT / "CONTRIBUTING.md"
+CHANGELOG = ROOT / "CHANGELOG.md"
 TEST_COMMAND = re.compile(r"`(python3 -m unittest discover [^`]+)`")
 SCRIPT_COMMAND = re.compile(r"python3 scripts/[A-Za-z0-9_]+\.py")
 # The note ends each command it names with ";", so a unittest command runs up to the next ";" or the end of the note.
@@ -86,6 +88,20 @@ class Helpers(unittest.TestCase):
         functions = [name for name, value in vars(module).items()
                      if inspect.isfunction(value) and value.__module__ == __name__ and name.startswith("test")]
         self.assertEqual([], functions)
+
+    def test_changelog_entry_says_the_test_checks_module_level_functions(self):
+        # The test above reads only the functions of the module namespace, and the test methods of this file start
+        # with "test", so the entry for #89 says "no module-level function", not "no function".
+        text = " ".join(CHANGELOG.read_text(encoding="utf-8").split())
+        opening = "The helper of `scripts/test_pre_push_note.py` that reads the test command"
+        self.assertIn(opening, text, f"CHANGELOG.md has no entry for #89 that opens with: {opening}")
+        start = text.index(opening)
+        end = text.find("(#89)", start)
+        self.assertNotEqual(-1, end, f"the CHANGELOG.md entry for #89 that opens with {opening!r} has no (#89) after it")
+        entry = text[start:end]
+        self.assertIn("a test checks that no module-level function of the file has a name that starts with `test`",
+                      entry)
+        self.assertNotIn("no function of the file", entry)
 
 
 if __name__ == "__main__":

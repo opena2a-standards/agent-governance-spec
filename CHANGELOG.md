@@ -455,20 +455,20 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   of `CONTRIBUTING.md` was named `test_command`, so pytest ran it as a test,
   counting one test more than `python3 -m unittest discover` and warning
   that it returned a value. It is now `discover_command`, and a test checks
-  that no function of the file has a name that starts with `test`. The same
-  file checked that the note held the test command as a substring, so a
-  note that narrowed it with `-k crosswalks` passed; the text from
-  `python3 -m unittest` up to the next `;` must now equal the command. The
-  test of the entry for #80 in `scripts/test_gitignore.py` reported a
-  `ValueError` when the opening words of the entry or its `(#80)` marker
-  were missing; it now reports a failure that names the entry. The module
-  docstring of that file describes each of its test classes, says that the
-  tests read the files in the working tree, not the committed ones, and a
-  test checks that it names each test class. The repository structure in
-  `README.md` listed 7 of the 14 `scripts/test_*.py` files; one `test_*.py`
-  row now stands for all of them, and a test in `scripts/test_readme.py`
-  checks that each script under `scripts/` is listed by name or pattern.
-  (#89)
+  that no module-level function of the file has a name that starts with
+  `test`. The same file checked that the note held the test command as a
+  substring, so a note that narrowed it with `-k crosswalks` passed; the
+  text from `python3 -m unittest` up to the next `;` must now equal the
+  command. The test of the entry for #80 in `scripts/test_gitignore.py`
+  reported a `ValueError` when the opening words of the entry or its
+  `(#80)` marker were missing; it now reports a failure that names the
+  entry. The module docstring of that file describes each of its test
+  classes, says that the tests read the files in the working tree, not the
+  committed ones, and a test checks that it names each test class. The
+  repository structure in `README.md` listed 7 of the 14
+  `scripts/test_*.py` files; one `test_*.py` row now stands for all of
+  them, and a test in `scripts/test_readme.py` checks that each script
+  under `scripts/` is listed by name or pattern. (#89)
 - The tests in `scripts/test_check_crosswalks.py` and
   `scripts/test_check_docs_prose.py` that check that the time bounds skip
   under `python3 -O` and `-OO` checked only that each timed test was
@@ -496,6 +496,26 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   each test file under `python3 -OO` a second time; it now starts with
   `ABGS_PYTHON3_O_RUN` set, and the test that runs each file under
   `python3 -OO` skips in a `python3 -O` run where it is set. (#91)
+- A `python3 -m unittest discover -s scripts -p 'test_*.py'` run still ran
+  `scripts/test_gitignore.py` and `scripts/test_check_docs_prose.py` under
+  `python3 -OO` three times: once from the test of each file that runs the
+  file again under `python3 -OO`, once from
+  `scripts/test_stripped_docstrings.py`, and once more from that same test
+  of the file inside the `python3 -O` run that
+  `scripts/test_stripped_docstrings.py` starts. That test now skips in a
+  `python3 -O` run where `ABGS_PYTHON3_O_RUN` is set, so the discover run
+  runs each of the two files under `python3 -OO` twice. The `python3 -O`
+  runs of `scripts/test_stripped_docstrings.py` now record each process a
+  test file starts, and the test checks that none of them is a
+  `python3 -OO` run. The check there that each `subprocess` run in a test
+  file has a timeout rejected only a literal `timeout=None`, so a timeout
+  held in a name bound to `None` passed; it now accepts only a number
+  written in the call. The entry for #89 said that a test checks that no
+  function of `scripts/test_pre_push_note.py` has a name that starts with
+  `test`, but the test checks only module-level functions, and the test
+  methods of that file start with `test`. The entry now says "no
+  module-level function", and a test in that file holds it to that
+  wording. (#93)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
