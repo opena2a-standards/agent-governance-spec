@@ -229,6 +229,20 @@ class MinimumScore(unittest.TestCase):
                 self.assertEqual(result.returncode, 0)
                 self.assertIn(NOT_MEASURED[reason], result.stdout)
 
+    def test_scan_with_no_score_and_no_reason_names_the_missing_score(self):
+        # The scanner gave no result: there is no score to compare, so none is reported below the minimum.
+        result = check_result(run_script(self.step), "", "60", "")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("the scan reported no score", result.stdout)
+        self.assertIn("gate.reason: none", result.stdout)
+        self.assertNotIn("below minimum", result.stdout)
+
+    def test_scan_with_no_score_and_no_reason_fails_without_a_minimum(self):
+        result = check_result(run_script(self.step), "", "0", "")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("the scan reported no score", result.stdout)
+        self.assertIn("whether or not a minimum is set", result.stdout)
+
     def test_gate_reason_is_tested_before_the_score(self):
         # A score of 0 next to a not-measured reason is the old `// 0` default, not a measurement.
         result = check_result(run_script(self.step), "0", "60", "governance-file-empty")
@@ -279,6 +293,14 @@ class ScanStep(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn(NOT_MEASURED["no-governance-file"], result.stdout)
         self.assertNotIn("score 0", result.stdout)
+
+    def test_scanner_that_printed_nothing_fails_the_check_without_a_minimum(self):
+        # npx could not install or start the scanner, so scan-result.json is empty.
+        outputs = scan_outputs(self.script, "", 1)
+        check = run_script(step(WORKFLOW.read_text(encoding="utf-8"), CHECK_STEP))
+        result = check_result(check, outputs["score"], "0", outputs["reason"])
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("the scan reported no score", result.stdout)
 
 
 class Helpers(unittest.TestCase):

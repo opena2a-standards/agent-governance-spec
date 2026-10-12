@@ -612,6 +612,23 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `scripts/test_integrations.py`, `scripts/test_gitlab_ci.py`,
   `scripts/test_scan_soul_commands.py` and
   `scripts/test_check_docs_prose.py`. (#51)
+- In both CI examples under `integrations/`, a run in which the scanner gave
+  no result (`npx` could not install or start it, or it printed no score and
+  no reason that names a run that measured nothing) fails the job whether or
+  not a minimum is set. With no minimum, the GitLab CI job and the GitHub
+  Action's check passed it as a run that measured nothing. The GitLab CI job
+  fails with a message naming `MIN_GOVERNANCE_SCORE` when the value is not a
+  whole number, as the GitHub Action does; with `60%` or `forty` it printed
+  "integer expected" and passed. The GitHub Action's pull request comment
+  updates only the comment it wrote, found by a hidden marker and the
+  `github-actions[bot]` author on every page of the comments; it updated
+  the first of the first 30 comments that contained "Agent Governance
+  Scan", whoever wrote it, and created a second comment on a longer thread.
+  The README's GitHub Actions snippet pins hackmyagent 0.33.2, the release
+  the full workflow pins, instead of installing the latest release. Tests in
+  `scripts/test_github_action.py`, `scripts/test_integrations.py`,
+  `scripts/test_gitlab_ci.py` and `scripts/test_scan_soul_commands.py`.
+  (#112)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

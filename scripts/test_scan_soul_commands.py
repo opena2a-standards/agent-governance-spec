@@ -25,9 +25,10 @@ SCANNER_OPTIONS = {
     "--no-contribute", "--ci", "--explain", "-h", "--help",
 }
 COMMAND = re.compile(r"\bhackmyagent(?:@\S+)? scan-soul\b(.*)$")
-# The CI examples, which run the scanner on every pull request.
+# The CI examples, which run the scanner when a governance file changes.
 CI_EXAMPLES = ("integrations/github-action.yml", "integrations/gitlab-ci.yml")
 SCANNER_SPEC = re.compile(r"\bnpx hackmyagent(?:@(\S+))? scan-soul\b")
+FENCE = re.compile(r"^```[^\n]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
 EXACT_VERSION = re.compile(r"\d+\.\d+\.\d+")
 # The arguments end at a closing quote or backtick, or at a shell operator.
 ARGS_END = re.compile(r"[`\"'>|&;]")
@@ -95,6 +96,18 @@ class ScanSoulCommands(unittest.TestCase):
         self.assertEqual(len(versions), 1)
         (version,) = versions
         self.assertIn(f"pin hackmyagent {version}", guide)
+
+    def test_readme_snippet_of_a_ci_example_pins_the_release_the_example_pins(self):
+        # The snippet points to the full workflow, so it installs the same release.
+        pinned = {spec for path in CI_EXAMPLES for spec in SCANNER_SPEC.findall((ROOT / path).read_text(encoding="utf-8"))}
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        snippets = [code for code in FENCE.findall(readme) if any(path in code for path in CI_EXAMPLES)]
+        self.assertTrue(snippets)
+        for code in snippets:
+            with self.subTest(snippet=code.splitlines()[0]):
+                specs = SCANNER_SPEC.findall(code)
+                self.assertTrue(specs)
+                self.assertEqual(set(specs), pinned)
 
     def test_unknown_option_is_reported(self):
         (_, rest), = scan_commands("npx hackmyagent@latest scan-soul --format json > scan-result.json || true\n")

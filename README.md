@@ -202,7 +202,8 @@ Enforce governance in your pipeline with zero configuration:
 
 ```yaml
 # Scans SOUL.md on PRs, comments with governance score
-# See integrations/github-action.yml for the full workflow
+# See integrations/github-action.yml for the full workflow; both pin the
+# scanner release, so a new release changes the result only through a commit
 name: Agent Governance Scan
 on:
   pull_request:
@@ -214,7 +215,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-      - run: npx hackmyagent@latest scan-soul --fail-below 40
+      - run: npx hackmyagent@0.33.2 scan-soul --fail-below 40
 ```
 
 **GitLab CI**, **pre-commit hooks**, and **npm scripts** examples are in [integrations/](integrations/).

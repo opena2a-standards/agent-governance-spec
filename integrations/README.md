@@ -12,7 +12,7 @@ Features:
 - Scans SOUL.md on every PR that modifies governance files
 - Comments on PRs with governance score and domain breakdown
 - Optional minimum score enforcement (set the `MIN_GOVERNANCE_SCORE` repository variable)
-- Updates existing comments instead of creating duplicates
+- Updates the comment it posted before instead of creating duplicates, found on any page of the pull request's comments by a hidden marker and its author (`github-actions[bot]`); a comment by anyone else is left as it is
 
 ```yaml
 # Minimal setup -- just copy the file:
@@ -31,18 +31,20 @@ The "Check minimum score" step then fails the job when the score is below 40, wh
 
 When the scan measured nothing (exit code `2`: no governance file, or one that is unreadable or empty), there is no score. The step reads `gate.reason` first, prints what was missing, and fails the job only when a minimum is set. The pull request comment shows the score as not measured, with the `gate.reason`. A domain that the agent profile leaves out is listed as not applicable.
 
+When the scanner gives no result (`npx` could not install or start it, or it printed no score and none of those reasons), the step prints that the scan reported no score and fails the job whether or not a minimum is set, since nothing was checked.
+
 ## GitLab CI
 
 Add the contents of `gitlab-ci.yml` to your `.gitlab-ci.yml`.
 
-Set the `MIN_GOVERNANCE_SCORE` variable to enforce a minimum. The job fails when the score is below it; 40 is the same starting value as for GitHub Actions:
+Set the `MIN_GOVERNANCE_SCORE` variable to a whole number to enforce a minimum. The job fails when the score is below it, and also when the value is not a whole number (`60%`, for example); 40 is the same starting value as for GitHub Actions:
 
 ```yaml
 variables:
   MIN_GOVERNANCE_SCORE: "40"
 ```
 
-A run that measured nothing is handled as in the GitHub Actions example: the job prints the `gate.reason` and fails only when a minimum is set. The job keeps `scan-result.json` as an artifact, also when it fails.
+A run that measured nothing is handled as in the GitHub Actions example: the job prints the `gate.reason` and fails only when a minimum is set. A run in which the scanner gave no result fails the job whether or not a minimum is set. The job keeps `scan-result.json` as an artifact, also when it fails.
 
 ## README Badge
 
