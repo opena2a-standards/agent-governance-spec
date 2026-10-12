@@ -175,6 +175,16 @@ class WhyHeadings(unittest.TestCase):
                 self.assertEqual([], cdp.findings(text))
 
 
+TIME_BOUND_SKIP = "the run without -O checks the time bound"
+
+
+def skip_the_time_bound_when_optimized(test):
+    # Tests run this file again under python3 -O and -OO, where a time bound missed on a loaded machine would fail
+    # that run and print its whole output, so only the run without -O checks the bound.
+    if sys.flags.optimize >= 1:
+        test.skipTest(TIME_BOUND_SKIP)
+
+
 class CodeSpans(unittest.TestCase):
     def test_span_closes_at_the_next_run_of_the_same_length(self):
         self.assertEqual("a" + " " * 11 + "b", cdp.blank_code_spans("a`` x ` y ``b"))
@@ -187,6 +197,7 @@ class CodeSpans(unittest.TestCase):
 
     def test_long_runs_of_backticks_are_scanned_in_linear_time(self):
         # A scan that retries from every backtick takes more than ten seconds on the first line.
+        skip_the_time_bound_when_optimized(self)
         distinct = " ".join("`" * n for n in range(2, 600))
         for line in ("x" + "`" * 500000, distinct + " `a`" * 50000, "`a` " * 100000):
             start = time.perf_counter()
@@ -644,6 +655,7 @@ class Contributing(unittest.TestCase):
             self.assertEqual([], readme_exception_statements(text), text)
 
     def test_clause_break_splits_a_run_of_whitespace_in_linear_time(self):
+        skip_the_time_bound_when_optimized(self)
         start = time.perf_counter()
         CLAUSE_BREAK.split(" " * 50000)
         self.assertLess(time.perf_counter() - start, 2.0)
@@ -756,7 +768,7 @@ class StrippedDocstrings(unittest.TestCase):
         if sys.flags.optimize >= 2:
             self.skipTest("this is the python3 -OO run that the test starts")
         result = subprocess.run([sys.executable, "-OO", str(Path(__file__).resolve()), "-v"],
-                                capture_output=True, text=True)
+                                capture_output=True, text=True, timeout=300)
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("skipped 'python3 -OO strips docstrings, so check_docs_prose has none to check'",
                       result.stderr)
@@ -772,6 +784,24 @@ class StrippedDocstrings(unittest.TestCase):
             CommandLine("test_usage_and_docstring_name_the_optional_root_argument").run(result)
         self.assertEqual([], result.skipped)
         self.assertEqual(1, len(result.errors), result.errors)
+
+
+class TimeBounds(unittest.TestCase):
+    def test_runs_under_python3_O_and_OO_skip_the_time_bounds(self):
+        # The python3 -OO run started above, and those under -O and -OO started by test_stripped_docstrings.py,
+        # skip each test that times a scan, so only the run without -O can fail on a loaded machine.
+        for optimize in (1, 2):
+            result = unittest.TestResult()
+            with self.subTest(optimize=optimize), mock.patch.object(sys, "flags", mock.Mock(optimize=optimize)):
+                unittest.TestSuite([
+                    CodeSpans("test_long_runs_of_backticks_are_scanned_in_linear_time"),
+                    Contributing("test_clause_break_splits_a_run_of_whitespace_in_linear_time"),
+                ]).run(result)
+                self.assertEqual([TIME_BOUND_SKIP] * 2, [reason for _, reason in result.skipped])
+
+    def test_the_run_without_python3_O_checks_the_time_bounds(self):
+        with mock.patch.object(sys, "flags", mock.Mock(optimize=0)):
+            skip_the_time_bound_when_optimized(self)
 
 
 if __name__ == "__main__":

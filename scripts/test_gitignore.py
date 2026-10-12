@@ -72,7 +72,7 @@ class StrippedDocstrings(unittest.TestCase):
         if sys.flags.optimize >= 2:
             self.skipTest("this is the python3 -OO run that the test starts")
         result = subprocess.run([sys.executable, "-OO", str(Path(__file__).resolve()), "-v"],
-                                capture_output=True, text=True)
+                                capture_output=True, text=True, timeout=300)
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("skipped 'python3 -OO strips docstrings, so CredentialFiles has none to check'", result.stderr)
 

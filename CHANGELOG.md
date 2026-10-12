@@ -433,6 +433,20 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   scripts and that test command, and `scripts/test_pre_push_note.py` holds
   it to every `scripts/check_*.py` script and to the test command of
   `CONTRIBUTING.md`. (#85)
+- The tests in `scripts/test_gitignore.py` and
+  `scripts/test_check_docs_prose.py` that run their own file again under
+  `python3 -OO` started that run with no timeout, so a run that stopped
+  responding stalled the whole suite. Each now passes `timeout=300`, as
+  `scripts/test_stripped_docstrings.py` does, and a test there checks that
+  each `python3` run a test starts passes a timeout. The two tests in
+  `scripts/test_check_docs_prose.py` that hold a scan to 2.0 seconds also
+  ran in each `python3 -OO` run of that file, where a loaded machine could
+  fail them; they now skip under `python3 -O` and `-OO`, and only the run
+  without `-O` checks the bound. `scripts/test_stripped_docstrings.py` also
+  runs each `scripts/test_*.py` file under `python3 -O`, which keeps
+  docstrings, and checks that it passes with no skip whose reason names
+  `python3 -OO`, so a guard written as `sys.flags.optimize >= 1` instead of
+  `>= 2` fails. (#87)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
