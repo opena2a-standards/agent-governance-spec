@@ -106,6 +106,7 @@ def run_check(script, score, minimum):
         env={"PATH": "/usr/bin:/bin", "SCORE": score, "MIN_SCORE": minimum},
         capture_output=True,
         text=True,
+        timeout=60,
     )
     return result.returncode
 

@@ -40,13 +40,13 @@ def ignored(test, paths):
         env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
         env.update(HOME=home, XDG_CONFIG_HOME=str(Path(home) / ".config"), GIT_CONFIG_NOSYSTEM="1")
         try:
-            subprocess.run(["git", "-C", repo, "init", "-q"], check=True, capture_output=True, env=env)
+            subprocess.run(["git", "-C", repo, "init", "-q"], check=True, capture_output=True, env=env, timeout=60)
         except OSError:
             test.skipTest("git is not available")
         except subprocess.CalledProcessError as error:
             test.skipTest("git init -q failed: " + error.stderr.decode("utf-8", "replace").strip())
         (Path(repo) / ".gitignore").write_bytes(GITIGNORE.read_bytes())
-        result = subprocess.run(["git", "-C", repo, "check-ignore", *paths], capture_output=True, env=env)
+        result = subprocess.run(["git", "-C", repo, "check-ignore", *paths], capture_output=True, env=env, timeout=60)
         test.assertIn(result.returncode, (0, 1), result.stderr.decode("utf-8", "replace"))
         return result.stdout.decode("utf-8").split()
 

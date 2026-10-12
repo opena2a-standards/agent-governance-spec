@@ -1,25 +1,37 @@
 #!/usr/bin/env python3
 """Tests that each test file under scripts/ passes under python3 -OO and
-python3 -O, and that each python3 run a test starts has a timeout.
+python3 -O, and that each process a test file starts through the subprocess
+module has a timeout.
 
 Run from anywhere:  python3 scripts/test_stripped_docstrings.py
 
 Standard library only. python3 -OO strips the docstrings of the files under
 scripts/, so a test that reads one must skip under it. python3 -O keeps
 them, so no test may skip for that reason under it. The tests run each
-scripts/test_*.py file, this one included, in its own python3 -OO process
-and in its own python3 -O process; they write no tracked file.
+scripts/test_*.py file, this one included, once in its own python3 -OO
+process and once in its own python3 -O process; they write no tracked file.
 """
 
 import ast
+import os
 import subprocess
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.dont_write_bytecode = True
 
 SCRIPTS = Path(__file__).resolve().parent
+
+# Set in the environment of each python3 -O run that the -O test starts.
+PYTHON3_O_RUN = "ABGS_PYTHON3_O_RUN"
+# The -O test reports each skip under python3 -O whose reason names python3 -OO, so this reason names neither.
+NESTED_SKIP = "the run of this file that started this one runs each test file with docstrings stripped"
+
+# The subprocess functions that take a timeout, and those that start a process and take none.
+TIMED = {"run", "call", "check_call", "check_output"}
+UNTIMED = {"Popen", "getoutput", "getstatusoutput"}
 
 
 def scripts_test_files(test):
@@ -30,11 +42,43 @@ def scripts_test_files(test):
     return files
 
 
+def untimed_runs(source):
+    """The (line, problem) pairs for each process the source starts through subprocess with no timeout, and whether
+    it calls a subprocess function that takes one."""
+    tree = ast.parse(source)
+    calls = {id(node.func): node for node in ast.walk(tree) if isinstance(node, ast.Call)}
+    problems = []
+    has_runs = False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            problems += [(node.lineno, "imports subprocess as " + alias.asname) for alias in node.names
+                         if alias.name == "subprocess" and alias.asname not in (None, "subprocess")]
+        elif isinstance(node, ast.ImportFrom) and node.module == "subprocess":
+            problems.append((node.lineno, "imports names from subprocess"))
+        elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == "subprocess":
+            if node.attr in UNTIMED:
+                problems.append((node.lineno, f"subprocess.{node.attr} takes no timeout"))
+            elif node.attr in TIMED:
+                has_runs = True
+                # A reference that is not called, for example one passed to functools.partial, is reported too.
+                call = calls.get(id(node))
+                if call is None or not any(
+                        keyword.arg == "timeout"
+                        and not (isinstance(keyword.value, ast.Constant) and keyword.value.value is None)
+                        for keyword in call.keywords):
+                    problems.append((node.lineno, f"subprocess.{node.attr} has no timeout"))
+    return sorted(problems), has_runs
+
+
 class StrippedDocstrings(unittest.TestCase):
     def test_each_test_file_passes_under_python3_OO(self):
         # The run of this file that the test starts is under -OO, where the test skips, so it starts no further run.
         if sys.flags.optimize >= 2:
             self.skipTest("this run is already under python3 -OO")
+        # The python3 -O run of this file that the -O test starts would otherwise run each test file under -OO a
+        # second time. A python3 -O run without the marker, started by hand, still runs them.
+        if sys.flags.optimize == 1 and PYTHON3_O_RUN in os.environ:
+            self.skipTest(NESTED_SKIP)
         for path in scripts_test_files(self):
             with self.subTest(file=path.name):
                 result = subprocess.run([sys.executable, "-OO", str(path)],
@@ -49,30 +93,78 @@ class StrippedDocstrings(unittest.TestCase):
             self.skipTest("this run is already optimized, so it starts no python3 -O run")
         for path in scripts_test_files(self):
             with self.subTest(file=path.name):
-                result = subprocess.run([sys.executable, "-O", str(path), "-v"],
+                result = subprocess.run([sys.executable, "-O", str(path), "-v"], env={**os.environ, PYTHON3_O_RUN: "1"},
                                         capture_output=True, text=True, timeout=300)
                 self.assertEqual(0, result.returncode, result.stderr)
                 skips = [line for line in result.stderr.splitlines()
                          if " ... skipped " in line and "-OO" in line.split(" ... skipped ", 1)[1]]
                 self.assertEqual([], skips)
+                if path == Path(__file__).resolve():
+                    # The python3 -O run of this file starts no python3 -OO run of each test file.
+                    outcomes = [line.split(" ... ", 1)[-1] for line in result.stderr.splitlines()
+                                if line.startswith("test_each_test_file_passes_under_python3_OO ")]
+                    self.assertEqual([f"skipped {NESTED_SKIP!r}"], outcomes)
+
+
+class NestedRuns(unittest.TestCase):
+    def test_the_python3_O_run_of_this_file_starts_no_python3_OO_run(self):
+        result = unittest.TestResult()
+        with mock.patch.object(sys, "flags", mock.Mock(optimize=1)), \
+                mock.patch.dict(os.environ, {PYTHON3_O_RUN: "1"}), \
+                mock.patch.object(subprocess, "run", side_effect=self.failureException("started a run")) as run:
+            StrippedDocstrings("test_each_test_file_passes_under_python3_OO").run(result)
+        run.assert_not_called()
+        self.assertEqual([NESTED_SKIP], [reason for _, reason in result.skipped])
+        self.assertNotIn("-OO", NESTED_SKIP)
+
+    def test_a_python3_O_run_without_the_marker_runs_each_test_file_under_python3_OO(self):
+        result = unittest.TestResult()
+        environment = {name: value for name, value in os.environ.items() if name != PYTHON3_O_RUN}
+        with mock.patch.object(sys, "flags", mock.Mock(optimize=1)), \
+                mock.patch.dict(os.environ, environment, clear=True), \
+                mock.patch.object(subprocess, "run", return_value=mock.Mock(returncode=0, stderr="")) as run:
+            StrippedDocstrings("test_each_test_file_passes_under_python3_OO").run(result)
+        self.assertEqual(([], [], []), (result.skipped, result.failures, result.errors))
+        self.assertEqual(len(scripts_test_files(self)), run.call_count)
 
 
 class ChildRuns(unittest.TestCase):
-    def test_each_python3_run_that_a_test_starts_has_a_timeout(self):
+    def test_each_process_that_a_test_file_starts_through_subprocess_has_a_timeout(self):
         # A run that stops responding then fails its own test instead of stalling the whole suite.
         files_with_runs = set()
         for path in scripts_test_files(self):
-            tree = ast.parse(path.read_text(encoding="utf-8"), str(path))
-            for node in ast.walk(tree):
-                if (isinstance(node, ast.Call) and ast.unparse(node.func) == "subprocess.run" and node.args
-                        and isinstance(node.args[0], ast.List) and node.args[0].elts
-                        and ast.unparse(node.args[0].elts[0]) == "sys.executable"):
-                    files_with_runs.add(path.name)
-                    with self.subTest(file=path.name, line=node.lineno):
-                        self.assertIn("timeout", [keyword.arg for keyword in node.keywords])
-        # The files that start a python3 run are found, so a change to the form of the call fails instead of
-        # passing with nothing checked.
-        self.assertLessEqual({"test_check_docs_prose.py", "test_gitignore.py", Path(__file__).name}, files_with_runs)
+            problems, has_runs = untimed_runs(path.read_text(encoding="utf-8"))
+            if has_runs:
+                files_with_runs.add(path.name)
+            with self.subTest(file=path.name):
+                self.assertEqual([], problems)
+        # The files that start a process are found, so a change to the form of the call fails instead of passing with
+        # nothing checked.
+        self.assertLessEqual({"test_check_crosswalks.py", "test_check_docs_prose.py", "test_github_action.py",
+                              "test_gitignore.py", "test_gitlab_ci.py", "test_integrations.py", Path(__file__).name},
+                             files_with_runs)
+
+    def test_a_run_of_a_command_held_in_a_name_and_a_popen_are_reported(self):
+        source = "\n".join([
+            "import subprocess",
+            "cmd = [sys.executable, '-c', 'pass']",
+            "subprocess.run(cmd)",
+            "subprocess.Popen([sys.executable, '-c', 'pass']).wait()",
+            "subprocess.check_output(['git', '--version'], timeout=None)",
+            "subprocess.run(['bash', '-c', 'true'], timeout=60)",
+        ])
+        self.assertEqual(([(3, "subprocess.run has no timeout"), (4, "subprocess.Popen takes no timeout"),
+                           (5, "subprocess.check_output has no timeout")], True), untimed_runs(source))
+
+    def test_a_subprocess_function_reached_without_the_module_name_is_reported(self):
+        source = "\n".join([
+            "import subprocess as sp",
+            "from subprocess import run",
+            "import functools",
+            "functools.partial(subprocess.call, ['true'])",
+        ])
+        self.assertEqual(([(1, "imports subprocess as sp"), (2, "imports names from subprocess"),
+                           (4, "subprocess.call has no timeout")], True), untimed_runs(source))
 
 
 if __name__ == "__main__":
