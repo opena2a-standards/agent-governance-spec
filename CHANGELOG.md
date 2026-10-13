@@ -645,6 +645,39 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   a minimum of 0; the GitLab CI example said that any value other than a
   whole number fails the job. Tests in `scripts/test_github_action.py`,
   `scripts/test_integrations.py` and `scripts/test_gitlab_ci.py`. (#114)
+- In the GitHub Action example, a failed artifact upload no longer skips the
+  pull request comment or fails the job. The "Keep scan result" step ran
+  before "Comment on PR", whose `if:` calls no status check function, so
+  GitHub adds `success()` to it: when the upload failed, the comment was
+  skipped and the job failed whatever the score. The upload fails when the
+  artifact storage quota is used up, and on GitHub Enterprise Server, which
+  the README of `actions/upload-artifact@v4` lists as not supported. The
+  step is now the last one, after "Check minimum score", and has
+  `continue-on-error: true`. The workflow header and
+  `integrations/README.md` state the limitation and what to change on
+  GitHub Enterprise Server. Tests in `scripts/test_integrations.py`. (#116)
+- Both CI examples under `integrations/` fail the job when
+  `MIN_GOVERNANCE_SCORE` is a whole number above 100, the highest score,
+  with a message naming the variable. A value too long for the shell to
+  read as a number (20 digits, for example) passed the whole-number check,
+  `[` printed "integer expression expected", the comparison was false, and
+  the job passed whatever the score was; a run that measured nothing passed
+  the same way. A minimum from 101 up to the largest number the shell reads
+  failed every scored run as below the minimum, and now fails with the
+  message about the variable. A minimum from 0 to 100 written in up to
+  three digits (`060` is 60) is compared as before; one written in more
+  digits fails the job like one above 100. The header of each example and
+  `integrations/README.md` state the range. Tests in
+  `scripts/test_integrations.py` and `scripts/test_gitlab_ci.py`. (#117)
+- The `NoResult` tests in `scripts/test_github_action.py`, added for #114,
+  gave the comment script the scan step's default outputs as written in
+  the test, so they also passed against the workflow from before that fix,
+  whose scan step output an empty conformance and file for an empty
+  `scan-result.json`. They now run the "Run governance scan" step on an
+  empty result, with the stand-in for `npx` from
+  `scripts/test_integrations.py`, and give its outputs to the comment
+  script, so they fail against that workflow. They need bash and jq as
+  well as node, and are skipped without them. (#118)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
