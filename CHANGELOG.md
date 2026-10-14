@@ -78,6 +78,16 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   unified total (118, the sum 72 + 46, not measured on its own).
 - README Scoring section aligned with `scoring.md` grades and `conformance.md`
   (removes the invented score-band "levels" vocabulary). (#7, 2026-07-02)
+- The README is shortened to the quick start, the use cases, the tools, a
+  Documentation list and the license; the quick start links `specification.md`
+  first and states the exit codes of `scan-soul`. Its reference text moved
+  as written: The Gap, Specification Overview, Agent Tiers, Scoring and
+  Adoption Path to `docs/overview.md`; Related Work to
+  `docs/related-work.md` (the crosswalk bullet stays in the README, where
+  `scripts/check_crosswalks.py` requires it); CI/CD Integration and the
+  badge to `docs/ci.md`; the conformance level table to `conformance.md`;
+  and Repository Structure to `CONTRIBUTING.md`. The tests that read those
+  passages now read them at their new paths.
 
 ### Fixed
 

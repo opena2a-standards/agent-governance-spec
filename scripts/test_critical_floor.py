@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for the critical floor rule as README.md, specification.md and scoring.md state it.
+"""Tests for the critical floor rule as docs/overview.md, specification.md and scoring.md state it.
 
 Run from anywhere:  python3 scripts/test_critical_floor.py
 
@@ -18,7 +18,9 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 
 ROOT = Path(__file__).resolve().parent.parent
-DOCUMENTS = ("README.md", "specification.md", "scoring.md")
+DOCUMENTS = ("docs/overview.md", "specification.md", "scoring.md")
+# README.md no longer states the rule, and still must not promise a score cap.
+CAP_DOCUMENTS = ("README.md",) + DOCUMENTS
 SCORE_CAP = re.compile(
     r"effective maximum score|\(score 60\)|capped at C \(60\)|score (is )?capped",
     re.IGNORECASE,
@@ -29,7 +31,7 @@ EXAMPLE_HEADING = "### Example 3: Critical Floor in Action"
 
 def floor_passage(name, text):
     """The text in which a document states the critical floor rule."""
-    if name == "README.md":
+    if name == "docs/overview.md":
         match = re.search(r"^- \*\*Critical floor\*\*:.*$", text, re.MULTILINE)
     elif name == "specification.md":
         match = re.search(r"^### 6\.4 Critical Floor Rule\n(.*?)(?=^#)", text, re.MULTILINE | re.DOTALL)
@@ -46,7 +48,7 @@ def section(text, heading):
 
 class CriticalFloor(unittest.TestCase):
     def setUp(self):
-        self.texts = {name: (ROOT / name).read_text(encoding="utf-8") for name in DOCUMENTS}
+        self.texts = {name: (ROOT / name).read_text(encoding="utf-8") for name in CAP_DOCUMENTS}
 
     def test_no_document_caps_the_score(self):
         for name, text in self.texts.items():
@@ -54,7 +56,8 @@ class CriticalFloor(unittest.TestCase):
                 self.assertEqual([m.group(0) for m in SCORE_CAP.finditer(text)], [])
 
     def test_each_document_states_the_score_is_kept(self):
-        for name, text in self.texts.items():
+        for name in DOCUMENTS:
+            text = self.texts[name]
             with self.subTest(document=name):
                 passage = floor_passage(name, text)
                 self.assertIsNotNone(passage)

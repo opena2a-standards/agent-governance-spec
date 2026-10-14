@@ -3,12 +3,13 @@
 comparison, the attribute tables, the section 5.3 registry table, the section
 3.5 applicability matrix and the tier counts of section 3, and the
 .gitattributes line-ending pins of the files it compares byte for byte; and
-the terms README.md uses in its prose.
+the terms README.md and the docs pages that took its reference text use in
+their prose.
 
 Run from anywhere:  python3 scripts/test_check_crosswalks.py
 
 Standard library only. The tests read the committed domain files,
-controls.json, specification.md, and README.md, ask git for the eol attribute of the
+controls.json, specification.md, README.md and the pages under docs/, ask git for the eol attribute of the
 byte-checked files, and write no tracked file: the synthetic domain files and
 the repository copy that main() runs against are written to a temporary
 directory, and bytecode caching is turned off before the import.
@@ -926,28 +927,33 @@ class MainRun(unittest.TestCase):
 
 
 class ReadmeTerms(unittest.TestCase):
-    """README.md prose: an acronym in parentheses follows its expansion, and a
-    component the specification and domain files never name is not named."""
+    """README.md prose, and the prose of the docs pages that took its reference
+    text: an acronym in parentheses follows its expansion, and a component the
+    specification and domain files never name is not named."""
+
+    PAGES = ("README.md", "docs/overview.md", "docs/related-work.md", "docs/ci.md")
 
     def setUp(self):
-        self.readme = (cc.ROOT / "README.md").read_text(encoding="utf-8")
+        self.pages = {name: (cc.ROOT / name).read_text(encoding="utf-8") for name in self.PAGES}
 
     def test_an_acronym_in_parentheses_follows_its_expansion(self):
-        for match in re.finditer(r" \(([A-Z][A-Z0-9]{1,5})\)", self.readme):
-            acronym = match.group(1)
-            words = re.findall(r"[A-Za-z0-9]+", self.readme[:match.start()])[-len(acronym):]
-            with self.subTest(acronym=acronym):
-                self.assertEqual("".join(word[0] for word in words).upper(), acronym,
-                                 f"README.md: ({acronym}) follows {' '.join(words)!r}, not its expansion")
+        for name, text in self.pages.items():
+            for match in re.finditer(r" \(([A-Z][A-Z0-9]{1,5})\)", text):
+                acronym = match.group(1)
+                words = re.findall(r"[A-Za-z0-9]+", text[:match.start()])[-len(acronym):]
+                with self.subTest(page=name, acronym=acronym):
+                    self.assertEqual("".join(word[0] for word in words).upper(), acronym,
+                                     f"{name}: ({acronym}) follows {' '.join(words)!r}, not its expansion")
 
     def test_no_component_the_specification_does_not_name(self):
         defined = (cc.ROOT / cc.SPECIFICATION).read_text(encoding="utf-8").lower()
         defined += "".join(path.read_text(encoding="utf-8").lower() for path in sorted(cc.DOMAINS.glob("*.md")))
         for term in ("broker",):
-            with self.subTest(term=term):
-                if term not in defined:
-                    lines = [n for n, line in enumerate(self.readme.splitlines(), 1) if term in line.lower()]
-                    self.assertEqual(lines, [], f"README.md names {term!r}, which the specification does not")
+            for name, text in self.pages.items():
+                with self.subTest(term=term, page=name):
+                    if term not in defined:
+                        lines = [n for n, line in enumerate(text.splitlines(), 1) if term in line.lower()]
+                        self.assertEqual(lines, [], f"{name} names {term!r}, which the specification does not")
 
 
 class TimeBound(unittest.TestCase):

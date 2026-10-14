@@ -14,6 +14,16 @@ OASB-2 conformance levels provide a tiered framework for assessing governance ma
 | Standard | Production-grade governance | Agents handling user data or performing actions |
 | Hardened | Comprehensive governance | Autonomous agents, regulated environments |
 
+OASB-2 defines three conformance levels for auditing governance coverage:
+
+| Level | Requirements | Typical Use Case |
+|-------|-------------|-----------------|
+| **Essential** | All CRITICAL controls pass | Minimum viable governance for any deployed agent |
+| **Standard** | All CRITICAL and HIGH controls pass, overall score >= 60 | Production agents handling user data or performing actions |
+| **Hardened** | All controls pass, overall score >= 75 | Autonomous agents, agents in regulated environments |
+
+The sections below give the detailed requirements and audit procedures.
+
 ---
 
 ## Level 1: Essential

@@ -4,6 +4,56 @@ Thank you for your interest in contributing to the Agent Behavioral Governance S
 
 ---
 
+## Repository Structure
+
+```
+agent-governance-spec/
+  README.md                   Overview and quickstart
+  LICENSE                     Apache-2.0
+  CONTRIBUTING.md             How to contribute
+  specification.md            Full formal specification (version 1.0.0-draft, status Draft)
+  scoring.md                  Scoring methodology
+  conformance.md              Conformance levels
+  CHANGELOG.md                Changes by version
+  controls.json               JSON control export, generated from domains/ (specification.md section 8.2)
+  crosswalks/                 Static crosswalks to NIST AI RMF 1.0 and the EU AI Act
+  docs/
+    overview.md               The gap OASB-2 fills, the domains, agent tiers, scoring and adoption path
+    related-work.md           How OASB-2 relates to other specifications
+    ci.md                     CI/CD integration and the conformance badge
+  scripts/
+    check_crosswalks.py       Validates crosswalks/, controls.json and the control registry; --write re-renders
+    check_docs_prose.py       Checks the Markdown prose for the dash and heading rules in CONTRIBUTING.md
+    test_*.py                 Tests for the scripts, the docs and the CI examples; CONTRIBUTING.md gives the command that runs them
+  domains/
+    README.md                 Domain overview
+    11-trust-hierarchy.md     Domain 11: Trust Hierarchy
+    12-capability-boundaries.md  Domain 12: Capability Boundaries
+    13-injection-hardening.md    Domain 13: Injection Hardening
+    14-data-handling.md          Domain 14: Data Handling
+    15-hardcoded-behaviors.md    Domain 15: Hardcoded Behaviors
+    16-agentic-safety.md         Domain 16: Agentic Safety
+    17-honesty-transparency.md   Domain 17: Honesty and Transparency
+    18-human-oversight.md        Domain 18: Human Oversight
+    19-harm-avoidance.md         Domain 19: Harm Avoidance
+  templates/
+    basic.md                  Minimal SOUL.md for chatbots
+    tool-using.md             SOUL.md for tool-using agents
+    agentic.md                SOUL.md for autonomous agents
+    multi-agent.md            SOUL.md for orchestrators
+  examples/
+    README.md                 The example files, and what a scanner reports on them
+    chatbot-soul.md           Customer service bot
+    coding-agent-soul.md      AI coding assistant
+    data-pipeline-soul.md     Data processing agent
+  integrations/
+    README.md                 CI integration guide
+    github-action.yml         GitHub Actions workflow
+    gitlab-ci.yml             GitLab CI job
+```
+
+---
+
 ## Types of Contributions
 
 ### 1. Proposing a New Control
