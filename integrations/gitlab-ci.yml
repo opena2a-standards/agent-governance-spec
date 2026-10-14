@@ -41,6 +41,11 @@ governance-scan:
           ;;
         [0-9]|[0-9][0-9]|0[0-9][0-9]|100)
           ;;
+        0[0-9][0-9][0-9]*)
+          # A leading zero and more than three digits: not compared, whatever the number is.
+          echo "MIN_GOVERNANCE_SCORE must be from 0 to 100 in at most three digits, got '$MINIMUM'"
+          exit 1
+          ;;
         *)
           # Above 100, the highest score. `[` cannot read a number too long for the
           # shell: the comparison below would be false, and any score would pass.

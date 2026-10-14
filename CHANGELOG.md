@@ -660,9 +660,10 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `MIN_GOVERNANCE_SCORE` is a whole number above 100, the highest score,
   with a message naming the variable. A value too long for the shell to
   read as a number (20 digits, for example) passed the whole-number check,
-  `[` printed "integer expression expected", the comparison was false, and
-  the job passed whatever the score was; a run that measured nothing passed
-  the same way. A minimum from 101 up to the largest number the shell reads
+  `[` printed "integer expression expected" (bash 5.2 and earlier; bash 5.3
+  prints "integer expected"), the comparison was false, and the job passed
+  whatever the score was; a run that measured nothing passed the same way.
+  A minimum from 101 up to the largest number the shell reads
   failed every scored run as below the minimum, and now fails with the
   message about the variable. A minimum from 0 to 100 written in up to
   three digits (`060` is 60) is compared as before; one written in more
@@ -678,6 +679,22 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `scripts/test_integrations.py`, and give its outputs to the comment
   script, so they fail against that workflow. They need bash and jq as
   well as node, and are skipped without them. (#118)
+- In both CI examples under `integrations/`, a `MIN_GOVERNANCE_SCORE`
+  written with a leading zero in more than three digits fails the job with
+  "MIN_GOVERNANCE_SCORE must be from 0 to 100 in at most three digits"; for
+  `0060`, which is 60, the message was "must be 100 or less". The job
+  failed before and fails now, and a value above 100 with no leading zero
+  keeps the message "must be 100 or less". The entry for #117 above quoted
+  "integer expression expected" as what `[` printed for a number too long
+  for the shell; that is the wording of bash 5.2 and earlier, bash 5.3
+  prints "integer expected", and the entry now gives both. In
+  `scripts/test_integrations.py`, the model of which steps start and
+  whether the job fails read a `continue-on-error` written as an
+  expression, `${{ true }}` for example, as not set, and reported a failed
+  job where the runner reports a passed one. A value other than `true` or
+  `false` now fails the test that reads it, as an `if:` the model does not
+  read already did. Tests in `scripts/test_integrations.py` and
+  `scripts/test_gitlab_ci.py`. (#120)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

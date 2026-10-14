@@ -9,7 +9,8 @@ stand-in for `npx hackmyagent@0.33.2 scan-soul` that accepts the scanner's
 options and rejects any other option, and check what the job prints, the exit
 status, and the files its artifacts name. The stand-in prints a scored result,
 or a recorded one such as the result of a run that measured nothing. They
-write only to a temporary directory.
+write only to a temporary directory. One test reads CHANGELOG.md for the two
+wordings of the shell's error that its entry about a minimum above 100 quotes.
 
 The tests that run the job need bash and node on PATH. Without either they
 fail and name the missing program; they are not skipped, so a machine without
@@ -32,6 +33,7 @@ sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parent.parent
 JOB = ROOT / "integrations" / "gitlab-ci.yml"
 GUIDE = ROOT / "integrations" / "README.md"
+CHANGELOG = ROOT / "CHANGELOG.md"
 FENCE = re.compile(r"^```[^\n]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
 DOTENV_LINE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 # What `[` prints for a value that is not a number: bash 5.3 prints "integer
@@ -67,6 +69,10 @@ NOT_MEASURED = {
 # Whole numbers above 100, the highest score. `[` cannot read the last two:
 # 2 ** 63 is one more than the largest number the shell holds.
 ABOVE_100 = ("101", "150", "1000", str(2 ** 63), "9" * 20)
+
+# A leading zero and more than three digits. As numbers they are 60, 0, 101,
+# and one `[` cannot read; the job compares none of them.
+OVER_THREE_DIGITS = ("0060", "0000", "0101", "0" + "9" * 20)
 
 # Stands in for `npx hackmyagent@0.33.2 scan-soul`, the release the job pins.
 # The option lists are the ones `hackmyagent scan-soul --help` (hackmyagent
@@ -321,6 +327,21 @@ class GovernanceScanJob(unittest.TestCase):
                     self.assertNotIn("below minimum", result.stdout)
                     self.assertNotRegex(result.stderr, INTEGER_ERROR)
 
+    def test_minimum_in_more_than_three_digits_fails_the_job_and_names_the_limit(self):
+        # "must be 100 or less" does not fit 0060, which is 60.
+        scored = {"score": 49}
+        not_measured = {"output": no_measurement("no-governance-file"), "scanner_exit": 2}
+        for minimum in OVER_THREE_DIGITS:
+            for run in (scored, not_measured):
+                with self.subTest(minimum=minimum, run=run):
+                    result, _ = run_job(min_score=minimum, **run)
+                    self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                    self.assertEqual(
+                        result.stdout,
+                        f"MIN_GOVERNANCE_SCORE must be from 0 to 100 in at most three digits, got '{minimum}'\n",
+                    )
+                    self.assertNotRegex(result.stderr, INTEGER_ERROR)
+
     def test_minimum_of_100_or_less_is_compared(self):
         # 100 is the highest score, and a leading zero does not change the number.
         for minimum, score, code in (("100", 100, 0), ("100", 99, 1), ("060", 60, 0), ("060", 59, 1)):
@@ -437,6 +458,21 @@ class Documentation(unittest.TestCase):
         # The job fails on a whole number above 100; "a whole number" alone does not say so.
         self.assertIn("a whole number from 0 to 100", header())
         self.assertIn("a whole number from 0 to 100", guide_section())
+
+    def test_changelog_entry_quotes_what_each_bash_prints_for_a_number_it_cannot_read(self):
+        # The entry for #117 quoted the wording of bash 5.2 and older as what `[` printed; bash 5.3 prints another.
+        text = " ".join(CHANGELOG.read_text(encoding="utf-8").split())
+        opening = ("Both CI examples under `integrations/` fail the job when `MIN_GOVERNANCE_SCORE` is a whole number "
+                   "above 100")
+        self.assertIn(opening, text, f"CHANGELOG.md has no entry for #117 that opens with: {opening}")
+        start = text.index(opening)
+        end = text.find("(#117)", start)
+        self.assertNotEqual(-1, end, f"the CHANGELOG.md entry for #117 that opens with {opening!r} has no (#117) after it")
+        entry = text[start:end]
+        for wording in ("integer expression expected", "integer expected"):
+            with self.subTest(wording=wording):
+                self.assertIn(f'"{wording}"', entry)
+                self.assertRegex(wording, INTEGER_ERROR)
 
 
 class TriggerList(unittest.TestCase):

@@ -10,7 +10,9 @@ is run with bash and jq, with a stand-in for npx that prints a recorded scanner
 result; those tests write only to a temporary directory and are skipped
 without bash or jq. Which steps start when one fails, and whether the job
 fails, is worked out from each step's `if:` and `continue-on-error` as the
-runner applies them; no workflow is run.
+runner applies them; no workflow is run. An `if:` other than `always()` or
+`github.event_name == 'pull_request'`, or a `continue-on-error` other than
+`true` or `false`, such as an expression, fails the test that reads it.
 """
 
 import json
@@ -45,6 +47,10 @@ NOT_MEASURED = {
 # Whole numbers above 100, the highest score. `[` cannot read the last two:
 # 2 ** 63 is one more than the largest number the shell holds.
 ABOVE_100 = ("101", "150", "1000", str(2 ** 63), "9" * 20)
+
+# A leading zero and more than three digits. As numbers they are 60, 0, 101,
+# and one `[` cannot read; the check compares none of them.
+OVER_THREE_DIGITS = ("0060", "0000", "0101", "0" + "9" * 20)
 
 # What `scan-soul --json` prints, trimmed to the keys the scan step reads,
 # for a scored file and for a run that found no governance file.
@@ -158,16 +164,27 @@ def step_starts(condition, job_failed, event):
     raise AssertionError(f"if: {condition} is not a condition this test reads")
 
 
+def continues_on_error(value):
+    """Whether a step with this continue-on-error: leaves the job passing when it fails.
+    An expression is not evaluated here."""
+    if value is None or value == "false":
+        return False
+    if value == "true":
+        return True
+    raise AssertionError(f"continue-on-error: {value} is not a value this test reads")
+
+
 def job_run(text, failing, event="pull_request"):
     """The named steps the runner starts, in order, and whether the job fails, when each step in
     failing fails. A step that fails fails the job unless it has continue-on-error: true."""
     started, job_failed = [], False
     for name in step_names(text):
         lines = step(text, name)
+        survives = continues_on_error(step_value(lines, "continue-on-error"))
         if not step_starts(step_value(lines, "if"), job_failed, event):
             continue
         started.append(name)
-        if name in failing and step_value(lines, "continue-on-error") != "true":
+        if name in failing and not survives:
             job_failed = True
     return started, job_failed
 
@@ -291,6 +308,20 @@ class MinimumScore(unittest.TestCase):
                     self.assertNotIn("below minimum", result.stdout)
                     self.assertEqual(result.stderr, "")
 
+    def test_minimum_in_more_than_three_digits_fails_the_check_and_names_the_limit(self):
+        # "must be 100 or less" does not fit 0060, which is 60.
+        script = run_script(self.step)
+        for minimum in OVER_THREE_DIGITS:
+            for score, reason in (("49", ""), ("100", ""), ("", "no-governance-file")):
+                with self.subTest(minimum=minimum, score=score, reason=reason):
+                    result = check_result(script, score, minimum, reason)
+                    self.assertEqual(result.returncode, 1)
+                    self.assertEqual(
+                        result.stdout,
+                        f"MIN_GOVERNANCE_SCORE must be from 0 to 100 in at most three digits, got '{minimum}'\n",
+                    )
+                    self.assertEqual(result.stderr, "")
+
     def test_check_reads_the_gate_reason_of_the_scan(self):
         self.assertEqual(step_env(self.step).get("REASON"), "${{ steps.scan.outputs.reason }}")
 
@@ -381,6 +412,13 @@ class ScanResultArtifact(unittest.TestCase):
         self.assertIn(COMMENT_STEP, started)
         self.assertIn(CHECK_STEP, started)
         self.assertFalse(job_failed, f'a failed "{self.upload_name}" step fails the job')
+
+    def test_upload_with_continue_on_error_written_as_an_expression_is_reported(self):
+        # The test above reads the literal `true` only; an expression is not evaluated here.
+        changed = self.text.replace("        continue-on-error: true\n", "        continue-on-error: ${{ true }}\n")
+        self.assertNotEqual(changed, self.text)
+        with self.assertRaises(AssertionError):
+            job_run(changed, {self.upload_name})
 
     def test_upload_is_after_the_comment_and_the_check_and_runs_when_they_fail(self):
         steps = step_names(self.text)
@@ -511,19 +549,38 @@ class Helpers(unittest.TestCase):
             (["Keep scan result", "Check minimum score"], False),
         )
 
-    def test_failed_step_with_continue_on_error_does_not_fail_the_job(self):
-        text = self.UPLOAD_FIRST.replace(
+    def with_continue_on_error(self, value):
+        """UPLOAD_FIRST with continue-on-error: value on the upload step."""
+        return self.UPLOAD_FIRST.replace(
             "        uses: actions/upload-artifact@v4\n",
-            "        continue-on-error: true\n        uses: actions/upload-artifact@v4\n",
+            f"        continue-on-error: {value}\n        uses: actions/upload-artifact@v4\n",
         )
+
+    def test_failed_step_with_continue_on_error_does_not_fail_the_job(self):
         self.assertEqual(
-            job_run(text, {"Keep scan result"}),
+            job_run(self.with_continue_on_error("true"), {"Keep scan result"}),
             (["Keep scan result", "Comment on PR", "Check minimum score"], False),
         )
 
     def test_condition_the_model_does_not_read_is_reported(self):
         with self.assertRaises(AssertionError):
             step_starts("failure() || github.ref == 'refs/heads/main'", False, "push")
+
+    def test_continue_on_error_the_model_does_not_read_is_reported(self):
+        # An expression is not evaluated here. Read as not set, `${{ true }}` reported a failed job
+        # where the runner reports a passed one.
+        for value in ("${{ true }}", "${{ github.event_name == 'push' }}", "yes", '"true"'):
+            for failing in ({"Keep scan result"}, set()):
+                with self.subTest(value=value, failing=failing):
+                    with self.assertRaises(AssertionError) as raised:
+                        job_run(self.with_continue_on_error(value), failing)
+                    self.assertIn(f"continue-on-error: {value}", str(raised.exception))
+
+    def test_continue_on_error_false_fails_the_job_as_when_it_is_not_set(self):
+        self.assertEqual(
+            job_run(self.with_continue_on_error("false"), {"Keep scan result"}),
+            job_run(self.UPLOAD_FIRST, {"Keep scan result"}),
+        )
 
 
 if __name__ == "__main__":
