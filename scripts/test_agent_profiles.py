@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for the agent profiles as specification.md, scoring.md and README.md state them.
+"""Tests for the agent profiles as specification.md, scoring.md and docs/overview.md state them.
 
 Run from anywhere:  python3 scripts/test_agent_profiles.py
 
@@ -23,7 +23,7 @@ sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parent.parent
 SPECIFICATION = ROOT / "specification.md"
 SCORING = ROOT / "scoring.md"
-README = ROOT / "README.md"
+OVERVIEW = ROOT / "docs" / "overview.md"
 
 TIERS = ("BASIC", "TOOL-USING", "AGENTIC", "MULTI-AGENT")
 TIER_SECTIONS = ("### 3.1 BASIC", "### 3.2 TOOL-USING", "### 3.3 AGENTIC", "### 3.4 MULTI-AGENT")
@@ -150,10 +150,10 @@ class ScoresNameTierAndProfile(unittest.TestCase):
     def test_scoring_document_names_tier_and_profile(self):
         self.assertRegex(SCORING.read_text(encoding="utf-8"), NAMES_TIER_AND_PROFILE)
 
-    def test_readme_names_tier_and_profile(self):
-        readme = README.read_text(encoding="utf-8")
-        self.assertRegex(section(readme, "## Agent Tiers") or "", r"Section 3\.6")
-        self.assertRegex(section(readme, "## Scoring") or "", NAMES_TIER_AND_PROFILE)
+    def test_overview_names_tier_and_profile(self):
+        overview = OVERVIEW.read_text(encoding="utf-8")
+        self.assertRegex(section(overview, "## Agent Tiers") or "", r"Section 3\.6")
+        self.assertRegex(section(overview, "## Scoring") or "", NAMES_TIER_AND_PROFILE)
 
     def test_a_score_without_its_profile_is_reported(self):
         self.assertNotRegex("A published score names the tier it was measured under.", NAMES_TIER_AND_PROFILE)

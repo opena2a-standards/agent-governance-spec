@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""Tests for the command blocks in README.md, its statement of scope and its domain table, the
-scan-soul JSON sample and the minimum scores in integrations/README.md, the conformance badge URLs
-in README.md, integrations/README.md and conformance.md, the score thresholds those three files
-name, the list of example files in examples/README.md, and the scripts the repository structure
-in README.md lists.
+"""Tests for the command blocks in README.md, its statement of scope and its domain table (with the
+docs pages that took its reference text), the scan-soul JSON sample and the minimum scores in
+integrations/README.md, the conformance badge URLs in docs/ci.md, integrations/README.md and
+conformance.md, the score thresholds those files and the README pages name, the list of example
+files in examples/README.md, and the scripts the repository structure in CONTRIBUTING.md lists.
 
 Run from anywhere:  python3 scripts/test_readme.py
 
-Standard library only. The tests read README.md, integrations/README.md, conformance.md,
-specification.md, templates/tool-using.md, the files under examples/ and the names of the
-scripts under scripts/, and write nothing.
+Standard library only. The tests read README.md, docs/overview.md, docs/related-work.md,
+docs/ci.md, CONTRIBUTING.md, integrations/README.md, conformance.md, specification.md,
+templates/tool-using.md, the files under examples/ and the names of the scripts under scripts/,
+and write nothing.
 """
 
 import fnmatch
@@ -22,9 +23,17 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 
 README = Path(__file__).resolve().parent.parent / "README.md"
+# The docs pages that took the README's reference text; a test of the README's prose reads them with it.
+OVERVIEW = README.parent / "docs" / "overview.md"
+RELATED_WORK = README.parent / "docs" / "related-work.md"
+CI_DOC = README.parent / "docs" / "ci.md"
+README_PAGES = (README, OVERVIEW, RELATED_WORK, CI_DOC)
+# The repository structure block moved from README.md to CONTRIBUTING.md.
+CONTRIBUTING = README.parent / "CONTRIBUTING.md"
 INTEGRATIONS = README.parent / "integrations" / "README.md"
 CONFORMANCE_DOC = README.parent / "conformance.md"
-BADGE_DOCS = (README, INTEGRATIONS, CONFORMANCE_DOC)
+BADGE_DOCS = (CI_DOC, INTEGRATIONS, CONFORMANCE_DOC)
+SCORE_DOCS = README_PAGES + (INTEGRATIONS, CONFORMANCE_DOC)
 BADGE_URL = re.compile(r"https://img\.shields\.io/badge/([^)\s`?]+)")
 LEVELS = ("Essential", "Standard", "Hardened")
 # A score with a conformance level as its label: "40 (Essential)", "`--fail-below 40` (Essential)".
@@ -338,7 +347,7 @@ class ConformanceBadges(unittest.TestCase):
 
 class ScoreThresholds(unittest.TestCase):
     def test_no_score_is_labelled_as_a_conformance_level(self):
-        for path in BADGE_DOCS:
+        for path in SCORE_DOCS:
             name = path.relative_to(README.parent).as_posix()
             with self.subTest(file=name):
                 self.assertEqual(score_level_labels(path.read_text(encoding="utf-8")), [])
@@ -364,8 +373,10 @@ class RuntimeEnforcementScope(unittest.TestCase):
         self.assertIn(RUNTIME_EXCLUDED, SPECIFICATION.read_text(encoding="utf-8"))
 
     def test_readme_does_not_claim_runtime_enforcement(self):
-        text = README.read_text(encoding="utf-8")
-        self.assertEqual([m.group(0) for m in RUNTIME_CLAIM.finditer(text)], [])
+        for path in README_PAGES:
+            with self.subTest(file=path.relative_to(README.parent).as_posix()):
+                text = path.read_text(encoding="utf-8")
+                self.assertEqual([m.group(0) for m in RUNTIME_CLAIM.finditer(text)], [])
 
     def test_a_runtime_enforcement_claim_is_reported(self):
         claims = (
@@ -379,13 +390,13 @@ class RuntimeEnforcementScope(unittest.TestCase):
 
 class HardenSoulDescriptions(unittest.TestCase):
     def setUp(self):
-        self.text = README.read_text(encoding="utf-8")
+        self.lines = [line for path in README_PAGES for line in harden_soul_descriptions(path.read_text(encoding="utf-8"))]
 
     def test_readme_describes_harden_soul(self):
-        self.assertGreaterEqual(len(harden_soul_descriptions(self.text)), 3)
+        self.assertGreaterEqual(len(self.lines), 3)
 
     def test_no_description_promises_prompts(self):
-        for line in harden_soul_descriptions(self.text):
+        for line in self.lines:
             with self.subTest(line=line):
                 self.assertIsNone(PROMPT_CLAIM.search(line))
 
@@ -464,7 +475,9 @@ class ReversibilityTier(unittest.TestCase):
         self.assertEqual(matrix_tiers(spec, REVERSIBILITY_CONTROL), ["MULTI-AGENT"])
 
     def test_readme_names_the_tier_where_it_names_reversibility(self):
-        self.assertEqual(untiered_reversibility(README.read_text(encoding="utf-8")), [])
+        for path in README_PAGES:
+            with self.subTest(file=path.relative_to(README.parent).as_posix()):
+                self.assertEqual(untiered_reversibility(path.read_text(encoding="utf-8")), [])
 
     def test_line_without_the_tier_is_reported(self):
         line = "| Agentic Safety | 16 | 10 | Iteration limits, budget caps, timeouts, reversibility |"
@@ -516,9 +529,9 @@ class SpecificationEntry(unittest.TestCase):
         spec = SPECIFICATION.read_text(encoding="utf-8")
         self.version = SPEC_VERSION.search(spec).group(1)
         self.status = SPEC_STATUS.search(spec).group(1)
-        self.entries = specification_entries(README.read_text(encoding="utf-8"))
+        self.entries = specification_entries(CONTRIBUTING.read_text(encoding="utf-8"))
 
-    def test_readme_lists_specification_once(self):
+    def test_repository_structure_lists_specification_once(self):
         self.assertEqual(1, len(self.entries))
 
     def test_entry_names_the_specification_version_and_status(self):
@@ -538,7 +551,7 @@ class ScriptsEntries(unittest.TestCase):
     lists nothing that matches no script."""
 
     def setUp(self):
-        self.entries = script_entries(README.read_text(encoding="utf-8"))
+        self.entries = script_entries(CONTRIBUTING.read_text(encoding="utf-8"))
         self.files = sorted(path.name for path in SCRIPTS.glob("*.py"))
 
     def test_every_script_is_listed(self):
