@@ -21,7 +21,7 @@ npx hackmyagent scan-soul
 # 3. Review the report and fill any gaps
 ```
 
-`harden-soul` creates `SOUL.md` in the current directory, or appends the missing sections to it. `scan-soul` exits 0 when the file meets the Essential level, 1 when a CRITICAL control is not detected, and 2 when there is nothing to measure (no governance file, or one that is empty or unreadable).
+`scan-soul` exits 0 when the file meets the Essential level, 1 when a CRITICAL control is not detected, and 2 when there is nothing to measure (no governance file, or one that is empty or unreadable).
 
 Or start from a template:
 
