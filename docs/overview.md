@@ -88,7 +88,7 @@ See [scoring.md](../scoring.md) for the full scoring methodology with worked exa
 **For teams**:
 1. Add `scan-soul` to the CI pipeline with `--fail-below 40` to keep grade C or better. Without the flag, the scanner already fails the job when a CRITICAL control is missing. A passing job does not show the Essential level: Essential also requires at least 500 characters of content and at least 3 section headings ([specification.md](../specification.md) section 2.3), and hackmyagent 0.33.2 checks neither (it exits 0 on a 114-byte `SOUL.md` with three headings, and on a 79-byte one with none), so check those two in the file itself
 2. Adopt SOUL.md as a required file alongside README.md
-3. Raise the threshold over time: 60 is the minimum score for Standard and 75 for Hardened. Each level also names the controls that must pass, so read the level from the `conformance` field of the `--json` output
+3. Raise the threshold over time: 60 is the minimum score for Standard and 75 for Hardened. Each level also names the controls that must pass. The `conformance` field of the `--json` output does not show a level by itself: every level requires at least 500 characters of content and at least 3 section headings ([specification.md](../specification.md) section 2.3), and hackmyagent 0.33.2 reports `essential` there for a 79-byte `SOUL.md` with no headings, so read the field together with those two counts taken from the file itself
 
 **For organizations**:
 1. Set minimum OASB-2 conformance level per agent risk tier

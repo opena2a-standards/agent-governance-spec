@@ -43,7 +43,7 @@ OASB-2 can be used independently for governance-only assessment, or as part of t
 | **Control** | A specific, testable governance requirement (e.g., "Trust chain is defined") |
 | **Domain** | A thematic grouping of related controls (e.g., "Trust Hierarchy") |
 | **Tier** | An agent capability classification (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT) that determines which controls apply |
-| **Conformance level** | A certification threshold (Essential, Standard, Hardened) based on which controls pass |
+| **Conformance level** | A certification threshold (Essential, Standard, Hardened) defined in Section 7. Every level requires a governance file valid under Section 2.3 and the passing of the controls the level names; Standard also requires an overall score of at least 60, and Hardened at least 75 |
 | **Principal** | An entity whose instructions the agent follows (developer, operator, user) |
 | **Operator** | The entity that deploys and configures the agent for end users |
 | **System prompt** | Instructions provided to the agent at initialization, typically by the operator |

@@ -773,6 +773,28 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `integrations/README.md` that names the Essential level and gives a
   level's requirement as a CRITICAL control or as which controls must pass
   also names that minimum and section 2.3. (#129)
+- The `docs/overview.md` Adoption Path said to read the conformance level
+  from the `conformance` field of the `scan-soul --json` output. That field
+  does not show a level by itself: `scan-soul --json` of hackmyagent 0.33.2
+  exits 0 with `conformance` `essential` on a 79-byte `SOUL.md` with no
+  headings, and every level requires at least 500 characters of content
+  and at least 3 section headings (`specification.md` section 2.3). The
+  step now names that minimum and the 79-byte run, and says to read the
+  field together with the two counts taken from the file. Tests in
+  `scripts/test_readme.py` check that a prose line in README.md, the pages
+  under `docs/`, `integrations/README.md` or `conformance.md` that names the
+  `conformance` field, key or value also names that minimum and section
+  2.3. (#131)
+- The terminology table of `specification.md` section 1.4 defined a
+  conformance level as a threshold "based on which controls pass", while
+  section 7 also requires a governance file valid under section 2.3 at
+  every level, and an overall score of at least 60 for Standard and at
+  least 75 for Hardened. The definition now names section 7, the
+  governance file valid under section 2.3, the controls the level names,
+  and those two scores. Tests in `scripts/test_readme.py` read the
+  definition from the table and check that it names section 2.3, controls
+  and an overall score, and that the scores it gives are the ones section
+  7 sets for Standard and Hardened. (#132)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

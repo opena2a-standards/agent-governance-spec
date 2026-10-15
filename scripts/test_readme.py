@@ -4,7 +4,8 @@ docs pages that took its reference text), the scan-soul JSON sample and the mini
 integrations/README.md, what those pages say scan-soul exit code 0 means and the controls they say
 the Essential level requires, the conformance badge URLs in docs/ci.md, integrations/README.md and
 conformance.md, the requirements the level table of conformance.md and section 7 of
-specification.md give each level, the score
+specification.md give each level, the definition of a conformance level in the terminology table
+of specification.md section 1.4, the score
 thresholds those files and the README pages name, the list of example
 files in examples/README.md, and the scripts the repository structure in CONTRIBUTING.md lists.
 
@@ -125,6 +126,10 @@ MINIMUM_HEADINGS = re.compile(r"^- \*\*Structure\*\*: At least (\d+) distinct se
 # A requirement of a conformance level given as controls: "when a CRITICAL control is missing",
 # "which controls must pass".
 CONTROL_REQUIREMENT = re.compile(r"\bCRITICAL controls?\b|\bcontrols must pass\b")
+# The `conformance` value of `scan-soul --json`, named as a field or key ("read the level from the
+# `conformance` field"). hackmyagent 0.33.2 reports "essential" there for a 79-byte SOUL.md with no
+# headings, below the minimum of specification.md section 2.3 that every level requires.
+CONFORMANCE_FIELD = re.compile(r"`conformance` (?:field|key|value)\b")
 # The level table of conformance.md: one row per level, its Requirements cell second.
 LEVEL_TABLE_HEADER = "| Level | Requirements | Typical Use Case |"
 LEVEL_ROW = re.compile(r"^\| \*\*(" + "|".join(LEVELS) + r")\*\* \| ([^|\n]+) \|", re.MULTILINE)
@@ -132,6 +137,17 @@ LEVEL_ROW = re.compile(r"^\| \*\*(" + "|".join(LEVELS) + r")\*\* \| ([^|\n]+) \|
 SPEC_LEVEL = re.compile(
     r"^### 7\.\d+ (" + "|".join(LEVELS) + r")\n\n\*\*Requirements\*\*:\n((?:- [^\n]*\n)+)", re.MULTILINE
 )
+# The minimum overall score a level subsection of specification.md section 7 requires.
+SPEC_LEVEL_SCORE = re.compile(r"\bOverall score MUST be >= (\d+)")
+# The terminology table of specification.md section 1.4: one row per term, its definition second.
+TERMINOLOGY_SECTION = "### 1.4 Terminology"
+TERM_ROW = re.compile(r"^\| \*\*([^*\n]+)\*\* \| ([^|\n]+) \|", re.MULTILINE)
+LEVEL_TERM = "Conformance level"
+# What section 7 makes a conformance level depend on: a governance file valid under section 2.3,
+# the controls that pass and, for Standard and Hardened, the overall score.
+LEVEL_INPUTS = ("Section 2.3", "controls", "overall score")
+# A minimum score the definition of a conformance level names: "at least 60".
+DEFINITION_SCORE = re.compile(r"\bat least (\d+)\b")
 
 
 def command_blocks(text):
@@ -356,6 +372,18 @@ def essential_controls_without_minimum(text, minimum):
     ]
 
 
+def conformance_field_without_minimum(text, minimum):
+    """Each prose line of text, outside code blocks, that names the `conformance` field of the
+    scanner's JSON output without naming the minimum length and heading count of specification.md
+    section 2.3, which every level requires and the scanner does not check."""
+    characters, headings = minimum
+    named = (f"{characters} characters", f"{headings} section headings", "section 2.3")
+    return [
+        line.strip() for line in FENCE.sub("", text).splitlines()
+        if CONFORMANCE_FIELD.search(line) and not all(part in line for part in named)
+    ]
+
+
 def level_requirements(text):
     """The Requirements cell of each row of the level table in text, by level."""
     start = text.find(LEVEL_TABLE_HEADER)
@@ -372,6 +400,32 @@ def specification_level_requirements(spec):
         level: " ".join(line[2:] for line in items.splitlines())
         for level, items in SPEC_LEVEL.findall(spec)
     }
+
+
+def level_scores(requirements):
+    """The minimum overall score of each level whose section 7 requirements give one, by level."""
+    scores = {}
+    for level, text in requirements.items():
+        match = SPEC_LEVEL_SCORE.search(text)
+        if match:
+            scores[level] = int(match.group(1))
+    return scores
+
+
+def terminology(spec):
+    """The definition of each term in the terminology table of specification.md section 1.4 in
+    spec, by term."""
+    start = spec.find(TERMINOLOGY_SECTION)
+    if start < 0:
+        return {}
+    body = re.split(r"^#", spec[start + len(TERMINOLOGY_SECTION):], maxsplit=1, flags=re.MULTILINE)[0]
+    return {term: definition.strip() for term, definition in TERM_ROW.findall(body)}
+
+
+def level_definition_gaps(definition):
+    """Each input of a conformance level in section 7 (LEVEL_INPUTS) that definition leaves out,
+    and so lets a reader of the terminology table take the level to depend on the rest alone."""
+    return [part for part in LEVEL_INPUTS if part not in definition]
 
 
 def levels_without_minimum(requirements, minimum, section="section 2.3"):
@@ -734,6 +788,48 @@ class EssentialControlsAndMinimum(unittest.TestCase):
         self.assertEqual(essential_controls_without_minimum(text, (500, 3)), [])
 
 
+class ConformanceFieldAndMinimum(unittest.TestCase):
+    """The `conformance` field of `scan-soul --json` does not show a level by itself: hackmyagent
+    0.33.2 sets it to "essential" for a 79-byte SOUL.md with no headings, and every level requires
+    the minimum of specification.md section 2.3. So a line that points the reader to that field
+    names the minimum too."""
+
+    def setUp(self):
+        self.minimum = minimum_viable(SPECIFICATION.read_text(encoding="utf-8"))
+
+    def test_no_page_names_the_field_without_the_minimum(self):
+        for path in SCORE_DOCS:
+            with self.subTest(file=path.relative_to(README.parent).as_posix()):
+                self.assertEqual(
+                    conformance_field_without_minimum(path.read_text(encoding="utf-8"), self.minimum), []
+                )
+
+    def test_line_that_reads_the_level_from_the_field_is_reported(self):
+        field = (
+            "3. Raise the threshold over time: 60 is the minimum score for Standard and 75 for Hardened. Each"
+            " level also names the controls that must pass, so read the level from the `conformance` field of"
+            " the `--json` output"
+        )
+        key = "The `conformance` key of the JSON output is the conformance level of the file."
+        for line in (field, key):
+            with self.subTest(line=line):
+                self.assertEqual(conformance_field_without_minimum(line + "\n", (500, 3)), [line])
+
+    def test_line_that_names_the_minimum_is_not_reported(self):
+        line = (
+            "The `conformance` field does not check at least 500 characters and at least 3 section headings"
+            " (section 2.3), so count those in the file."
+        )
+        self.assertEqual(conformance_field_without_minimum(line + "\n", (500, 3)), [])
+
+    def test_table_key_and_code_block_are_not_read(self):
+        text = (
+            "| `conformance` | `none`, `essential`, `standard` or `hardened`, in lower case. |\n"
+            "```text\nread the level from the `conformance` field\n```\n"
+        )
+        self.assertEqual(conformance_field_without_minimum(text, (500, 3)), [])
+
+
 class LevelTableMinimum(unittest.TestCase):
     """Level 1 requirement 1 of conformance.md makes the minimum of specification.md section 2.3
     part of Essential, and Standard and Hardened include every requirement of the level below, so
@@ -830,6 +926,44 @@ class SpecificationLevelMinimum(unittest.TestCase):
     def test_lists_outside_section_7_are_not_read(self):
         text = "### 6.1 Essential\n\n**Requirements**:\n- At least 500 characters\n"
         self.assertEqual(specification_level_requirements(text), {})
+
+
+class TerminologyLevelDefinition(unittest.TestCase):
+    """Section 7 of specification.md makes every conformance level require a governance file valid
+    under section 2.3 and the passing of the controls the level names, and Standard and Hardened
+    also a minimum overall score, so the definition of the term in the terminology table of
+    section 1.4 names all three, and the scores it names are the ones section 7 sets."""
+
+    OLD_ROW = (
+        "| **Conformance level** | A certification threshold (Essential, Standard, Hardened)"
+        " based on which controls pass |\n"
+    )
+
+    def setUp(self):
+        spec = SPECIFICATION.read_text(encoding="utf-8")
+        self.definition = terminology(spec).get(LEVEL_TERM, "")
+        self.scores = level_scores(specification_level_requirements(spec))
+
+    def test_terminology_defines_a_conformance_level(self):
+        self.assertNotEqual(self.definition, "")
+
+    def test_definition_names_the_file_the_controls_and_the_score(self):
+        self.assertEqual(level_definition_gaps(self.definition), [])
+
+    def test_definition_gives_the_scores_of_section_7(self):
+        self.assertEqual(set(self.scores), {"Standard", "Hardened"})
+        self.assertEqual(
+            [int(score) for score in DEFINITION_SCORE.findall(self.definition)],
+            [self.scores["Standard"], self.scores["Hardened"]],
+        )
+
+    def test_definition_by_controls_alone_is_reported(self):
+        terms = terminology(TERMINOLOGY_SECTION + "\n\n| Term | Definition |\n|------|-----------|\n" + self.OLD_ROW)
+        self.assertEqual(level_definition_gaps(terms[LEVEL_TERM]), ["Section 2.3", "overall score"])
+
+    def test_rows_outside_section_1_4_are_not_read(self):
+        text = TERMINOLOGY_SECTION + "\n\n| **Control** | A requirement |\n\n## 2. Next\n\n" + self.OLD_ROW
+        self.assertEqual(terminology(text), {"Control": "A requirement"})
 
 
 class ReversibilityTier(unittest.TestCase):
