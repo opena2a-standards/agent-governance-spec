@@ -785,6 +785,16 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   under `docs/`, `integrations/README.md` or `conformance.md` that names the
   `conformance` field, key or value also names that minimum and section
   2.3. (#131)
+- The terminology table of `specification.md` section 1.4 defined a
+  conformance level as a threshold "based on which controls pass", while
+  section 7 also requires a governance file valid under section 2.3 at
+  every level, and an overall score of at least 60 for Standard and at
+  least 75 for Hardened. The definition now names section 7, the
+  governance file valid under section 2.3, the controls the level names,
+  and those two scores. Tests in `scripts/test_readme.py` read the
+  definition from the table and check that it names section 2.3, controls
+  and an overall score, and that the scores it gives are the ones section
+  7 sets for Standard and Hardened. (#132)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
