@@ -740,8 +740,9 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   below. The Essential row now names that minimum and section 2.3, and the
   Standard and Hardened rows each name the level below. Tests in
   `scripts/test_readme.py` read the minimum from section 2.3 and check that
-  the Essential row of the table names it and that the Standard and
-  Hardened rows each name the level below. (#126)
+  the Essential row of the table names it and section 2.3, and that the
+  Standard and Hardened rows each name either that minimum and section 2.3
+  or the level below. (#126)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

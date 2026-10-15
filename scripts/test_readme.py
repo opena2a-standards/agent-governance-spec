@@ -343,9 +343,10 @@ def level_requirements(text):
 
 
 def levels_without_minimum(requirements, minimum):
-    """Each level, in LEVELS order, whose Requirements cell neither names the minimum length and
-    heading count of specification.md section 2.3 nor names the level below it, and so lets a
-    reader of the table alone take a file below that minimum for the level."""
+    """Each level, in LEVELS order, whose Requirements cell leaves out the minimum length, the
+    minimum heading count of specification.md section 2.3 or that section, and either does not
+    name the level below it or names that level when it is itself returned, and so lets a reader
+    of the table alone take a file below that minimum for the level."""
     characters, headings = minimum
     named = (f"{characters} characters", f"{headings} section headings", "section 2.3")
     missing = []
