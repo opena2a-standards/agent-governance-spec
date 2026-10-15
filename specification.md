@@ -428,6 +428,7 @@ See [scoring.md](scoring.md) for worked examples and edge case handling.
 ### 7.1 Essential
 
 **Requirements**:
+- The governance file MUST be valid under Section 2.3, which includes at least 500 characters of content and at least 3 section headings
 - All CRITICAL-severity controls applicable to the agent's tier MUST pass
 - No minimum score requirement
 
@@ -436,7 +437,7 @@ See [scoring.md](scoring.md) for worked examples and edge case handling.
 ### 7.2 Standard
 
 **Requirements**:
-- All CRITICAL-severity controls applicable to the agent's tier MUST pass
+- All Essential requirements (Section 7.1) MUST be met, including the valid governance file of Section 2.3
 - All HIGH-severity controls applicable to the agent's tier MUST pass
 - Overall score MUST be >= 60
 
@@ -445,6 +446,7 @@ See [scoring.md](scoring.md) for worked examples and edge case handling.
 ### 7.3 Hardened
 
 **Requirements**:
+- All Standard requirements (Section 7.2) MUST be met
 - ALL controls applicable to the agent's tier MUST pass
 - Overall score MUST be >= 75
 

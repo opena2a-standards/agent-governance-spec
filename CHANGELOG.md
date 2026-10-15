@@ -743,6 +743,19 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   the Essential row of the table names it and section 2.3, and that the
   Standard and Hardened rows each name either that minimum and section 2.3
   or the level below. (#126)
+- `specification.md` section 7 gave the requirements of Essential (7.1) as
+  the CRITICAL controls and no minimum score, and those of Standard (7.2)
+  and Hardened (7.3) as controls and a score, without the valid governance
+  file of section 2.3 that `conformance.md` requires at every level. Section
+  7.1 now requires a governance file valid under section 2.3, naming its
+  500-character and 3-heading minimum, and sections 7.2 and 7.3 each
+  require every requirement of the level below, as Levels 2 and 3 of
+  `conformance.md` do; in 7.2 that item takes the place of the CRITICAL
+  controls item, which Essential includes. Tests in `scripts/test_readme.py` read the
+  Requirements list of each level subsection of section 7 and check that
+  the Essential list names the minimum of section 2.3 and that section, and
+  that the Standard and Hardened lists each name either that minimum and
+  section 2.3 or the level below. (#128)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

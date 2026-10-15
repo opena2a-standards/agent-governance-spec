@@ -2,7 +2,8 @@
 """Tests for the command blocks in README.md, its statement of scope and its domain table (with the
 docs pages that took its reference text), the scan-soul JSON sample and the minimum scores in
 integrations/README.md, what those pages say scan-soul exit code 0 means, the conformance badge URLs in docs/ci.md, integrations/README.md and
-conformance.md, the requirements the level table of conformance.md gives each level, the score
+conformance.md, the requirements the level table of conformance.md and section 7 of
+specification.md give each level, the score
 thresholds those files and the README pages name, the list of example
 files in examples/README.md, and the scripts the repository structure in CONTRIBUTING.md lists.
 
@@ -123,6 +124,10 @@ MINIMUM_HEADINGS = re.compile(r"^- \*\*Structure\*\*: At least (\d+) distinct se
 # The level table of conformance.md: one row per level, its Requirements cell second.
 LEVEL_TABLE_HEADER = "| Level | Requirements | Typical Use Case |"
 LEVEL_ROW = re.compile(r"^\| \*\*(" + "|".join(LEVELS) + r")\*\* \| ([^|\n]+) \|", re.MULTILINE)
+# The Requirements list of a level subsection of specification.md section 7: one item per line.
+SPEC_LEVEL = re.compile(
+    r"^### 7\.\d+ (" + "|".join(LEVELS) + r")\n\n\*\*Requirements\*\*:\n((?:- [^\n]*\n)+)", re.MULTILINE
+)
 
 
 def command_blocks(text):
@@ -342,13 +347,22 @@ def level_requirements(text):
     return {level: cell.strip() for level, cell in LEVEL_ROW.findall(table)}
 
 
-def levels_without_minimum(requirements, minimum):
+def specification_level_requirements(spec):
+    """The items of the Requirements list of each level subsection of section 7 in spec, joined
+    by spaces, by level."""
+    return {
+        level: " ".join(line[2:] for line in items.splitlines())
+        for level, items in SPEC_LEVEL.findall(spec)
+    }
+
+
+def levels_without_minimum(requirements, minimum, section="section 2.3"):
     """Each level, in LEVELS order, whose Requirements cell leaves out the minimum length, the
-    minimum heading count of specification.md section 2.3 or that section, and either does not
-    name the level below it or names that level when it is itself returned, and so lets a reader
-    of the table alone take a file below that minimum for the level."""
+    minimum heading count of specification.md section 2.3 or that section (written as section),
+    and either does not name the level below it or names that level when it is itself returned,
+    and so lets a reader of the table alone take a file below that minimum for the level."""
     characters, headings = minimum
-    named = (f"{characters} characters", f"{headings} section headings", "section 2.3")
+    named = (f"{characters} characters", f"{headings} section headings", section)
     missing = []
     for index, level in enumerate(LEVELS):
         cell = requirements.get(level, "")
@@ -699,6 +713,57 @@ class LevelTableMinimum(unittest.TestCase):
     def test_rows_after_the_table_are_not_read(self):
         text = self.OLD_TABLE + "\nText.\n\n| **Essential** | Another table |\n"
         self.assertEqual(level_requirements(text)["Essential"], "All CRITICAL controls pass")
+
+
+class SpecificationLevelMinimum(unittest.TestCase):
+    """Section 7 of specification.md lists the requirements of each conformance level. Essential
+    requires the minimum of section 2.3 (conformance.md, Level 1 requirement 1), and Standard and
+    Hardened include every requirement of the level below, so the Essential list names that
+    minimum and Section 2.3, and the Standard and Hardened lists each name the level below."""
+
+    OLD_SECTION = (
+        "## 7. Conformance Levels\n\n"
+        "### 7.1 Essential\n\n**Requirements**:\n"
+        "- All CRITICAL-severity controls applicable to the agent's tier MUST pass\n"
+        "- No minimum score requirement\n\n"
+        "### 7.2 Standard\n\n**Requirements**:\n"
+        "- All CRITICAL-severity controls applicable to the agent's tier MUST pass\n"
+        "- All HIGH-severity controls applicable to the agent's tier MUST pass\n"
+        "- Overall score MUST be >= 60\n\n"
+        "### 7.3 Hardened\n\n**Requirements**:\n"
+        "- ALL controls applicable to the agent's tier MUST pass\n"
+        "- Overall score MUST be >= 75\n\n"
+    )
+
+    def setUp(self):
+        spec = SPECIFICATION.read_text(encoding="utf-8")
+        self.minimum = minimum_viable(spec)
+        self.requirements = specification_level_requirements(spec)
+
+    def test_section_7_has_a_list_for_each_level(self):
+        self.assertEqual(tuple(self.requirements), LEVELS)
+
+    def test_each_level_of_section_7_carries_the_minimum(self):
+        self.assertEqual(levels_without_minimum(self.requirements, self.minimum, "Section 2.3"), [])
+
+    def test_section_that_gives_only_controls_and_scores_is_reported(self):
+        requirements = specification_level_requirements(self.OLD_SECTION)
+        self.assertEqual(levels_without_minimum(requirements, (500, 3), "Section 2.3"), list(LEVELS))
+
+    def test_list_items_are_joined_and_text_after_the_list_is_not_read(self):
+        text = (
+            "### 7.1 Essential\n\n**Requirements**:\n"
+            "- At least 500 characters\n- and 3 section headings\n\n"
+            "**Interpretation**: Section 2.3.\n"
+        )
+        self.assertEqual(
+            specification_level_requirements(text),
+            {"Essential": "At least 500 characters and 3 section headings"},
+        )
+
+    def test_lists_outside_section_7_are_not_read(self):
+        text = "### 6.1 Essential\n\n**Requirements**:\n- At least 500 characters\n"
+        self.assertEqual(specification_level_requirements(text), {})
 
 
 class ReversibilityTier(unittest.TestCase):
