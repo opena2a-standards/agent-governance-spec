@@ -2,7 +2,8 @@
 """Tests for the command blocks in README.md, its statement of scope and its domain table (with the
 docs pages that took its reference text), the scan-soul JSON sample and the minimum scores in
 integrations/README.md, what those pages say scan-soul exit code 0 means, the conformance badge URLs in docs/ci.md, integrations/README.md and
-conformance.md, the score thresholds those files and the README pages name, the list of example
+conformance.md, the requirements the level table of conformance.md gives each level, the score
+thresholds those files and the README pages name, the list of example
 files in examples/README.md, and the scripts the repository structure in CONTRIBUTING.md lists.
 
 Run from anywhere:  python3 scripts/test_readme.py
@@ -119,6 +120,9 @@ EXIT_0 = re.compile(r"\bexits? `?0`? when\b|^- `0`:")
 MINIMUM_SECTION = "### 2.3 Minimum Viable Governance File"
 MINIMUM_LENGTH = re.compile(r"^- \*\*Length\*\*: At least (\d+) characters\b", re.MULTILINE)
 MINIMUM_HEADINGS = re.compile(r"^- \*\*Structure\*\*: At least (\d+) distinct section headings\b", re.MULTILINE)
+# The level table of conformance.md: one row per level, its Requirements cell second.
+LEVEL_TABLE_HEADER = "| Level | Requirements | Typical Use Case |"
+LEVEL_ROW = re.compile(r"^\| \*\*(" + "|".join(LEVELS) + r")\*\* \| ([^|\n]+) \|", re.MULTILINE)
 
 
 def command_blocks(text):
@@ -327,6 +331,31 @@ def unqualified_exit_0(text, minimum):
         line for line in exit_0_statements(text)
         if "Essential" in line and not all(part in line for part in named)
     ]
+
+
+def level_requirements(text):
+    """The Requirements cell of each row of the level table in text, by level."""
+    start = text.find(LEVEL_TABLE_HEADER)
+    if start < 0:
+        return {}
+    table = re.split(r"\n(?!\|)", text[start:], maxsplit=1)[0]
+    return {level: cell.strip() for level, cell in LEVEL_ROW.findall(table)}
+
+
+def levels_without_minimum(requirements, minimum):
+    """Each level, in LEVELS order, whose Requirements cell neither names the minimum length and
+    heading count of specification.md section 2.3 nor names the level below it, and so lets a
+    reader of the table alone take a file below that minimum for the level."""
+    characters, headings = minimum
+    named = (f"{characters} characters", f"{headings} section headings", "section 2.3")
+    missing = []
+    for index, level in enumerate(LEVELS):
+        cell = requirements.get(level, "")
+        below = LEVELS[index - 1] if index else None
+        inherits = below is not None and below not in missing and below in cell
+        if not (inherits or all(part in cell for part in named)):
+            missing.append(level)
+    return missing
 
 
 class TemplateScans(unittest.TestCase):
@@ -622,6 +651,53 @@ class ExitZeroAndEssential(unittest.TestCase):
             "### 2.4 Next\n\n- **Length**: At least 1 characters\n"
         )
         self.assertEqual(minimum_viable(spec), (800, 4))
+
+
+class LevelTableMinimum(unittest.TestCase):
+    """Level 1 requirement 1 of conformance.md makes the minimum of specification.md section 2.3
+    part of Essential, and Standard and Hardened include every requirement of the level below, so
+    the level table names that minimum in the Essential row and the level below in the others."""
+
+    OLD_TABLE = (
+        LEVEL_TABLE_HEADER + "\n"
+        "|-------|-------------|-----------------|\n"
+        "| **Essential** | All CRITICAL controls pass | Minimum viable governance |\n"
+        "| **Standard** | All CRITICAL and HIGH controls pass, overall score >= 60 | Production agents |\n"
+        "| **Hardened** | All controls pass, overall score >= 75 | Autonomous agents |\n"
+    )
+
+    def setUp(self):
+        self.minimum = minimum_viable(SPECIFICATION.read_text(encoding="utf-8"))
+        self.requirements = level_requirements(CONFORMANCE_DOC.read_text(encoding="utf-8"))
+
+    def test_table_has_a_row_for_each_level(self):
+        self.assertEqual(tuple(self.requirements), LEVELS)
+
+    def test_each_level_of_the_table_carries_the_minimum(self):
+        self.assertEqual(levels_without_minimum(self.requirements, self.minimum), [])
+
+    def test_table_that_gives_only_controls_and_scores_is_reported(self):
+        self.assertEqual(levels_without_minimum(level_requirements(self.OLD_TABLE), (500, 3)), list(LEVELS))
+
+    def test_level_that_names_a_level_without_the_minimum_is_reported(self):
+        requirements = {
+            "Essential": "All CRITICAL controls pass",
+            "Standard": "Every Essential requirement is met, all HIGH controls pass",
+            "Hardened": "Every Standard requirement is met, all controls pass",
+        }
+        self.assertEqual(levels_without_minimum(requirements, (500, 3)), list(LEVELS))
+
+    def test_levels_that_name_the_level_below_are_not_reported(self):
+        requirements = {
+            "Essential": "A file of at least 500 characters and 3 section headings (section 2.3)",
+            "Standard": "Every Essential requirement is met, overall score >= 60",
+            "Hardened": "Every Standard requirement is met, overall score >= 75",
+        }
+        self.assertEqual(levels_without_minimum(requirements, (500, 3)), [])
+
+    def test_rows_after_the_table_are_not_read(self):
+        text = self.OLD_TABLE + "\nText.\n\n| **Essential** | Another table |\n"
+        self.assertEqual(level_requirements(text)["Essential"], "All CRITICAL controls pass")
 
 
 class ReversibilityTier(unittest.TestCase):

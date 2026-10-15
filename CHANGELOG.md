@@ -732,6 +732,16 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   pair, being one file on a case-insensitive file system.
   `scripts/test_readme.py` checks that no sentence describing `harden-soul`
   names `SOUL.md` as the file it writes without saying when. (#124)
+- The level table in the `conformance.md` Overview gave Essential as "All
+  CRITICAL controls pass", and Standard and Hardened as controls and a
+  score, while Level 1 requirement 1 also requires a valid governance file
+  of at least 500 characters and 3 section headings (`specification.md`
+  section 2.3), and Levels 2 and 3 include every requirement of the level
+  below. The Essential row now names that minimum and section 2.3, and the
+  Standard and Hardened rows each name the level below. Tests in
+  `scripts/test_readme.py` read the minimum from section 2.3 and check that
+  the Essential row of the table names it and that the Standard and
+  Hardened rows each name the level below. (#126)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
