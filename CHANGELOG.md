@@ -756,6 +756,23 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   the Essential list names the minimum of section 2.3 and that section, and
   that the Standard and Hardened lists each name either that minimum and
   section 2.3 or the level below. (#128)
+- The `docs/overview.md` Adoption Path called the scanner's failure on a
+  missing CRITICAL control "the Essential gate", and its Scoring section
+  gave the conformance levels as "which controls must pass, plus a minimum
+  score". Essential also requires at least 500 characters of content and
+  at least 3 section headings (`specification.md` section 2.3) and sets no
+  minimum score, and hackmyagent 0.33.2 checks neither the length nor the
+  heading count: `scan-soul` exits 0 with `conformance` `essential` on a
+  114-byte `SOUL.md` with three headings, and on a 79-byte one with none.
+  The Adoption Path now says a passing job does not show the Essential
+  level and names that minimum, and the Scoring section gives each level's
+  requirements: that minimum and the CRITICAL controls for Essential, and
+  the HIGH controls and a score of 60 for Standard, and every control and
+  a score of 75 for Hardened. Tests in `scripts/test_readme.py` check that
+  a prose line in README.md, the pages under `docs/` or
+  `integrations/README.md` that names the Essential level and gives a
+  level's requirement as a CRITICAL control or as which controls must pass
+  also names that minimum and section 2.3. (#129)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

@@ -70,7 +70,7 @@ Governance coverage is scored per domain and rolled up into an overall score:
 - **Grade**: A (80-100), B (60-79), C (40-59), D (20-39), F (0-19)
 - **Critical floor**: If any applicable CRITICAL control is missing, the maximum grade is C, regardless of the calculated score. The cap applies to the grade only: the overall score is reported as calculated, so a score of 60 or more can appear beside grade C
 
-Grades measure coverage; they are not the conformance levels. The Essential / Standard / Hardened conformance levels are requirements-based (which controls must pass, plus a minimum score) and are defined in [conformance.md](../conformance.md).
+Grades measure coverage; they are not the conformance levels. The Essential / Standard / Hardened conformance levels are requirements-based and are defined in [conformance.md](../conformance.md): Essential requires a governance file of at least 500 characters of content and at least 3 section headings ([specification.md](../specification.md) section 2.3) in which every applicable CRITICAL control passes, Standard adds every applicable HIGH control and an overall score of at least 60, and Hardened adds every applicable control and an overall score of at least 75.
 
 See [scoring.md](../scoring.md) for the full scoring methodology with worked examples.
 
@@ -86,7 +86,7 @@ See [scoring.md](../scoring.md) for the full scoring methodology with worked exa
 5. Add badge to README ([README Badge](ci.md#readme-badge))
 
 **For teams**:
-1. Add `scan-soul` to the CI pipeline with `--fail-below 40` to keep grade C or better. Without the flag, the scanner already fails the job when a CRITICAL control is missing, which is the Essential gate
+1. Add `scan-soul` to the CI pipeline with `--fail-below 40` to keep grade C or better. Without the flag, the scanner already fails the job when a CRITICAL control is missing. A passing job does not show the Essential level: Essential also requires at least 500 characters of content and at least 3 section headings ([specification.md](../specification.md) section 2.3), and hackmyagent 0.33.2 checks neither (it exits 0 on a 114-byte `SOUL.md` with three headings, and on a 79-byte one with none), so check those two in the file itself
 2. Adopt SOUL.md as a required file alongside README.md
 3. Raise the threshold over time: 60 is the minimum score for Standard and 75 for Hardened. Each level also names the controls that must pass, so read the level from the `conformance` field of the `--json` output
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Tests for the command blocks in README.md, its statement of scope and its domain table (with the
 docs pages that took its reference text), the scan-soul JSON sample and the minimum scores in
-integrations/README.md, what those pages say scan-soul exit code 0 means, the conformance badge URLs in docs/ci.md, integrations/README.md and
+integrations/README.md, what those pages say scan-soul exit code 0 means and the controls they say
+the Essential level requires, the conformance badge URLs in docs/ci.md, integrations/README.md and
 conformance.md, the requirements the level table of conformance.md and section 7 of
 specification.md give each level, the score
 thresholds those files and the README pages name, the list of example
@@ -121,6 +122,9 @@ EXIT_0 = re.compile(r"\bexits? `?0`? when\b|^- `0`:")
 MINIMUM_SECTION = "### 2.3 Minimum Viable Governance File"
 MINIMUM_LENGTH = re.compile(r"^- \*\*Length\*\*: At least (\d+) characters\b", re.MULTILINE)
 MINIMUM_HEADINGS = re.compile(r"^- \*\*Structure\*\*: At least (\d+) distinct section headings\b", re.MULTILINE)
+# A requirement of a conformance level given as controls: "when a CRITICAL control is missing",
+# "which controls must pass".
+CONTROL_REQUIREMENT = re.compile(r"\bCRITICAL controls?\b|\bcontrols must pass\b")
 # The level table of conformance.md: one row per level, its Requirements cell second.
 LEVEL_TABLE_HEADER = "| Level | Requirements | Typical Use Case |"
 LEVEL_ROW = re.compile(r"^\| \*\*(" + "|".join(LEVELS) + r")\*\* \| ([^|\n]+) \|", re.MULTILINE)
@@ -335,6 +339,20 @@ def unqualified_exit_0(text, minimum):
     return [
         line for line in exit_0_statements(text)
         if "Essential" in line and not all(part in line for part in named)
+    ]
+
+
+def essential_controls_without_minimum(text, minimum):
+    """Each prose line of text, outside code blocks, that names the Essential level and gives a
+    level's requirement as controls (a CRITICAL control, or which controls must pass) without
+    naming the minimum length and heading count of specification.md section 2.3, which Essential
+    also requires and the scanner does not check."""
+    characters, headings = minimum
+    named = (f"{characters} characters", f"{headings} section headings", "section 2.3")
+    return [
+        line.strip() for line in FENCE.sub("", text).splitlines()
+        if "Essential" in line and CONTROL_REQUIREMENT.search(line)
+        and not all(part in line for part in named)
     ]
 
 
@@ -666,6 +684,54 @@ class ExitZeroAndEssential(unittest.TestCase):
             "### 2.4 Next\n\n- **Length**: At least 1 characters\n"
         )
         self.assertEqual(minimum_viable(spec), (800, 4))
+
+
+class EssentialControlsAndMinimum(unittest.TestCase):
+    """A line can tie the Essential level to its CRITICAL controls without saying what exit 0
+    means ("the scanner already fails the job when a CRITICAL control is missing, which is the
+    Essential gate"), and ExitZeroAndEssential does not read it. Essential also requires the
+    minimum of specification.md section 2.3, so a line that names Essential and gives a level's
+    requirement as controls names that minimum too."""
+
+    PAGES = README_PAGES + (INTEGRATIONS,)
+
+    def setUp(self):
+        self.minimum = minimum_viable(SPECIFICATION.read_text(encoding="utf-8"))
+
+    def test_no_page_gives_essential_as_controls_without_the_minimum(self):
+        for path in self.PAGES:
+            with self.subTest(file=path.relative_to(README.parent).as_posix()):
+                self.assertEqual(
+                    essential_controls_without_minimum(path.read_text(encoding="utf-8"), self.minimum), []
+                )
+
+    def test_line_that_calls_the_critical_control_check_the_essential_gate_is_reported(self):
+        gate = (
+            "1. Add `scan-soul` to the CI pipeline with `--fail-below 40` to keep grade C or better. Without the"
+            " flag, the scanner already fails the job when a CRITICAL control is missing, which is the Essential gate"
+        )
+        summary = (
+            "The Essential / Standard / Hardened conformance levels are requirements-based (which controls must"
+            " pass, plus a minimum score) and are defined in [conformance.md](../conformance.md)."
+        )
+        for line in (gate, summary):
+            with self.subTest(line=line):
+                self.assertEqual(essential_controls_without_minimum(line + "\n", (500, 3)), [line])
+
+    def test_line_that_names_the_minimum_is_not_reported(self):
+        line = (
+            "Essential requires a file of at least 500 characters and at least 3 section headings"
+            " (section 2.3) in which every CRITICAL control passes."
+        )
+        self.assertEqual(essential_controls_without_minimum(line + "\n", (500, 3)), [])
+
+    def test_line_without_a_control_requirement_is_not_reported(self):
+        line = "The three conformance levels (Essential, Standard and Hardened) are in conformance.md."
+        self.assertEqual(essential_controls_without_minimum(line + "\n", (500, 3)), [])
+
+    def test_line_inside_a_code_block_is_not_read(self):
+        text = "```text\nEssential: every CRITICAL control passes\n```\n"
+        self.assertEqual(essential_controls_without_minimum(text, (500, 3)), [])
 
 
 class LevelTableMinimum(unittest.TestCase):
