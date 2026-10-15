@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Tests for the command blocks in README.md, its statement of scope and its domain table (with the
 docs pages that took its reference text), the scan-soul JSON sample and the minimum scores in
-integrations/README.md, the conformance badge URLs in docs/ci.md, integrations/README.md and
+integrations/README.md, what those pages say scan-soul exit code 0 means, the conformance badge URLs in docs/ci.md, integrations/README.md and
 conformance.md, the score thresholds those files and the README pages name, the list of example
 files in examples/README.md, and the scripts the repository structure in CONTRIBUTING.md lists.
 
@@ -63,6 +63,22 @@ HARDEN_SOUL = re.compile(r"\bharden-soul\b")
 PROMPT_CLAIM = re.compile(
     r"\b(guided|interactive(ly)?|wizard|asks?|asking|prompt(s|ed|ing)? (you|the user))\b", re.IGNORECASE
 )
+# harden-soul writes to the first governance file it finds in the discovery order of
+# specification.md section 2.2 and creates SOUL.md only when it finds none: with CLAUDE.md and no
+# SOUL.md it appends to CLAUDE.md. So a sentence that names SOUL.md as the file the command writes
+# also says when that holds.
+WRITE_VERB = re.compile(
+    r"\b(generat(e|es|ed|ing)|creat(e|es|ed|ing)|updat(e|es|ed|ing)|writ(e|es|ten|ing)"
+    r"|append(s|ed|ing)?|add(s|ed|ing)?)\b",
+    re.IGNORECASE,
+)
+SOUL_FILE = re.compile(r"\bSOUL\.md\b")
+CONDITION = re.compile(r"\b(when|if|unless|only|no|none)\b", re.IGNORECASE)
+# A list number such as "1." ends no sentence.
+SENTENCE_END = re.compile(r"(?<=[^\s\d][.;:])\s+")
+DISCOVERY_SECTION = "### 2.2 File Discovery"
+DISCOVERY_LINK = "specification.md#22-file-discovery"
+DISCOVERY_ENTRY = re.compile(r"^\d+\. `([^`]+)`$", re.MULTILINE)
 
 # The shape `scan-soul --json` of hackmyagent 0.33.2 prints for a scanned governance file.
 SCAN_KEYS = {
@@ -94,6 +110,15 @@ EXAMPLES_README = EXAMPLES / "README.md"
 EXAMPLE_ROW = re.compile(r"^\| \[`([^`]+)`\]\(([^)]+)\) \| [^|]+ \| ([A-Z-]+) \|$", re.MULTILINE)
 DECLARED_TIER = re.compile(r"\b(" + "|".join(TIER_COLUMNS) + r") tier\b")
 BLOCKQUOTE = re.compile(r"^> (.+)$", re.MULTILINE)
+
+# What exit code 0 of scan-soul means, as a sentence ("exits 0 when") or as a list item ("- `0`:").
+EXIT_0 = re.compile(r"\bexits? `?0`? when\b|^- `0`:")
+# The minimum length and heading count of specification.md section 2.3, which Essential requires
+# and which hackmyagent 0.33.2 does not check: it exits 0 with `conformance` "essential" for a
+# 154-byte SOUL.md with three headings, and for a 119-byte one with none.
+MINIMUM_SECTION = "### 2.3 Minimum Viable Governance File"
+MINIMUM_LENGTH = re.compile(r"^- \*\*Length\*\*: At least (\d+) characters\b", re.MULTILINE)
+MINIMUM_HEADINGS = re.compile(r"^- \*\*Structure\*\*: At least (\d+) distinct section headings\b", re.MULTILINE)
 
 
 def command_blocks(text):
@@ -203,6 +228,24 @@ def harden_soul_descriptions(text):
     return found
 
 
+def unconditional_soul_targets(lines):
+    """Each sentence of lines that names SOUL.md as the file harden-soul writes without saying when."""
+    return [
+        sentence
+        for line in lines
+        for sentence in SENTENCE_END.split(line)
+        if WRITE_VERB.search(sentence) and SOUL_FILE.search(sentence) and not CONDITION.search(sentence)
+    ]
+
+
+def discovery_order(spec):
+    """The file names section 2.2 of spec lists, in order, or [] when spec has no such section."""
+    if DISCOVERY_SECTION not in spec:
+        return []
+    section = spec.split(DISCOVERY_SECTION, 1)[1].split("\n#", 1)[0]
+    return DISCOVERY_ENTRY.findall(section)
+
+
 def guide_minimums(text):
     """Each MIN_GOVERNANCE_SCORE value that a command or YAML block of text sets."""
     return [int(value) for body in FENCE.findall(text) for value in GUIDE_MINIMUM.findall(body)]
@@ -256,6 +299,34 @@ def script_entries(text):
 def unlisted_scripts(files, entries):
     """The file names that no entry names or matches as a pattern."""
     return [name for name in files if not any(fnmatch.fnmatchcase(name, entry) for entry in entries)]
+
+
+def minimum_viable(spec):
+    """The (characters, headings) minimum of specification.md section 2.3 in spec, or None."""
+    start = spec.find(MINIMUM_SECTION)
+    if start < 0:
+        return None
+    body = re.split(r"^#", spec[start + len(MINIMUM_SECTION):], maxsplit=1, flags=re.MULTILINE)[0]
+    length, headings = MINIMUM_LENGTH.search(body), MINIMUM_HEADINGS.search(body)
+    if length is None or headings is None:
+        return None
+    return int(length.group(1)), int(headings.group(1))
+
+
+def exit_0_statements(text):
+    """Each prose line of text, outside code blocks, that says what scan-soul exit code 0 means."""
+    return [line.strip() for line in FENCE.sub("", text).splitlines() if EXIT_0.search(line.strip())]
+
+
+def unqualified_exit_0(text, minimum):
+    """Each exit 0 statement of text that names the Essential level without naming the minimum
+    length and heading count of specification.md section 2.3, which the scanner does not check."""
+    characters, headings = minimum
+    named = (f"{characters} characters", f"{headings} section headings", "section 2.3")
+    return [
+        line for line in exit_0_statements(text)
+        if "Essential" in line and not all(part in line for part in named)
+    ]
 
 
 class TemplateScans(unittest.TestCase):
@@ -436,6 +507,51 @@ class HardenSoulDescriptions(unittest.TestCase):
                 self.assertIsNone(PROMPT_CLAIM.search(description))
 
 
+class HardenSoulTarget(unittest.TestCase):
+    """harden-soul writes to the first governance file in the specification.md section 2.2 order and
+    creates SOUL.md only when it finds none, so no description names SOUL.md as its file without
+    saying when."""
+
+    def setUp(self):
+        self.lines = [line for path in README_PAGES for line in harden_soul_descriptions(path.read_text(encoding="utf-8"))]
+
+    def test_no_description_names_soul_md_without_saying_when(self):
+        self.assertEqual(unconditional_soul_targets(self.lines), [])
+
+    def test_readme_links_the_discovery_order(self):
+        lines = harden_soul_descriptions(README.read_text(encoding="utf-8"))
+        self.assertTrue(any(DISCOVERY_LINK in line for line in lines), lines)
+
+    def test_discovery_order_lists_soul_md_first_and_claude_md(self):
+        order = discovery_order(SPECIFICATION.read_text(encoding="utf-8"))
+        self.assertGreaterEqual(len(order), 2)
+        self.assertEqual(order[0], "SOUL.md")
+        self.assertIn("CLAUDE.md", order)
+
+    def test_each_unconditional_description_is_reported(self):
+        claims = (
+            "# 1. Generate SOUL.md from templates, one section per missing domain",
+            "# Generate or update SOUL.md from templates for missing domains",
+            "1. `npx hackmyagent harden-soul` generates SOUL.md from templates",
+            "`harden-soul` appends the missing sections to `SOUL.md`",
+        )
+        for claim in claims:
+            with self.subTest(claim=claim):
+                self.assertEqual(unconditional_soul_targets([claim]), [claim])
+
+    def test_description_that_says_when_is_not_reported(self):
+        descriptions = (
+            "`harden-soul` creates `SOUL.md` only when it finds none.",
+            "With `CLAUDE.md` and no `SOUL.md`, it appends to `CLAUDE.md`.",
+            "# Add template sections to the governance file, or create SOUL.md if there is none",
+        )
+        self.assertEqual(unconditional_soul_targets(descriptions), [])
+
+    def test_each_sentence_is_read_on_its_own(self):
+        line = "`harden-soul` writes SOUL.md. It changes a file only when a domain is missing."
+        self.assertEqual(unconditional_soul_targets([line]), ["`harden-soul` writes SOUL.md."])
+
+
 class GuideMinimumScore(unittest.TestCase):
     """The guide's sample is the scan of templates/tool-using.md as copied, so the minimum the
     guide tells a reader to set must not fail the job on that file."""
@@ -464,6 +580,48 @@ class GuideMinimumScore(unittest.TestCase):
             "Set `MIN_GOVERNANCE_SCORE` to 90 later.\n"
         )
         self.assertEqual(guide_minimums(text), [60, 75])
+
+
+class ExitZeroAndEssential(unittest.TestCase):
+    """Essential requires the minimum length and heading count of specification.md section 2.3
+    (conformance.md, Level 1 requirement 1), and the scanner exits 0 on a file below them, so a
+    page that ties exit 0 to the Essential level names that minimum."""
+
+    def setUp(self):
+        self.minimum = minimum_viable(SPECIFICATION.read_text(encoding="utf-8"))
+
+    def test_specification_sets_a_minimum_length_and_heading_count(self):
+        self.assertEqual(self.minimum, (500, 3))
+
+    def test_readme_and_guide_say_what_exit_0_means(self):
+        for path in (README, INTEGRATIONS):
+            with self.subTest(file=path.relative_to(README.parent).as_posix()):
+                self.assertEqual(len(exit_0_statements(path.read_text(encoding="utf-8"))), 1)
+
+    def test_no_page_ties_exit_0_to_essential_without_the_minimum(self):
+        for path in SCORE_DOCS:
+            with self.subTest(file=path.relative_to(README.parent).as_posix()):
+                self.assertEqual(unqualified_exit_0(path.read_text(encoding="utf-8"), self.minimum), [])
+
+    def test_statement_that_equates_exit_0_with_essential_is_reported(self):
+        readme = "`scan-soul` exits 0 when the file meets the Essential level, 1 when a CRITICAL control is not detected."
+        guide = "- `0`: Conformance is Essential or better, and no flag failed the run."
+        for line in (readme, guide):
+            with self.subTest(line=line):
+                self.assertEqual(unqualified_exit_0(line + "\n", (500, 3)), [line])
+
+    def test_statement_inside_a_code_block_is_not_read(self):
+        text = "```text\nscan-soul exits 0 when the file meets the Essential level\n```\n"
+        self.assertEqual(exit_0_statements(text), [])
+
+    def test_minimum_read_from_a_section_with_other_values(self):
+        spec = (
+            MINIMUM_SECTION + "\n\n"
+            "- **Length**: At least 800 characters of content\n"
+            "- **Structure**: At least 4 distinct section headings\n\n"
+            "### 2.4 Next\n\n- **Length**: At least 1 characters\n"
+        )
+        self.assertEqual(minimum_viable(spec), (800, 4))
 
 
 class ReversibilityTier(unittest.TestCase):

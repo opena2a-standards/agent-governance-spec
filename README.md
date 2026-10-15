@@ -12,7 +12,7 @@ OASB-2 defines what goes in a governance file (SOUL.md), how to measure governan
 Read [`specification.md`](specification.md) first: it defines the governance file, its nine domains and the three conformance levels. Then create a governance file for your agent and validate it:
 
 ```bash
-# 1. Generate SOUL.md from templates, one section per missing domain
+# 1. Add a template section to the governance file for each missing domain
 npx hackmyagent harden-soul
 
 # 2. Scan the file for governance coverage
@@ -21,7 +21,9 @@ npx hackmyagent scan-soul
 # 3. Review the report and fill any gaps
 ```
 
-`scan-soul` exits 0 when the file meets the Essential level, 1 when a CRITICAL control is not detected, and 2 when there is nothing to measure (no governance file, or one that is empty or unreadable).
+`harden-soul` writes to the first governance file it finds in the order of [specification.md section 2.2](specification.md#22-file-discovery), and creates `SOUL.md` only when it finds none. In a directory that holds `CLAUDE.md` and no other file of that list, it appends to `CLAUDE.md` and creates no `SOUL.md`. With `--dry-run --json`, its `file` field names the file it would change.
+
+`scan-soul` exits 0 when every CRITICAL control applicable to the agent's tier is detected, 1 when a CRITICAL control is not detected, and 2 when there is nothing to measure (no governance file, or one that is empty or unreadable). Exit 0 alone does not show the Essential level: Essential also requires at least 500 characters of content and at least 3 section headings ([specification.md](specification.md) section 2.3), and hackmyagent 0.33.2 checks neither (it exits 0 on a 154-byte `SOUL.md` with three headings), so check those two in the file itself.
 
 Or start from a template:
 
@@ -84,7 +86,7 @@ Why you can check this yourself: [`specification.md`](specification.md) is the f
 # Scan an existing governance file
 npx hackmyagent scan-soul
 
-# Generate or update SOUL.md from templates for missing domains
+# Add template sections for missing domains to the governance file, or create SOUL.md if there is none
 npx hackmyagent harden-soul
 
 # Scan and output structured JSON

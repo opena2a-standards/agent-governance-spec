@@ -705,6 +705,33 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `false` now fails the test that reads it, as an `if:` the model does not
   read already did. Tests in `scripts/test_integrations.py` and
   `scripts/test_gitlab_ci.py`. (#120)
+- README.md and the exit code list in `integrations/README.md` said that
+  `scan-soul` exit 0 means the Essential level. Essential also requires at
+  least 500 characters of content and at least 3 section headings
+  (`specification.md` section 2.3, `conformance.md` Level 1 requirement 1),
+  and hackmyagent 0.33.2 checks neither: it exits 0 with `conformance`
+  `essential` on a 154-byte `SOUL.md` with three headings, and on a
+  119-byte one with no heading. Both pages now say that exit 0 means every
+  CRITICAL control applicable to the tier was detected, and name the length
+  and heading minimum the scanner leaves to the reader. Tests in
+  `scripts/test_readme.py` read the minimum from section 2.3 and check that
+  a prose line in README.md, the pages under `docs/`,
+  `integrations/README.md` or `conformance.md` that says what exit 0 means
+  ("exit 0 when" or "exits 0 when", or a "`0`:" list item) and names the Essential level
+  also names that minimum and section 2.3. (#123)
+- The README Quick Start and Tools sections and the `docs/overview.md`
+  Adoption Path describe `harden-soul` as adding template sections to the
+  governance file it finds, and creating `SOUL.md` only when it finds none.
+  They said it generates or updates `SOUL.md`, but in a directory holding
+  only `CLAUDE.md`, hackmyagent 0.33.2 `harden-soul` appends to `CLAUDE.md`
+  and creates no `SOUL.md`. The Quick Start links the discovery order of
+  `specification.md` section 2.2 and names `--dry-run --json`, whose `file`
+  field gives the file the command will change. With two files of that list
+  in a directory, hackmyagent 0.33.2 chose the earlier one for each adjacent
+  pair tried; `system-prompt.md` and `SYSTEM_PROMPT.md` were not tried as a
+  pair, being one file on a case-insensitive file system.
+  `scripts/test_readme.py` checks that no sentence describing `harden-soul`
+  names `SOUL.md` as the file it writes without saying when. (#124)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 
