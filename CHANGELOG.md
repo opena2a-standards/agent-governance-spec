@@ -719,6 +719,19 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `integrations/README.md` or `conformance.md` that says what exit 0 means
   ("exit 0 when" or "exits 0 when", or a "`0`:" list item) and names the Essential level
   also names that minimum and section 2.3. (#123)
+- The README Quick Start and Tools sections and the `docs/overview.md`
+  Adoption Path describe `harden-soul` as adding template sections to the
+  governance file it finds, and creating `SOUL.md` only when it finds none.
+  They said it generates or updates `SOUL.md`, but in a directory holding
+  only `CLAUDE.md`, hackmyagent 0.33.2 `harden-soul` appends to `CLAUDE.md`
+  and creates no `SOUL.md`. The Quick Start links the discovery order of
+  `specification.md` section 2.2 and names `--dry-run --json`, whose `file`
+  field gives the file the command will change. With two files of that list
+  in a directory, hackmyagent 0.33.2 chose the earlier one for each adjacent
+  pair tried; `system-prompt.md` and `SYSTEM_PROMPT.md` were not tried as a
+  pair, being one file on a case-insensitive file system.
+  `scripts/test_readme.py` checks that no sentence describing `harden-soul`
+  names `SOUL.md` as the file it writes without saying when. (#124)
 
 ## [1.0.0-draft] - 2026-03-03 (evolving draft through 2026-06-05)
 

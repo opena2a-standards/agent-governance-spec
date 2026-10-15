@@ -79,8 +79,8 @@ See [scoring.md](../scoring.md) for the full scoring methodology with worked exa
 ## Adoption Path
 
 **For individual developers** (10 minutes):
-1. `npx hackmyagent harden-soul` generates SOUL.md from templates
-2. Edit SOUL.md to match your agent's actual constraints
+1. `npx hackmyagent harden-soul` adds a template section for each missing domain to the governance file, and creates SOUL.md only when the directory holds none (see the [Quick Start](../README.md#quick-start))
+2. Edit that file to match your agent's actual constraints
 3. `npx hackmyagent scan-soul` verifies coverage
 4. Copy [GitHub Action](../integrations/github-action.yml) to enforce on PRs
 5. Add badge to README ([README Badge](ci.md#readme-badge))

@@ -63,6 +63,22 @@ HARDEN_SOUL = re.compile(r"\bharden-soul\b")
 PROMPT_CLAIM = re.compile(
     r"\b(guided|interactive(ly)?|wizard|asks?|asking|prompt(s|ed|ing)? (you|the user))\b", re.IGNORECASE
 )
+# harden-soul writes to the first governance file it finds in the discovery order of
+# specification.md section 2.2 and creates SOUL.md only when it finds none: with CLAUDE.md and no
+# SOUL.md it appends to CLAUDE.md. So a sentence that names SOUL.md as the file the command writes
+# also says when that holds.
+WRITE_VERB = re.compile(
+    r"\b(generat(e|es|ed|ing)|creat(e|es|ed|ing)|updat(e|es|ed|ing)|writ(e|es|ten|ing)"
+    r"|append(s|ed|ing)?|add(s|ed|ing)?)\b",
+    re.IGNORECASE,
+)
+SOUL_FILE = re.compile(r"\bSOUL\.md\b")
+CONDITION = re.compile(r"\b(when|if|unless|only|no|none)\b", re.IGNORECASE)
+# A list number such as "1." ends no sentence.
+SENTENCE_END = re.compile(r"(?<=[^\s\d][.;:])\s+")
+DISCOVERY_SECTION = "### 2.2 File Discovery"
+DISCOVERY_LINK = "specification.md#22-file-discovery"
+DISCOVERY_ENTRY = re.compile(r"^\d+\. `([^`]+)`$", re.MULTILINE)
 
 # The shape `scan-soul --json` of hackmyagent 0.33.2 prints for a scanned governance file.
 SCAN_KEYS = {
@@ -210,6 +226,24 @@ def harden_soul_descriptions(text):
     prose = FENCE.sub("", text)
     found.extend(line.strip() for line in prose.splitlines() if HARDEN_SOUL.search(line))
     return found
+
+
+def unconditional_soul_targets(lines):
+    """Each sentence of lines that names SOUL.md as the file harden-soul writes without saying when."""
+    return [
+        sentence
+        for line in lines
+        for sentence in SENTENCE_END.split(line)
+        if WRITE_VERB.search(sentence) and SOUL_FILE.search(sentence) and not CONDITION.search(sentence)
+    ]
+
+
+def discovery_order(spec):
+    """The file names section 2.2 of spec lists, in order, or [] when spec has no such section."""
+    if DISCOVERY_SECTION not in spec:
+        return []
+    section = spec.split(DISCOVERY_SECTION, 1)[1].split("\n#", 1)[0]
+    return DISCOVERY_ENTRY.findall(section)
 
 
 def guide_minimums(text):
@@ -471,6 +505,51 @@ class HardenSoulDescriptions(unittest.TestCase):
             with self.subTest(description=description):
                 self.assertEqual(harden_soul_descriptions(description + "\n"), [description])
                 self.assertIsNone(PROMPT_CLAIM.search(description))
+
+
+class HardenSoulTarget(unittest.TestCase):
+    """harden-soul writes to the first governance file in the specification.md section 2.2 order and
+    creates SOUL.md only when it finds none, so no description names SOUL.md as its file without
+    saying when."""
+
+    def setUp(self):
+        self.lines = [line for path in README_PAGES for line in harden_soul_descriptions(path.read_text(encoding="utf-8"))]
+
+    def test_no_description_names_soul_md_without_saying_when(self):
+        self.assertEqual(unconditional_soul_targets(self.lines), [])
+
+    def test_readme_links_the_discovery_order(self):
+        lines = harden_soul_descriptions(README.read_text(encoding="utf-8"))
+        self.assertTrue(any(DISCOVERY_LINK in line for line in lines), lines)
+
+    def test_discovery_order_lists_soul_md_first_and_claude_md(self):
+        order = discovery_order(SPECIFICATION.read_text(encoding="utf-8"))
+        self.assertGreaterEqual(len(order), 2)
+        self.assertEqual(order[0], "SOUL.md")
+        self.assertIn("CLAUDE.md", order)
+
+    def test_each_unconditional_description_is_reported(self):
+        claims = (
+            "# 1. Generate SOUL.md from templates, one section per missing domain",
+            "# Generate or update SOUL.md from templates for missing domains",
+            "1. `npx hackmyagent harden-soul` generates SOUL.md from templates",
+            "`harden-soul` appends the missing sections to `SOUL.md`",
+        )
+        for claim in claims:
+            with self.subTest(claim=claim):
+                self.assertEqual(unconditional_soul_targets([claim]), [claim])
+
+    def test_description_that_says_when_is_not_reported(self):
+        descriptions = (
+            "`harden-soul` creates `SOUL.md` only when it finds none.",
+            "With `CLAUDE.md` and no `SOUL.md`, it appends to `CLAUDE.md`.",
+            "# Add template sections to the governance file, or create SOUL.md if there is none",
+        )
+        self.assertEqual(unconditional_soul_targets(descriptions), [])
+
+    def test_each_sentence_is_read_on_its_own(self):
+        line = "`harden-soul` writes SOUL.md. It changes a file only when a domain is missing."
+        self.assertEqual(unconditional_soul_targets([line]), ["`harden-soul` writes SOUL.md."])
 
 
 class GuideMinimumScore(unittest.TestCase):
