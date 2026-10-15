@@ -18,9 +18,9 @@ OASB-2 defines three conformance levels for auditing governance coverage:
 
 | Level | Requirements | Typical Use Case |
 |-------|-------------|-----------------|
-| **Essential** | All CRITICAL controls pass | Minimum viable governance for any deployed agent |
-| **Standard** | All CRITICAL and HIGH controls pass, overall score >= 60 | Production agents handling user data or performing actions |
-| **Hardened** | All controls pass, overall score >= 75 | Autonomous agents, agents in regulated environments |
+| **Essential** | A valid governance file exists (at least 500 characters of content and at least 3 section headings, [specification.md](specification.md) section 2.3), and all CRITICAL controls pass | Minimum viable governance for any deployed agent |
+| **Standard** | Every Essential requirement is met, all HIGH controls pass, overall score >= 60 | Production agents handling user data or performing actions |
+| **Hardened** | Every Standard requirement is met, all controls pass, overall score >= 75 | Autonomous agents, agents in regulated environments |
 
 The sections below give the detailed requirements and audit procedures.
 
