@@ -125,6 +125,10 @@ MINIMUM_HEADINGS = re.compile(r"^- \*\*Structure\*\*: At least (\d+) distinct se
 # A requirement of a conformance level given as controls: "when a CRITICAL control is missing",
 # "which controls must pass".
 CONTROL_REQUIREMENT = re.compile(r"\bCRITICAL controls?\b|\bcontrols must pass\b")
+# The `conformance` value of `scan-soul --json`, named as a field or key ("read the level from the
+# `conformance` field"). hackmyagent 0.33.2 reports "essential" there for a 79-byte SOUL.md with no
+# headings, below the minimum of specification.md section 2.3 that every level requires.
+CONFORMANCE_FIELD = re.compile(r"`conformance` (?:field|key|value)\b")
 # The level table of conformance.md: one row per level, its Requirements cell second.
 LEVEL_TABLE_HEADER = "| Level | Requirements | Typical Use Case |"
 LEVEL_ROW = re.compile(r"^\| \*\*(" + "|".join(LEVELS) + r")\*\* \| ([^|\n]+) \|", re.MULTILINE)
@@ -353,6 +357,18 @@ def essential_controls_without_minimum(text, minimum):
         line.strip() for line in FENCE.sub("", text).splitlines()
         if "Essential" in line and CONTROL_REQUIREMENT.search(line)
         and not all(part in line for part in named)
+    ]
+
+
+def conformance_field_without_minimum(text, minimum):
+    """Each prose line of text, outside code blocks, that names the `conformance` field of the
+    scanner's JSON output without naming the minimum length and heading count of specification.md
+    section 2.3, which every level requires and the scanner does not check."""
+    characters, headings = minimum
+    named = (f"{characters} characters", f"{headings} section headings", "section 2.3")
+    return [
+        line.strip() for line in FENCE.sub("", text).splitlines()
+        if CONFORMANCE_FIELD.search(line) and not all(part in line for part in named)
     ]
 
 
@@ -732,6 +748,48 @@ class EssentialControlsAndMinimum(unittest.TestCase):
     def test_line_inside_a_code_block_is_not_read(self):
         text = "```text\nEssential: every CRITICAL control passes\n```\n"
         self.assertEqual(essential_controls_without_minimum(text, (500, 3)), [])
+
+
+class ConformanceFieldAndMinimum(unittest.TestCase):
+    """The `conformance` field of `scan-soul --json` does not show a level by itself: hackmyagent
+    0.33.2 sets it to "essential" for a 79-byte SOUL.md with no headings, and every level requires
+    the minimum of specification.md section 2.3. So a line that points the reader to that field
+    names the minimum too."""
+
+    def setUp(self):
+        self.minimum = minimum_viable(SPECIFICATION.read_text(encoding="utf-8"))
+
+    def test_no_page_names_the_field_without_the_minimum(self):
+        for path in SCORE_DOCS:
+            with self.subTest(file=path.relative_to(README.parent).as_posix()):
+                self.assertEqual(
+                    conformance_field_without_minimum(path.read_text(encoding="utf-8"), self.minimum), []
+                )
+
+    def test_line_that_reads_the_level_from_the_field_is_reported(self):
+        field = (
+            "3. Raise the threshold over time: 60 is the minimum score for Standard and 75 for Hardened. Each"
+            " level also names the controls that must pass, so read the level from the `conformance` field of"
+            " the `--json` output"
+        )
+        key = "The `conformance` key of the JSON output is the conformance level of the file."
+        for line in (field, key):
+            with self.subTest(line=line):
+                self.assertEqual(conformance_field_without_minimum(line + "\n", (500, 3)), [line])
+
+    def test_line_that_names_the_minimum_is_not_reported(self):
+        line = (
+            "The `conformance` field does not check at least 500 characters and at least 3 section headings"
+            " (section 2.3), so count those in the file."
+        )
+        self.assertEqual(conformance_field_without_minimum(line + "\n", (500, 3)), [])
+
+    def test_table_key_and_code_block_are_not_read(self):
+        text = (
+            "| `conformance` | `none`, `essential`, `standard` or `hardened`, in lower case. |\n"
+            "```text\nread the level from the `conformance` field\n```\n"
+        )
+        self.assertEqual(conformance_field_without_minimum(text, (500, 3)), [])
 
 
 class LevelTableMinimum(unittest.TestCase):
