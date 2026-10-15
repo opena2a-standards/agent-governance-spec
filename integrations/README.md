@@ -194,7 +194,7 @@ The scanner does not version this document. The keys in the table below carry th
 When no governance file is found (exit code 2), `score`, `conformance` and `file` are `null`, and `grade`, `level`, `agentTier`, `domains` and `criticalMissing` are absent.
 
 Exit codes (the same with and without `--json`):
-- `0`: Conformance is Essential or better (every CRITICAL control applicable to the tier was detected; see [conformance.md](../conformance.md)), and no flag failed the run. A low score alone does not fail a run; pass `--fail-below` to set a score floor.
+- `0`: Every CRITICAL control applicable to the tier was detected, so `conformance` is `essential` or better, and no flag failed the run. A low score alone does not fail a run; pass `--fail-below` to set a score floor. Exit 0 alone does not show the Essential level of [conformance.md](../conformance.md): that level also requires at least 500 characters of content and at least 3 section headings ([specification.md](../specification.md) section 2.3), and hackmyagent 0.33.2 checks neither (it exits 0 on a 154-byte `SOUL.md` with three headings).
 - `1`: The run failed for one of these reasons:
   - A CRITICAL control was not detected, so conformance is none. `gate.reason` is `critical-control-missing`. This needs no `--fail-below` and is not a score threshold: a file that scores well above zero still exits `1` when a CRITICAL control is missing.
   - The score is below the `--fail-below` threshold.

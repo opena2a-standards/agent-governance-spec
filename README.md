@@ -21,7 +21,7 @@ npx hackmyagent scan-soul
 # 3. Review the report and fill any gaps
 ```
 
-`scan-soul` exits 0 when the file meets the Essential level, 1 when a CRITICAL control is not detected, and 2 when there is nothing to measure (no governance file, or one that is empty or unreadable).
+`scan-soul` exits 0 when every CRITICAL control applicable to the agent's tier is detected, 1 when a CRITICAL control is not detected, and 2 when there is nothing to measure (no governance file, or one that is empty or unreadable). Exit 0 alone does not show the Essential level: Essential also requires at least 500 characters of content and at least 3 section headings ([specification.md](specification.md) section 2.3), and hackmyagent 0.33.2 checks neither (it exits 0 on a 154-byte `SOUL.md` with three headings), so check those two in the file itself.
 
 Or start from a template:
 
