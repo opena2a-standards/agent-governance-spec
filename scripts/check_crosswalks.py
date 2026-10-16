@@ -11,7 +11,8 @@ The two crosswalk CSV files are canonical. This script:
     the exact header, and the file encoding (UTF-8 without BOM, LF line
     endings, RFC 4180 with minimal quoting);
   * requires the ruled statements, basis definitions, scope block, and
-    Related Work bullet verbatim in crosswalks/README.md and README.md;
+    crosswalk bullet of the Documentation list verbatim in crosswalks/README.md
+    and README.md;
   * scans authored text for the banned vocabulary and for percentage,
     ratio, grade, or score wording: the basis and note cells of each
     crosswalk CSV, plus the authored files under crosswalks/ other than
@@ -250,7 +251,7 @@ REQUIRED_PROSE = (
     ("crosswalks/README.md", "index statement", INDEX_STATEMENT),
     ("crosswalks/README.md", "basis definitions", BASIS_DEFINITIONS),
     ("crosswalks/README.md", "scope block", SCOPE_BLOCK),
-    ("README.md", "Related Work crosswalk bullet", README_BULLET),
+    ("README.md", "crosswalk bullet of the Documentation list", README_BULLET),
 )
 
 # The ruled texts by name, held to committed digests (see check_ruled_digests).

@@ -2,9 +2,10 @@
 """Tests for scripts/check_crosswalks.py: the JSON control export, the render
 comparison, the attribute tables, the section 5.3 registry table, the section
 3.5 applicability matrix and the tier counts of section 3, and the
-.gitattributes line-ending pins of the files it compares byte for byte; and
-the terms README.md and the docs pages that took its reference text use in
-their prose.
+.gitattributes line-ending pins of the files it compares byte for byte; the
+name its message gives a README.md passage it requires verbatim; and the
+terms README.md and the docs pages that took its reference text use in their
+prose.
 
 Run from anywhere:  python3 scripts/test_check_crosswalks.py
 
@@ -914,6 +915,18 @@ class MainRun(unittest.TestCase):
         self.assertIn(f"\n0 rows; 0 of {cc.CONTROL_COUNT} controls have at least one row; "
                       f"{cc.CONTROL_COUNT} are listed under no mapping asserted.\n", md.decode("utf-8"))
 
+    def test_readme_without_the_crosswalk_bullet_names_the_list_that_holds_it(self):
+        def drop(root):
+            path = root / "README.md"
+            text = path.read_text(encoding="utf-8")
+            self.assertIn(cc.README_BULLET, text)
+            path.write_text(text.replace(cc.README_BULLET, "", 1), encoding="utf-8")
+        code, out, _ = self.run_main([], drop)
+        self.assertEqual(code, 1, out)
+        self.assertIn("RED README.md: the ruled crosswalk bullet of the Documentation list is missing or altered; "
+                      "it is required verbatim\n", out)
+        self.assertIn("\n1 problem(s) found", out)
+
     def test_unreadable_crosswalk_csv_is_red_without_a_render(self):
         spec = cc.CROSSWALK_SET[0]
 
@@ -924,6 +937,40 @@ class MainRun(unittest.TestCase):
         self.assertIn(f"RED crosswalks/{spec['csv']}:1: header must be exactly {','.join(cc.HEADER)}\n", out)
         self.assertNotIn(f"crosswalks/{spec['csv']}: ", out)
         self.assertIn("\n1 problem(s) found", out)
+
+
+def section_above(text, passage):
+    """The title of the last H2 heading outside a code fence above passage, or None."""
+    end = text.find(passage)
+    if end < 0:
+        return None
+    title, fence = None, False
+    for line in text[:end].splitlines():
+        if re.match(r"\s*(```|~~~)", line):
+            fence = not fence
+        elif not fence and line.startswith("## "):
+            title = line[3:].strip()
+    return title
+
+
+class RequiredProseLabels(unittest.TestCase):
+    """The name the message gives a README.md passage names the section of README.md that holds it, so a
+    reader of a red run finds the passage where the message sends them."""
+
+    def test_label_names_the_readme_section_of_the_passage(self):
+        readme = (cc.ROOT / "README.md").read_text(encoding="utf-8")
+        passages = [(name, text) for rel, name, text in cc.REQUIRED_PROSE if rel == "README.md"]
+        self.assertNotEqual(passages, [])
+        for name, text in passages:
+            with self.subTest(label=name):
+                section = section_above(readme, text)
+                self.assertIsNotNone(section, f"no section of README.md holds the {name}")
+                self.assertIn(section, name, f"the {name} sits under '## {section}' in README.md")
+
+    def test_passage_is_read_under_the_heading_above_it_outside_a_fence(self):
+        text = "# Title\n\n## Related Work\n\n```\n## Not a section\n```\n\n- the bullet\n\n## Documentation\n"
+        self.assertEqual(section_above(text, "- the bullet"), "Related Work")
+        self.assertIsNone(section_above(text, "- another bullet"))
 
 
 class ReadmeTerms(unittest.TestCase):
