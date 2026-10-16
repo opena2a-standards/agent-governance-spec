@@ -7,14 +7,15 @@ conformance.md, the requirements the level table of conformance.md and section 7
 specification.md give each level, the definition of a conformance level in the terminology table
 of specification.md section 1.4, the score
 thresholds those files and the README pages name, the list of example
-files in examples/README.md, and the scripts the repository structure in CONTRIBUTING.md lists.
+files in examples/README.md, the scripts the repository structure in CONTRIBUTING.md lists, and
+the counts, domain ranges and scan-soul exit codes README.md states.
 
 Run from anywhere:  python3 scripts/test_readme.py
 
 Standard library only. The tests read README.md, docs/overview.md, docs/related-work.md,
 docs/ci.md, CONTRIBUTING.md, integrations/README.md, conformance.md, specification.md,
-templates/tool-using.md, the files under examples/ and the names of the scripts under scripts/,
-and write nothing.
+controls.json, templates/tool-using.md, the files under domains/ and examples/ and the names of
+the scripts under scripts/, and write nothing.
 """
 
 import fnmatch
@@ -148,6 +149,35 @@ LEVEL_TERM = "Conformance level"
 LEVEL_INPUTS = ("Section 2.3", "controls", "overall score")
 # A minimum score the definition of a conformance level names: "at least 60".
 DEFINITION_SCORE = re.compile(r"\bat least (\d+)\b")
+
+# The sources of the numbers README.md states.
+DOMAINS_DIR = README.parent / "domains"
+CONTROLS_EXPORT = README.parent / "controls.json"
+DOMAIN_HEADING = re.compile(r"^# Domain (\d+): ", re.MULTILINE)
+LEVEL_HEADING = re.compile(r"^## Level \d+: ", re.MULTILINE)
+NUMBER_WORDS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+    "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+}
+# A count such as "nine behavioral domains", "72 controls", "the 72-control export" or "three conformance
+# levels". A digit after a hyphen is part of a name such as "OASB-2", not a count.
+COUNT_CLAIM = re.compile(
+    r"(?<![\w-])(" + "|".join(NUMBER_WORDS) + r"|\d+)[ -](behavioral domains|domains|controls?|conformance levels)\b",
+    re.IGNORECASE,
+)
+# The domain numbers given to a standard: "OASB-2 behavioral domains 11-19".
+DOMAIN_RANGE_CLAIM = re.compile(r"\b(OASB-[12]) \w+ domains (\d+)-(\d+)\b")
+SPEC_OASB1_RANGE = re.compile(r"^- \*\*OASB-1\*\* covers technical security: domains (\d+) through (\d+)\.$", re.MULTILINE)
+SCAN_SOUL_EXITS = re.compile(r"`scan-soul` exits [^.]*\.")
+GUIDE_EXIT_ENTRY = re.compile(r"^- `(\d+)`: ")
+# Each case of the README's scan-soul exit code sentence: its words there, and the words of the entry in the exit
+# code list of integrations/README.md that gives the code for it.
+EXIT_CASES = (
+    ("every CRITICAL control applicable to the agent's tier is detected",
+     "Every CRITICAL control applicable to the tier was detected"),
+    ("a CRITICAL control is not detected", "A CRITICAL control was not detected"),
+    ("nothing to measure", "Nothing was measured"),
+)
 
 
 def command_blocks(text):
@@ -443,6 +473,51 @@ def levels_without_minimum(requirements, minimum, section="section 2.3"):
         if not (inherits or all(part in cell for part in named)):
             missing.append(level)
     return missing
+
+
+def domain_numbers():
+    """The number of each domain heading in the files under domains/, in ascending order."""
+    return sorted(
+        int(m.group(1)) for path in DOMAINS_DIR.glob("*.md") for m in DOMAIN_HEADING.finditer(path.read_text(encoding="utf-8"))
+    )
+
+
+def count_claims(text):
+    """Each (phrase, subject, value) count in text; subject is "domains", "controls" or "conformance levels"."""
+    claims = []
+    for m in COUNT_CLAIM.finditer(text):
+        number, noun = m.group(1).lower(), m.group(2).lower()
+        value = NUMBER_WORDS[number] if number in NUMBER_WORDS else int(number)
+        subject = "domains" if noun.endswith("domains") else "controls" if noun.startswith("control") else noun
+        claims.append((m.group(0), subject, value))
+    return claims
+
+
+def domain_range_claims(text):
+    """Each (standard, (first, last)) domain range in text, such as ("OASB-2", (11, 19))."""
+    return [(m.group(1), (int(m.group(2)), int(m.group(3)))) for m in DOMAIN_RANGE_CLAIM.finditer(text)]
+
+
+def stated_exit_code(sentence, words):
+    """The code the sentence gives for the case words name, as "0" in "0 when the file meets ...", or None."""
+    m = re.search(r"\b(\d+) when [^,]*?" + re.escape(words), sentence)
+    return m.group(1) if m else None
+
+
+def guide_exit_codes(text, words):
+    """The codes of the exit code list in text whose entry holds words. An entry is a top-level "- `N`: " line
+    together with the indented lines under it."""
+    codes = []
+    code = None
+    for line in text.splitlines():
+        entry = GUIDE_EXIT_ENTRY.match(line)
+        if entry:
+            code = entry.group(1)
+        elif not line.startswith(" "):
+            code = None
+        if code and words in line and code not in codes:
+            codes.append(code)
+    return codes
 
 
 class TemplateScans(unittest.TestCase):
@@ -1070,6 +1145,82 @@ class ScriptsEntries(unittest.TestCase):
         files = ["check_crosswalks.py", "test_readme.py", "test_scoring.py"]
         self.assertEqual(["test_scoring.py"], unlisted_scripts(files, entries))
         self.assertEqual([], unlisted_scripts(files, ["check_crosswalks.py", "test_*.py"]))
+
+
+class ReadmeNumbers(unittest.TestCase):
+    """Each count, domain range and scan-soul exit code README.md states is the one its source gives: the domain
+    headings under domains/, the controls in controls.json, the level headings in conformance.md, the OASB-1 line
+    of specification.md and the exit code list in integrations/README.md."""
+
+    def setUp(self):
+        self.text = README.read_text(encoding="utf-8")
+        self.domains = domain_numbers()
+        self.counts = {
+            "domains": len(self.domains),
+            "controls": len(json.loads(CONTROLS_EXPORT.read_text(encoding="utf-8"))["controls"]),
+            "conformance levels": len(LEVEL_HEADING.findall(CONFORMANCE_DOC.read_text(encoding="utf-8"))),
+        }
+        oasb1 = SPEC_OASB1_RANGE.search(SPECIFICATION.read_text(encoding="utf-8"))
+        self.assertIsNotNone(oasb1, "specification.md does not give the OASB-1 domain range")
+        self.ranges = {
+            "OASB-2": (self.domains[0], self.domains[-1]),
+            "OASB-1": (int(oasb1.group(1)), int(oasb1.group(2))),
+        }
+        self.guide = INTEGRATIONS.read_text(encoding="utf-8")
+
+    def test_each_count_is_the_count_of_its_source(self):
+        claims = count_claims(self.text)
+        self.assertTrue(claims)
+        for phrase, subject, value in claims:
+            with self.subTest(claim=phrase):
+                self.assertEqual(self.counts[subject], value)
+
+    def test_domain_numbers_have_no_gap(self):
+        self.assertEqual(list(range(self.domains[0], self.domains[-1] + 1)), self.domains)
+
+    def test_each_domain_range_is_the_one_its_source_gives(self):
+        claims = domain_range_claims(self.text)
+        self.assertTrue(claims)
+        for standard, numbers in claims:
+            with self.subTest(standard=standard):
+                self.assertEqual(self.ranges[standard], numbers)
+
+    def test_each_scan_soul_exit_code_is_the_one_the_integrations_guide_lists(self):
+        sentence = SCAN_SOUL_EXITS.search(self.text)
+        self.assertIsNotNone(sentence, "README.md does not say what scan-soul exits with")
+        for readme_words, guide_words in EXIT_CASES:
+            with self.subTest(case=readme_words):
+                code = stated_exit_code(sentence.group(0), readme_words)
+                self.assertIsNotNone(code)
+                self.assertEqual([code], guide_exit_codes(self.guide, guide_words))
+
+    def test_a_stale_count_is_reported(self):
+        claims = count_claims("OASB-2 defines eight behavioral domains, 71 controls and four conformance levels; "
+                              "the 71-control export.")
+        self.assertEqual(
+            [("eight behavioral domains", "domains", 8), ("71 controls", "controls", 71),
+             ("four conformance levels", "conformance levels", 4), ("71-control", "controls", 71)],
+            claims,
+        )
+        for _, subject, value in claims:
+            self.assertNotEqual(self.counts[subject], value)
+
+    def test_a_name_ending_in_a_digit_is_not_read_as_a_count(self):
+        self.assertEqual([], count_claims("[OASB](x) integrates OASB-2 behavioral domains 11-19."))
+
+    def test_a_shifted_range_is_reported(self):
+        claims = domain_range_claims("OASB-2 behavioral domains 11-18 alongside OASB-1 technical domains 0-10")
+        self.assertEqual([("OASB-2", (11, 18)), ("OASB-1", (0, 10))], claims)
+        for standard, numbers in claims:
+            self.assertNotEqual(self.ranges[standard], numbers)
+
+    def test_an_exit_code_the_guide_gives_another_case_is_reported(self):
+        sentence = ("`scan-soul` exits 0 when every CRITICAL control applicable to the agent's tier is detected, 1 "
+                    "when a CRITICAL control is not detected, and 3 when there is nothing to measure (no governance "
+                    "file).")
+        self.assertEqual("3", stated_exit_code(sentence, "nothing to measure"))
+        self.assertEqual(["2"], guide_exit_codes(self.guide, "Nothing was measured"))
+        self.assertEqual("1", stated_exit_code(sentence, "a CRITICAL control is not detected"))
 
 
 if __name__ == "__main__":
