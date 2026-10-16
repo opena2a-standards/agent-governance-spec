@@ -87,7 +87,10 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `scripts/check_crosswalks.py` requires it); CI/CD Integration and the
   badge to `docs/ci.md`; the conformance level table to `conformance.md`;
   and Repository Structure to `CONTRIBUTING.md`. The tests that read those
-  passages now read them at their new paths.
+  passages now read them at their new paths. When that bullet is missing or
+  altered, `scripts/check_crosswalks.py` names it the crosswalk bullet of the
+  Documentation list, the README section that holds it, rather than the
+  Related Work bullet.
 
 ### Fixed
 
