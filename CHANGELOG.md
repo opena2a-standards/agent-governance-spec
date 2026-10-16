@@ -69,6 +69,15 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   from its render, is shorter or longer than it, or holds a byte that is not
   UTF-8 name `python3 scripts/check_crosswalks.py --write`; the BOM and
   carriage-return reports do not.
+- `scripts/test_readme.py` reads the numbers the README states against
+  their sources: each count of domains, controls and conformance levels
+  ("nine behavioral domains", "72 controls", "the 72-control export",
+  "three conformance levels") against the domain headings under `domains/`,
+  the entries of `controls.json` and the `## Level N:` headings of
+  `conformance.md`; the OASB-2 domain range against the domain headings and
+  the OASB-1 range against `specification.md`; and the exit code the quick
+  start gives `scan-soul` for each case against the exit code list in
+  `integrations/README.md`.
 - This changelog; version qualified to the spec-family ladder (1.0.0-draft).
 
 ### Changed
