@@ -2,13 +2,14 @@
 """Tests for scripts/check_crosswalks.py: the JSON control export, the render
 comparison, the domain and control headings, the lines it splits a domain
 file into, the attribute tables and the fenced code blocks around them, the
-section 5.3 registry table, the section 3.5 applicability matrix and the tier
-counts of section 3, the report on a byte that is not UTF-8 in a file it
-reads, and the .gitattributes line-ending pins of the files it compares byte
-for byte; the name its message gives a README.md passage it requires
-verbatim; that its fence reader is the copy in scripts/check_docs_prose.py;
-and the terms README.md and the docs pages that took its reference text use
-in their prose.
+lines of fenced code blocks it does not read in specification.md and
+conformance.md, the section 5.3 registry table, the section 3.5 applicability
+matrix and the tier counts of section 3, the report on a byte that is not
+UTF-8 in a file it reads, and the .gitattributes line-ending pins of the files
+it compares byte for byte; the name its message gives a README.md passage it
+requires verbatim; that its fence reader is the copy in
+scripts/check_docs_prose.py; and the terms README.md and the docs pages that
+took its reference text use in their prose.
 
 Run from anywhere:  python3 scripts/test_check_crosswalks.py
 
@@ -608,6 +609,35 @@ class EntryAttributes(unittest.TestCase):
                                                    "attribute table of SOUL-TH-001; it is not read"), errors[0])
                 self.assertEqual(entries[0]["status"], "active")
 
+    def test_attribute_row_inside_a_fenced_block_after_an_html_block_or_a_block_quote_is_not_read(self):
+        # A list marker inside an HTML block opens no list item, and a block quote line ends the list item above it,
+        # so the block after them opens outside a list item and its line indented two spaces closes it.
+        example = "```\n| **Status** | ignored |\n```"
+        self.assertIn(example, domain_file([ACTIVE]))
+        for block in ("<!-- notes\n- update the table\n-->\n\n  ```\n| **Status** | ignored |\n  ```",
+                      "<details>\n- item\n</details>\n\n  ```\n| **Status** | ignored |\n  ```",
+                      "- Example:\n> quote\n\n  ```\n| **Status** | ignored |\n  ```"):
+            with self.subTest(block=block):
+                entries, errors = entries_for_text(domain_file([ACTIVE]).replace(example, block))
+                self.assertEqual(errors, [])
+                self.assertEqual(entries[0]["status"], "active")
+
+    def test_fence_line_inside_an_html_block_opens_no_fence(self):
+        # Markdown reads the lines of an HTML block as HTML, so its fence line opens no code block, and the row, inside
+        # the block or after its end, is red at its line.
+        example = "```\n| **Status** | ignored |\n```"
+        self.assertIn(example, domain_file([ACTIVE]))
+        row = "| **Status** | deprecated |"
+        for block in ("<div>\n```\n" + row + "\n```\n</div>", "<!--\n```\n-->\n" + row):
+            with self.subTest(block=block):
+                variant = domain_file([ACTIVE]).replace(example, block)
+                lineno = variant.split("\n").index(row) + 1
+                entries, errors = entries_for_text(variant)
+                self.assertEqual(len(errors), 1, errors)
+                self.assertTrue(errors[0].endswith(f"11-trust-hierarchy.md:{lineno}: attribute row separated from the "
+                                                   "attribute table of SOUL-TH-001; it is not read"), errors[0])
+                self.assertEqual(entries[0]["status"], "active")
+
     def test_long_row_that_does_not_match_is_rejected_in_linear_time(self):
         skip_the_time_bound_when_optimized(self)
         row = "| **x** | " + "** | " * 20000 + "x"
@@ -687,6 +717,32 @@ class GfmLines(unittest.TestCase):
                 self.assertEqual(text.splitlines(), lines)
 
 
+class FencedLines(unittest.TestCase):
+    def test_lines_from_the_line_that_opens_a_block_to_the_line_that_closes_it_are_fenced(self):
+        lines = ["a", "```markdown", "### b", "~~~", "   ```", "c", "~~~~", "```", "~~~~~", "d"]
+        self.assertEqual(cc.fenced_lines(lines), [False, True, True, True, True, False, True, True, True, False])
+        # A run indented four spaces or by a tab closes no block.
+        lines = ["```", "    ```", "\t```", "### b", "```", "c"]
+        self.assertEqual(cc.fenced_lines(lines), [True, True, True, True, True, False])
+
+    def test_block_that_no_line_closes_runs_to_the_end_of_the_text(self):
+        self.assertEqual(cc.fenced_lines(["a", "~~~", "b", "```"]), [False, True, True, True])
+        self.assertEqual(cc.fenced_lines(["````", "```"]), [True, True])
+
+    def test_line_that_markdown_does_not_read_as_a_fence_opens_no_block(self):
+        for line in ("    ```", "\t~~~", "```a``` b", "``", "~~"):
+            with self.subTest(line=line):
+                self.assertEqual(cc.fenced_lines([line, "### b"]), [False, False])
+
+    def test_fence_in_a_list_item_is_read_as_in_a_domain_file(self):
+        # The reader of load_domains (CodeFences): a fence indented four spaces under "1. " opens a block, counted from
+        # the item's content column, and a line that ends the item ends the block it holds, so "### c" is a heading.
+        lines = ["1. Example:", "", "    ```", "    ### b", "    ```", "### c"]
+        self.assertEqual(cc.fenced_lines(lines), [False, False, True, True, True, False])
+        lines = ["- a", "  ```", "  ### b", "### c", "```"]
+        self.assertEqual(cc.fenced_lines(lines), [False, True, True, False, True])
+
+
 def deprecated(cid, successor):
     return (f"### {cid}: Withdrawn", [("ID", cid), ("Severity", "LOW"), ("Status", "deprecated"),
                                        ("Replaced by", successor)])
@@ -740,11 +796,21 @@ class RegistryTable(unittest.TestCase):
         {"id": "SOUL-TH-002", "title": "Second Control", "domain": 11, "severity": "LOW"},
     ]
     DOMAINS = {11: "Trust Hierarchy"}
+    GREEN = ["| SOUL-TH-001 | First Control | Trust Hierarchy | HIGH |",
+             "| SOUL-TH-002 | Second Control | Trust Hierarchy | LOW |"]
+    # A row of SOUL-TH-001 with a severity other than that of its attribute table, and the red line it gives.
+    LOW_ROW = "| SOUL-TH-001 | First Control | Trust Hierarchy | LOW |"
+    LOW_RED = "Severity 'LOW' of SOUL-TH-001 differs from the attribute table 'HIGH'"
 
     def check(self, rows):
         errors = []
         cc.check_registry_table(errors, "specification.md", REGISTRY.format(rows="\n".join(rows)),
                                 self.ENTRIES, self.DOMAINS)
+        return errors
+
+    def check_text(self, text):
+        errors = []
+        cc.check_registry_table(errors, "specification.md", text, self.ENTRIES, self.DOMAINS)
         return errors
 
     def test_rows_equal_to_the_domain_files_are_green(self):
@@ -874,6 +940,38 @@ class RegistryTable(unittest.TestCase):
                 self.assertEqual(errors, ["RED specification.md: the registry table under section 5.3 must have the "
                                           "header | ID | Name | Domain | Severity |"])
 
+    def test_heading_and_table_repeated_in_a_fenced_block_above_the_heading_are_not_read(self):
+        # The block repeats the heading and the table as they stand, as an example would. The table GFM renders under
+        # the heading gives SOUL-TH-001 the severity LOW.
+        green = REGISTRY.format(rows="\n".join(self.GREEN))
+        example = green[green.index(cc.REGISTRY_HEADING):green.index("\n\nText after the table.")]
+        red = REGISTRY.format(rows="\n".join([self.LOW_ROW, self.GREEN[1]]))
+        for opening, closing in (("```markdown", "```"), ("~~~", "~~~"), ("````", "`````")):
+            text = red.replace(cc.REGISTRY_HEADING, f"{opening}\n{example}\n\n{closing}\n\n{cc.REGISTRY_HEADING}", 1)
+            lineno = text.split("\n").index(self.LOW_ROW) + 1
+            with self.subTest(opening=opening):
+                self.assertEqual(self.check_text(text), [f"RED specification.md:{lineno}: {self.LOW_RED}"])
+
+    def test_table_in_a_fenced_block_between_the_heading_and_the_table_is_not_read(self):
+        green = REGISTRY.format(rows="\n".join(self.GREEN))
+        example = green[green.index("| ID |"):green.index("\n\nText after the table.")]
+        red = REGISTRY.format(rows="\n".join([self.LOW_ROW, self.GREEN[1]]))
+        # The closing fence directly under the last row of the example, or after a blank line.
+        for gap in ("", "\n"):
+            text = red.replace(f"{cc.REGISTRY_HEADING}\n\n",
+                               f"{cc.REGISTRY_HEADING}\n\n```markdown\n{example}\n{gap}```\n\n", 1)
+            lineno = text.split("\n").index(self.LOW_ROW) + 1
+            with self.subTest(gap=gap):
+                self.assertEqual(self.check_text(text), [f"RED specification.md:{lineno}: {self.LOW_RED}"])
+
+    def test_heading_only_inside_a_fenced_block_is_not_found(self):
+        green = REGISTRY.format(rows="\n".join(self.GREEN))
+        # A block that no line closes runs to the end of the text.
+        for case, text in (("closed", f"```markdown\n{green}```\n"), ("never closed", f"~~~\n{green}")):
+            with self.subTest(case=case):
+                self.assertEqual(self.check_text(text),
+                                 ["RED specification.md: heading '### 5.3 Complete Control Registry' not found"])
+
 
 CONFORMANCE = """# Conformance Levels
 
@@ -927,12 +1025,30 @@ class ConformanceLevels(unittest.TestCase):
         "| SOUL-TH-003 | Third control | AGENTIC, MULTI-AGENT |",
     ]
     STEPS = ["1. A second step (satisfies SOUL-TH-002)", "2. A third step (satisfies SOUL-TH-003)"]
+    # (heading, the text that follows the lines under it, the line under it that names the control named there last,
+    # that control) for the two tables and the two path sections.
+    TABLES = (("### CRITICAL Controls", "\n\n### Path to Essential", "| SOUL-TH-001 | First control | All tiers |",
+               "SOUL-TH-001"),
+              ("### HIGH Controls", "\n\n### Path to Standard", ROWS[1], "SOUL-TH-003"))
+    PATHS = (("### Path to Essential", "\n\n### HIGH Controls", "1. A first step (satisfies SOUL-TH-001)",
+              "SOUL-TH-001"),
+             ("### Path to Standard", "\n\n---", STEPS[1], "SOUL-TH-003"))
 
     def check(self, rows=ROWS, steps=STEPS):
         errors = []
         text = CONFORMANCE.format(rows="\n".join(rows), steps="\n".join(steps))
         cc.check_conformance_levels(errors, "conformance.md", text, self.ENTRIES, self.ATTRIBUTES)
         return errors
+
+    def check_text(self, text):
+        errors = []
+        cc.check_conformance_levels(errors, "conformance.md", text, self.ENTRIES, self.ATTRIBUTES)
+        return errors
+
+    def without_last(self, text, line):
+        """text without its last copy of the line, which is the copy under the heading GFM renders."""
+        index = text.rindex(line + "\n")
+        return text[:index] + text[index + len(line) + 1:]
 
     def test_every_active_control_of_the_severity_listed_and_named_in_the_path_is_green(self):
         self.assertEqual(self.check(), [])
@@ -1035,6 +1151,54 @@ class ConformanceLevels(unittest.TestCase):
             "| Control ID | Name | Applicable Tiers |",
         ])
 
+    def test_heading_and_table_repeated_in_a_fenced_block_above_the_heading_are_not_read(self):
+        # The block repeats the heading and the table as they stand. The table GFM renders under the heading has no
+        # row for the control the block lists last.
+        green = CONFORMANCE.format(rows="\n".join(self.ROWS), steps="\n".join(self.STEPS))
+        for heading, end, row, cid in self.TABLES:
+            example = green[green.index(heading):green.index(end)]
+            text = self.without_last(green.replace(heading, f"```markdown\n{example}\n\n```\n\n{heading}", 1), row)
+            with self.subTest(heading=heading):
+                self.assertEqual(self.check_text(text),
+                                 [f"RED conformance.md: the table under {heading!r} has no row for {cid}"])
+
+    def test_table_in_a_fenced_block_between_the_heading_and_the_table_is_not_read(self):
+        green = CONFORMANCE.format(rows="\n".join(self.ROWS), steps="\n".join(self.STEPS))
+        for heading, end, row, cid in self.TABLES:
+            table = green[green.index("| Control ID |", green.index(heading)):green.index(end)]
+            text = self.without_last(green.replace(f"{heading}\n\n", f"{heading}\n\n```markdown\n{table}\n```\n\n", 1),
+                                     row)
+            with self.subTest(heading=heading):
+                self.assertEqual(self.check_text(text),
+                                 [f"RED conformance.md: the table under {heading!r} has no row for {cid}"])
+
+    def test_path_section_repeated_in_a_fenced_block_above_its_heading_is_not_read(self):
+        # The block repeats the heading and the steps as they stand. The section GFM renders under the heading names
+        # no step for the control the block names last.
+        green = CONFORMANCE.format(rows="\n".join(self.ROWS), steps="\n".join(self.STEPS))
+        for heading, end, step, cid in self.PATHS:
+            example = green[green.index(heading):green.index(end)]
+            text = self.without_last(green.replace(heading, f"```markdown\n{example}\n\n```\n\n{heading}", 1), step)
+            with self.subTest(heading=heading):
+                self.assertEqual(self.check_text(text),
+                                 [f"RED conformance.md: the section {heading!r} names no step for {cid}"])
+
+    def test_line_that_starts_with_a_hash_inside_a_fenced_block_does_not_end_the_path_section(self):
+        green = CONFORMANCE.format(rows="\n".join(self.ROWS), steps="\n".join(self.STEPS))
+        for heading, _, _, _ in self.PATHS:
+            for opening, closing in (("```sh", "```"), ("~~~", "~~~")):
+                text = green.replace(f"{heading}\n\n",
+                                     f"{heading}\n\n{opening}\n# A comment in an example\n{closing}\n\n", 1)
+                with self.subTest(heading=heading, opening=opening):
+                    self.assertEqual(self.check_text(text), [])
+
+    def test_heading_only_inside_a_fenced_block_is_not_found(self):
+        green = CONFORMANCE.format(rows="\n".join(self.ROWS), steps="\n".join(self.STEPS))
+        for heading in ("### CRITICAL Controls", "### Path to Essential", "### HIGH Controls", "### Path to Standard"):
+            with self.subTest(heading=heading):
+                self.assertEqual(self.check_text(green.replace(heading, f"```\n{heading}\n```", 1)),
+                                 [f"RED conformance.md: heading {heading!r} not found"])
+
 
 def tiers_for(controls):
     with tempfile.TemporaryDirectory() as tmp:
@@ -1094,11 +1258,20 @@ class ApplicabilityMatrix(unittest.TestCase):
         "SOUL-TH-002": ("domains/11-trust-hierarchy.md:20", ("AGENTIC", "MULTI-AGENT")),
     }
     GREEN = ["| SOUL-TH-001 | Yes | Yes | Yes | Yes |", "| SOUL-TH-002 | -- | -- | Yes | Yes |"]
+    # A row of SOUL-TH-002 that differs from its Applicable tiers attribute, and the red line it gives.
+    MULTI_AGENT_ROW = "| SOUL-TH-002 | -- | -- | -- | Yes |"
+    MULTI_AGENT_RED = ("SOUL-TH-002 is marked Yes for MULTI-AGENT; its Applicable tiers attribute at "
+                       "domains/11-trust-hierarchy.md:20 names AGENTIC, MULTI-AGENT")
 
     def check(self, rows, tiers=None):
         errors = []
         cc.check_applicability_matrix(errors, "specification.md", MATRIX.format(rows="\n".join(rows)),
                                       tiers or self.TIERS)
+        return errors
+
+    def check_text(self, text):
+        errors = []
+        cc.check_applicability_matrix(errors, "specification.md", text, self.TIERS)
         return errors
 
     def test_rows_equal_to_the_applicable_tiers_attributes_are_green(self):
@@ -1162,6 +1335,32 @@ class ApplicabilityMatrix(unittest.TestCase):
         self.assertEqual(errors, ["RED specification.md: the matrix under section 3.5 must have the header "
                                   "| Control ID | BASIC | TOOL-USING | AGENTIC | MULTI-AGENT |"])
 
+    def test_heading_and_matrix_repeated_in_a_fenced_block_above_the_heading_are_not_read(self):
+        # The block repeats the heading and the matrix as they stand. The matrix GFM renders under the heading marks
+        # SOUL-TH-002 for MULTI-AGENT alone.
+        green = MATRIX.format(rows="\n".join(self.GREEN))
+        example = green[green.index(cc.MATRIX_HEADING):green.index("\n\nText after the table.")]
+        text = MATRIX.format(rows="\n".join([self.GREEN[0], self.MULTI_AGENT_ROW]))
+        text = text.replace(cc.MATRIX_HEADING, f"```markdown\n{example}\n\n```\n\n{cc.MATRIX_HEADING}", 1)
+        lineno = text.split("\n").index(self.MULTI_AGENT_ROW) + 1
+        self.assertEqual(self.check_text(text), [f"RED specification.md:{lineno}: {self.MULTI_AGENT_RED}"])
+
+    def test_matrix_in_a_fenced_block_between_the_heading_and_the_matrix_is_not_read(self):
+        green = MATRIX.format(rows="\n".join(self.GREEN))
+        example = green[green.index("| Control ID |"):green.index("\n\nText after the table.")]
+        text = MATRIX.format(rows="\n".join([self.GREEN[0], self.MULTI_AGENT_ROW]))
+        text = text.replace(f"{cc.MATRIX_HEADING}\n\n", f"{cc.MATRIX_HEADING}\n\n```markdown\n{example}\n```\n\n", 1)
+        lineno = text.split("\n").index(self.MULTI_AGENT_ROW) + 1
+        self.assertEqual(self.check_text(text), [f"RED specification.md:{lineno}: {self.MULTI_AGENT_RED}"])
+
+    def test_heading_only_inside_a_fenced_block_is_not_found(self):
+        green = MATRIX.format(rows="\n".join(self.GREEN))
+        # A block that no line closes runs to the end of the text.
+        for case, text in (("closed", f"```markdown\n{green}```\n"), ("never closed", f"~~~\n{green}")):
+            with self.subTest(case=case):
+                self.assertEqual(self.check_text(text),
+                                 ["RED specification.md: heading '### 3.5 Control Applicability Matrix' not found"])
+
 
 TIER_SECTIONS = """## 3. Agent Tiers
 
@@ -1193,11 +1392,23 @@ class TierCounts(unittest.TestCase):
         "SOUL-TH-002": ("a.md:2", ("AGENTIC", "MULTI-AGENT")),
         "SOUL-TH-003": ("a.md:3", ("MULTI-AGENT",)),
     }
+    # The counts of sections 3.1 to 3.4 that equal TIERS, and the four count lines of TIER_SECTIONS.
+    COUNTS = (1, 1, 2, 3)
+    COUNT_LINES = [line for line in TIER_SECTIONS.split("\n") if line.startswith("**Applicable controls**")]
 
     def check(self, text, tiers=None):
         errors = []
         cc.check_tier_counts(errors, "specification.md", text, tiers or self.TIERS)
         return errors
+
+    def one_more(self, i):
+        """The tier sections with tier i stating one control more than names it, that count line, and its red line."""
+        values = list(self.COUNTS)
+        values[i] += 1
+        tier = cc.TIERS[i]
+        return (TIER_SECTIONS.format(*values), self.COUNT_LINES[i].format(values[i]),
+                f"Applicable controls {values[i]} of {tier} differs from the {self.COUNTS[i]} controls whose "
+                f"Applicable tiers attribute names {tier}")
 
     def test_counts_equal_to_the_attributes_are_green(self):
         self.assertEqual(self.check(TIER_SECTIONS.format(1, 1, 2, 3)), [])
@@ -1244,6 +1455,41 @@ class TierCounts(unittest.TestCase):
                 self.assertEqual(self.check(TIER_SECTIONS.format(9, 9, digits, 9),
                                             {**self.TIERS, "SOUL-TH-003": ("a.md:3", None)}), [red])
 
+    def test_tier_section_repeated_in_a_fenced_block_above_its_heading_is_not_read(self):
+        # The block repeats the heading and the section as they stand. The section GFM renders under the heading
+        # states one control more than names the tier.
+        green = TIER_SECTIONS.format(*self.COUNTS)
+        for i, tier in enumerate(cc.TIERS):
+            heading = f"### 3.{i + 1} {tier}"
+            start = green.index(heading)
+            example = green[start:green.index("\n\n###", start)]
+            text, count, red = self.one_more(i)
+            text = text.replace(heading, f"```markdown\n{example}\n\n```\n\n{heading}", 1)
+            lineno = text.split("\n").index(count) + 1
+            with self.subTest(tier=tier):
+                self.assertEqual(self.check(text), [f"RED specification.md:{lineno}: {red}"])
+
+    def test_line_inside_a_fenced_block_under_a_tier_heading_is_not_read(self):
+        # A line there that starts with # does not end the section, and a count line there is not its count. The
+        # count line under the block states one control more than names the tier.
+        for i, tier in enumerate(cc.TIERS):
+            heading = f"### 3.{i + 1} {tier}"
+            for line in ("# A comment in an example", f"**Applicable controls**: {self.COUNTS[i]}"):
+                for opening, closing in (("```sh", "```"), ("~~~", "~~~")):
+                    text, count, red = self.one_more(i)
+                    text = text.replace(f"{heading}\n\n", f"{heading}\n\n{opening}\n{line}\n{closing}\n\n", 1)
+                    lineno = text.split("\n").index(count) + 1
+                    with self.subTest(tier=tier, line=line, opening=opening):
+                        self.assertEqual(self.check(text), [f"RED specification.md:{lineno}: {red}"])
+
+    def test_tier_heading_only_inside_a_fenced_block_is_not_found(self):
+        text = TIER_SECTIONS.format(*self.COUNTS)
+        for i, tier in enumerate(cc.TIERS):
+            heading = f"### 3.{i + 1} {tier}"
+            with self.subTest(tier=tier):
+                self.assertEqual(self.check(text.replace(heading, f"```\n{heading}\n```", 1)),
+                                 [f"RED specification.md: section 3 has no heading '### 3.n {tier}'"])
+
 
 class LineEndingPins(unittest.TestCase):
     def test_the_byte_checked_files_are_pinned_to_lf(self):
@@ -1261,12 +1507,15 @@ class FenceReader(unittest.TestCase):
     def test_the_fence_reader_is_the_one_in_the_prose_check(self):
         # Each check is a file of its own, so each holds a copy of the reader. scripts/test_check_docs_prose.py tests the
         # lines its copy reads as code, and EntryAttributes the attribute rows this copy leaves unread.
-        for name in ("first_character", "closes_fence", "CodeFences"):
+        for name in ("first_character", "closes_fence", "past_quote_marker", "CodeFences"):
             with self.subTest(name=name):
                 self.assertEqual(inspect.getsource(getattr(cc, name)), inspect.getsource(getattr(cdp, name)))
-        for name in ("FENCE", "LIST_MARKER", "ATX_HEADING", "HEADING_UNDERLINE"):
+        for name in ("FENCE", "LIST_MARKER", "ATX_HEADING", "HEADING_UNDERLINE", "HTML_BLOCK"):
             with self.subTest(name=name):
-                self.assertEqual(getattr(cc, name).pattern, getattr(cdp, name).pattern)
+                self.assertEqual((getattr(cc, name).pattern, getattr(cc, name).flags),
+                                 (getattr(cdp, name).pattern, getattr(cdp, name).flags))
+        self.assertEqual([(end.pattern, end.flags) for end in cc.HTML_BLOCK_END],
+                         [(end.pattern, end.flags) for end in cdp.HTML_BLOCK_END])
 
 
 class MainRun(unittest.TestCase):
@@ -1396,6 +1645,29 @@ class MainRun(unittest.TestCase):
                 self.assertIn("\n1 problem(s) found", out)
                 self.assertNotIn("all checks green", out)
 
+    def test_registry_table_repeated_in_a_fenced_block_above_its_heading_is_not_read(self):
+        # Directly above the heading of section 5.3, a fenced block holds the heading, a blank line, the lines of the
+        # registry table as they stand, and a blank line; the real table gives SOUL-TH-001 the severity LOW.
+        lines = (cc.ROOT / cc.SPECIFICATION).read_text(encoding="utf-8").splitlines()
+        start = lines.index(cc.REGISTRY_HEADING)
+        self.assertEqual(lines[start + 1], "")
+        end = next(i for i in range(start + 2, len(lines)) if not lines[i].startswith("|"))
+        table = lines[start + 2:end]
+        self.assertEqual(len(table), 2 + cc.CONTROL_COUNT)
+        row = lines.index("| SOUL-TH-001 | Trust Chain Defined | Trust Hierarchy | HIGH |")
+        block = ["```markdown", cc.REGISTRY_HEADING, ""] + table + ["", "```", ""]
+
+        def drift(root):
+            path = root / cc.SPECIFICATION
+            text = path.read_text(encoding="utf-8").splitlines()
+            text[row] = text[row].replace("| HIGH |", "| LOW |")
+            path.write_text("\n".join(text[:start] + block + text[start:]) + "\n", encoding="utf-8")
+        code, out, _ = self.run_main([], drift)
+        self.assertEqual(code, 1, out)
+        self.assertIn(f"RED specification.md:{row + 1 + len(block)}: Severity 'LOW' of SOUL-TH-001 differs from the "
+                      "attribute table 'HIGH'\n", out)
+        self.assertIn("\n1 problem(s) found", out)
+
     def test_missing_conformance_file_is_red(self):
         code, out, _ = self.run_main([], lambda root: (root / cc.CONFORMANCE).unlink())
         self.assertEqual(code, 1, out)
@@ -1476,6 +1748,36 @@ class MainRun(unittest.TestCase):
         row = "| **Status** | deprecated |"
         for lines, red in ((["- Example:", "", "  ```", "  text", "    ```", "", row], True),
                            (["1. Example:", "", "    ```", "    " + row, "    ```", ""], False)):
+            def drift(root, lines=lines):
+                path = root / rel
+                path.write_text(path.read_text(encoding="utf-8").replace(table_end, table_end + "\n".join(lines) + "\n",
+                                                                         1), encoding="utf-8")
+            with self.subTest(lines=lines):
+                code, out, _ = self.run_main([], drift)
+                if red:
+                    self.assertEqual(code, 1, out)
+                    self.assertIn(f"RED {rel}:{first + lines.index(row)}: attribute row separated from the attribute "
+                                  "table of SOUL-TH-001; it is not read\n", out)
+                    self.assertIn("\n1 problem(s) found", out)
+                else:
+                    self.assertEqual(code, 0, out)
+                    self.assertIn("crosswalks: all checks green", out)
+
+    def test_fenced_block_after_an_html_block_or_a_block_quote_closes_where_markdown_closes_it(self):
+        # The lines go after the blank line that ends the attribute table of SOUL-TH-001. A list marker inside an HTML
+        # block opens no list item, and a block quote line ends the list item above it, so the block after them opens
+        # outside a list item and closes at its line indented two spaces: the row inside it is not read, the row after
+        # it is red at its line, and the tables after it are read.
+        rel = "domains/11-trust-hierarchy.md"
+        table_end = ("| **ID** | SOUL-TH-001 |\n| **Severity** | HIGH |\n"
+                     "| **Applicable tiers** | All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT) |\n\n")
+        text = (cc.ROOT / rel).read_text(encoding="utf-8")
+        self.assertIn(table_end, text)
+        first = text[:text.index(table_end) + len(table_end)].count("\n") + 1
+        row = "| **Status** | deprecated |"
+        for lines, red in ((["<!-- notes", "- update the table", "-->", "", "  ```", row, "  ```", ""], False),
+                           (["- Example:", "> quote", "", "  ```", row, "  ```", ""], False),
+                           (["<!-- notes", "- update the table", "-->", "", "  ```", "text", "  ```", "", row], True)):
             def drift(root, lines=lines):
                 path = root / rel
                 path.write_text(path.read_text(encoding="utf-8").replace(table_end, table_end + "\n".join(lines) + "\n",
