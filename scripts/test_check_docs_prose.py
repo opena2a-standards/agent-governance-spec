@@ -228,6 +228,112 @@ class ListItemFences(unittest.TestCase):
             self.assertLess(time.perf_counter() - start, 2.0)
 
 
+class BlockQuoteFences(unittest.TestCase):
+    # CommonMark counts the indentation of a fence inside a block quote from the column after its ">" and the space
+    # after it, and a fenced block inside a quote ends with the quote. A line that opens a block quote does not continue
+    # the paragraph above it, so it ends a list item that it is not indented into.
+    DASH = "spaced double hyphen used as a dash"
+
+    def test_block_quote_line_ends_the_list_item_above_it(self):
+        assert_dashes_at(self, (
+            # The block under the quote opens outside the item, so its line indented two spaces closes it.
+            (("- item", "> quote", "", "  ```", "code -- x", "  ```", "", "Done -- y"), [8]),
+            (("1. item", "> quote", "", "   ```", "code -- x", "   ```", "", "Done -- y"), [8]),
+            # A ">" indented to the item's content opens a quote inside the item, which stays open.
+            (("- item", "  > quote", "", "  ```", "  code -- x", "    ```", "", "Done -- y"), [8]),
+        ))
+
+    def test_fence_in_a_block_quote_opens_and_closes_at_most_three_spaces_past_its_content(self):
+        assert_dashes_at(self, (
+            (("> ```", "> code -- x", "> ```", "After -- y"), [4]),
+            ((">\t```", ">\tcode -- x", ">\t```", "After -- y"), [4]),
+            (("> > ```", "> > code -- x", "> > ```", "After -- y"), [4]),
+            # The space after the ">" belongs to the marker, so a run four spaces past that space does not close the
+            # block.
+            (("> ```", ">     ```", "> code -- x", "> ```", "After -- y"), [5]),
+            # A list item inside a quote is indented from the column where the quote's content starts on each line.
+            (("> - a", ">", ">   ```", ">   code -- x", ">     ```", "After -- y"), [6]),
+            (("> - a", ">", "   > ```", "> code -- x", "> ```", "After -- y"), [6]),
+        ))
+
+    def test_fenced_block_in_a_block_quote_ends_with_the_quote(self):
+        assert_dashes_at(self, (
+            (("> ```", "> code -- x", "After -- y"), [3]),
+            # A blank line ends the quote, so the ">" under it opens another one.
+            (("> ```", "", "> code -- x", "After -- y"), [3, 4]),
+            # A line that continues a paragraph of the quote without a ">" keeps the quote and the item around it open.
+            (("- > a", "b", "  ```", "  code -- x", "    ```", "After -- y"), [6]),
+        ))
+
+    def test_lines_of_many_block_quote_markers_are_read_in_linear_time(self):
+        skip_the_time_bound_when_optimized(self)
+        for text in (("> " * 100000 + "x", "text -- a"), (">" * 200000 + "x", "text -- a"),
+                     ("> - " * 50000 + "x", "text -- a"),
+                     # A blank line continues the list items up to the next block quote, which a binary search finds
+                     # without a walk over the items.
+                     ("- " * 100000 + "x", *[""] * 2000, "text -- a")):
+            start = time.perf_counter()
+            self.assertEqual([(len(text), self.DASH)], cdp.findings(lines(*text)))
+            self.assertLess(time.perf_counter() - start, 2.0)
+
+
+class HtmlBlockFences(unittest.TestCase):
+    # CommonMark reads the lines of an HTML block as HTML up to the end of its kind, so a list marker or a fence there
+    # opens nothing, and the block ends with the list item or block quote that holds it. The prose check reads the
+    # lines of such a block that are not inside an HTML comment as prose.
+    DASH = "spaced double hyphen used as a dash"
+
+    def test_list_marker_inside_an_html_block_opens_no_list_item(self):
+        # The block under the HTML block opens outside a list item, so its line indented two spaces closes it.
+        assert_dashes_at(self, (
+            (("<!-- notes", "- update the table", "-->", "", "  ```bash", "npm install -- something", "  ```", "",
+              "Done -- for now."), [9]),
+            (("<details>", "- item", "</details>", "", "  ```", "code -- x", "  ```", "", "Done -- y"), [9]),
+            (("<pre>", "- a", "</pre>", "", "  ```", "code -- x", "  ```", "", "Done -- y"), [9]),
+        ))
+
+    def test_fence_line_inside_an_html_block_opens_no_fence(self):
+        assert_dashes_at(self, (
+            (("<div>", "```", "text -- x", "```", "</div>"), [3]),
+            (('<a href="x">', "```", "text -- x", "```"), [3]),
+            (("<!--", "```", "-->", "text -- x"), [4]),
+            (("<?php", "```", "?>", "text -- x"), [4]),
+            (("<!DOCTYPE html", "```", ">", "text -- x"), [4]),
+            (("<![CDATA[", "```", "]]>", "text -- x"), [4]),
+            # A blank line does not end a pre, script, style or textarea block, and ends a block opened by another tag.
+            (("<pre>", "", "```", "</pre>", "text -- x"), [5]),
+            (("", "<span>", "```", "text -- x", "```", "", "After -- y"), [4, 7]),
+            (("<div>", "", "```", "code -- x", "```", "After -- y"), [6]),
+        ))
+
+    def test_html_block_opens_as_commonmark_opens_one(self):
+        assert_dashes_at(self, (
+            # A block that ends on the line that opens it holds that line only.
+            (("<!-- note -->", "```", "code -- x", "```", "After -- y"), [5]),
+            # A tag such as span opens a block only with nothing after it on the line, and does not interrupt a
+            # paragraph.
+            (('<a href="x">text', "```", "code -- x", "```"), []),
+            (("Text", "<span>", "```", "code -- x", "```", "After -- y"), [6]),
+            # A line indented four spaces is code, not HTML.
+            (("    <div>", "```", "code -- x", "```"), []),
+        ))
+
+    def test_html_block_ends_with_the_list_item_or_block_quote_that_holds_it(self):
+        assert_dashes_at(self, (
+            (("- <div>", "  ```", "  text -- x", "  ```", "After -- y"), [3, 5]),
+            (("- <div>", "  text", "```", "code -- x", "```", "After -- y"), [6]),
+            (("> <div>", "> ```", "> text -- x", "```", "code -- y", "```"), [3]),
+        ))
+
+    def test_long_tag_and_long_line_in_an_html_block_are_read_in_linear_time(self):
+        skip_the_time_bound_when_optimized(self)
+        for text in (("<a" + " b=c" * 50000 + " !", "text -- a"), ("<a" + " b=c" * 50000 + ">", "text -- a"),
+                     ("<a b='" + "x" * 200000, "text -- a"), ("<pre>", "</pr" * 50000, "text -- a")):
+            start = time.perf_counter()
+            self.assertEqual([(len(text), self.DASH)], cdp.findings(lines(*text)))
+            self.assertLess(time.perf_counter() - start, 2.0)
+
+
 class DashEdges(unittest.TestCase):
     def test_double_hyphen_at_a_line_edge_or_set_off_by_tabs_is_reported(self):
         for text in ("A clause that ends the line --", "-- starts the line", "x\t--\ty", "  --  "):
@@ -454,6 +560,23 @@ class CommandLine(unittest.TestCase):
         self.assertEqual(1, code)
         self.assertEqual("bullet.md:9: spaced double hyphen used as a dash\n", out)
         self.assertEqual("1 finding(s); " + self.HINT, err)
+
+    def test_code_blocks_after_an_html_block_or_a_block_quote_are_skipped_up_to_their_closing_line(self):
+        # The list marker of html.md is inside an HTML comment and opens no list item, and the block quote line of
+        # quote.md ends the list item above it, so the block under each opens outside a list item and closes at its
+        # line indented two spaces.
+        with tempfile.TemporaryDirectory() as tmp:
+            write_tree(tmp, {
+                "html.md": "<!-- notes\n- update the table\n-->\n\n  ```bash\nnpm install -- something\n  ```\n\n"
+                           "Done -- for now.\n",
+                "quote.md": "- item\n> quote\n\n  ```\ncode -- x\n  ```\n\nDone -- y\n",
+            })
+            with mock.patch.object(cdp.subprocess, "run", side_effect=OSError("no git")):
+                code, out, err = run_main(tmp)
+        self.assertEqual(1, code)
+        self.assertEqual("html.md:9: spaced double hyphen used as a dash\n"
+                         "quote.md:8: spaced double hyphen used as a dash\n", out)
+        self.assertEqual("2 finding(s); " + self.HINT, err)
 
     def test_tracked_md_and_mdx_files_are_read_and_untracked_ones_are_not(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -938,9 +1061,11 @@ class TimeBounds(unittest.TestCase):
                     CodeSpans("test_long_runs_of_backticks_are_scanned_in_linear_time"),
                     Contributing("test_clause_break_splits_a_run_of_whitespace_in_linear_time"),
                     ListItemFences("test_line_of_many_list_markers_is_read_in_linear_time"),
+                    BlockQuoteFences("test_lines_of_many_block_quote_markers_are_read_in_linear_time"),
+                    HtmlBlockFences("test_long_tag_and_long_line_in_an_html_block_are_read_in_linear_time"),
                 ]).run(result)
                 clock.perf_counter.assert_not_called()
-                self.assertEqual([TIME_BOUND_SKIP] * 3, [reason for _, reason in result.skipped])
+                self.assertEqual([TIME_BOUND_SKIP] * 5, [reason for _, reason in result.skipped])
 
     def test_the_run_without_python3_O_checks_the_time_bounds(self):
         # A skip here would report this test as skipped, not failed, so skipTest is replaced and must not be called.

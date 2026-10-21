@@ -21,8 +21,9 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   where no backtick follows a run of backticks on the line, and closes at a
   line that holds, after at most three spaces, only a run of its own
   character at least as long as the run that opened it, then nothing but
-  spaces and tabs. Inside a list item the spaces are counted from the item's
-  content column, and the block ends with the item. An argument that is
+  spaces and tabs. Inside a list item or a block quote the spaces are counted
+  from the column where its content starts, and the block ends with it; a
+  line inside an HTML block opens no fence. An argument that is
   not a directory prints a usage message and exits 2. Tests in
   `scripts/test_check_docs_prose.py`.
 - `controls.json` at the repository root: the JSON control export named in
@@ -44,10 +45,11 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   no `# Domain N:` heading are reported; an attribute row inside a code block
   fenced by backticks or tildes is not read. In a domain file such a fence
   opens and closes only at a line indented by at most three spaces, counted
-  inside a list item from the item's content column, and closes only at a
-  line with nothing but spaces and tabs after its run; a block inside a list
-  item ends with the item, and a run of backticks with a backtick after it
-  on the line opens none. The line
+  inside a list item or a block quote from the column where its content
+  starts, and closes only at a line with nothing but spaces and tabs after
+  its run; a block inside a list item or a block quote ends with it, none
+  opens inside an HTML block, and a run of backticks with a backtick after
+  it on the line opens none. The line
   directly under the last row of an attribute table must be blank (empty, or
   spaces and tabs only): GFM renders a line there that is not blank as a row
   of the table unless the line starts another block, so such a line is

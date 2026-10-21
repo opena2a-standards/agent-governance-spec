@@ -609,6 +609,35 @@ class EntryAttributes(unittest.TestCase):
                                                    "attribute table of SOUL-TH-001; it is not read"), errors[0])
                 self.assertEqual(entries[0]["status"], "active")
 
+    def test_attribute_row_inside_a_fenced_block_after_an_html_block_or_a_block_quote_is_not_read(self):
+        # A list marker inside an HTML block opens no list item, and a block quote line ends the list item above it,
+        # so the block after them opens outside a list item and its line indented two spaces closes it.
+        example = "```\n| **Status** | ignored |\n```"
+        self.assertIn(example, domain_file([ACTIVE]))
+        for block in ("<!-- notes\n- update the table\n-->\n\n  ```\n| **Status** | ignored |\n  ```",
+                      "<details>\n- item\n</details>\n\n  ```\n| **Status** | ignored |\n  ```",
+                      "- Example:\n> quote\n\n  ```\n| **Status** | ignored |\n  ```"):
+            with self.subTest(block=block):
+                entries, errors = entries_for_text(domain_file([ACTIVE]).replace(example, block))
+                self.assertEqual(errors, [])
+                self.assertEqual(entries[0]["status"], "active")
+
+    def test_fence_line_inside_an_html_block_opens_no_fence(self):
+        # Markdown reads the lines of an HTML block as HTML, so its fence line opens no code block, and the row, inside
+        # the block or after its end, is red at its line.
+        example = "```\n| **Status** | ignored |\n```"
+        self.assertIn(example, domain_file([ACTIVE]))
+        row = "| **Status** | deprecated |"
+        for block in ("<div>\n```\n" + row + "\n```\n</div>", "<!--\n```\n-->\n" + row):
+            with self.subTest(block=block):
+                variant = domain_file([ACTIVE]).replace(example, block)
+                lineno = variant.split("\n").index(row) + 1
+                entries, errors = entries_for_text(variant)
+                self.assertEqual(len(errors), 1, errors)
+                self.assertTrue(errors[0].endswith(f"11-trust-hierarchy.md:{lineno}: attribute row separated from the "
+                                                   "attribute table of SOUL-TH-001; it is not read"), errors[0])
+                self.assertEqual(entries[0]["status"], "active")
+
     def test_long_row_that_does_not_match_is_rejected_in_linear_time(self):
         skip_the_time_bound_when_optimized(self)
         row = "| **x** | " + "** | " * 20000 + "x"
@@ -1478,12 +1507,15 @@ class FenceReader(unittest.TestCase):
     def test_the_fence_reader_is_the_one_in_the_prose_check(self):
         # Each check is a file of its own, so each holds a copy of the reader. scripts/test_check_docs_prose.py tests the
         # lines its copy reads as code, and EntryAttributes the attribute rows this copy leaves unread.
-        for name in ("first_character", "closes_fence", "CodeFences"):
+        for name in ("first_character", "closes_fence", "past_quote_marker", "CodeFences"):
             with self.subTest(name=name):
                 self.assertEqual(inspect.getsource(getattr(cc, name)), inspect.getsource(getattr(cdp, name)))
-        for name in ("FENCE", "LIST_MARKER", "ATX_HEADING", "HEADING_UNDERLINE"):
+        for name in ("FENCE", "LIST_MARKER", "ATX_HEADING", "HEADING_UNDERLINE", "HTML_BLOCK"):
             with self.subTest(name=name):
-                self.assertEqual(getattr(cc, name).pattern, getattr(cdp, name).pattern)
+                self.assertEqual((getattr(cc, name).pattern, getattr(cc, name).flags),
+                                 (getattr(cdp, name).pattern, getattr(cdp, name).flags))
+        self.assertEqual([(end.pattern, end.flags) for end in cc.HTML_BLOCK_END],
+                         [(end.pattern, end.flags) for end in cdp.HTML_BLOCK_END])
 
 
 class MainRun(unittest.TestCase):
@@ -1716,6 +1748,36 @@ class MainRun(unittest.TestCase):
         row = "| **Status** | deprecated |"
         for lines, red in ((["- Example:", "", "  ```", "  text", "    ```", "", row], True),
                            (["1. Example:", "", "    ```", "    " + row, "    ```", ""], False)):
+            def drift(root, lines=lines):
+                path = root / rel
+                path.write_text(path.read_text(encoding="utf-8").replace(table_end, table_end + "\n".join(lines) + "\n",
+                                                                         1), encoding="utf-8")
+            with self.subTest(lines=lines):
+                code, out, _ = self.run_main([], drift)
+                if red:
+                    self.assertEqual(code, 1, out)
+                    self.assertIn(f"RED {rel}:{first + lines.index(row)}: attribute row separated from the attribute "
+                                  "table of SOUL-TH-001; it is not read\n", out)
+                    self.assertIn("\n1 problem(s) found", out)
+                else:
+                    self.assertEqual(code, 0, out)
+                    self.assertIn("crosswalks: all checks green", out)
+
+    def test_fenced_block_after_an_html_block_or_a_block_quote_closes_where_markdown_closes_it(self):
+        # The lines go after the blank line that ends the attribute table of SOUL-TH-001. A list marker inside an HTML
+        # block opens no list item, and a block quote line ends the list item above it, so the block after them opens
+        # outside a list item and closes at its line indented two spaces: the row inside it is not read, the row after
+        # it is red at its line, and the tables after it are read.
+        rel = "domains/11-trust-hierarchy.md"
+        table_end = ("| **ID** | SOUL-TH-001 |\n| **Severity** | HIGH |\n"
+                     "| **Applicable tiers** | All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT) |\n\n")
+        text = (cc.ROOT / rel).read_text(encoding="utf-8")
+        self.assertIn(table_end, text)
+        first = text[:text.index(table_end) + len(table_end)].count("\n") + 1
+        row = "| **Status** | deprecated |"
+        for lines, red in ((["<!-- notes", "- update the table", "-->", "", "  ```", row, "  ```", ""], False),
+                           (["- Example:", "> quote", "", "  ```", row, "  ```", ""], False),
+                           (["<!-- notes", "- update the table", "-->", "", "  ```", "text", "  ```", "", row], True)):
             def drift(root, lines=lines):
                 path = root / rel
                 path.write_text(path.read_text(encoding="utf-8").replace(table_end, table_end + "\n".join(lines) + "\n",

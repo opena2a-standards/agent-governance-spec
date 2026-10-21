@@ -83,15 +83,34 @@ DOMAIN_HEADING = re.compile(r"^# Domain (\d+): (.*\S|.)\s*$")
 # or more backticks or tildes, where no backtick follows a run of backticks on the line (the info
 # string of a backtick fence holds none). These are the CommonMark conditions on the line; FENCE
 # matches the run from the first character of the line that is not a space or a tab, and
-# CodeFences reads the indentation before it, which inside a list item is counted from the item's
-# content column. The block closes at a line that holds, after at most three spaces, only a run of
-# its own character at least as long, then nothing but spaces and tabs (see closes_fence).
+# CodeFences reads the indentation before it, which inside a list item or a block quote is counted
+# from the column where its content starts. The block closes at a line that holds, after at most
+# three spaces, only a run of its own character at least as long, then nothing but spaces and tabs
+# (see closes_fence). No fence opens inside an HTML block (HTML_BLOCK).
 FENCE = re.compile(r"`{3,}(?=[^`]*$)|~{3,}")
-# The starts of the other blocks that decide where a list item ends, each matched from the first character of a line
-# that is not a space or a tab (CodeFences): a list marker, an ATX heading, and a setext heading underline.
+# The starts of the other blocks that decide where a list item or a block quote ends, each matched from the first
+# character of a line that is not a space or a tab (CodeFences): a list marker, an ATX heading, and a setext heading
+# underline.
 LIST_MARKER = re.compile(r"[-+*]|([0-9]{1,9})[.)]")
 ATX_HEADING = re.compile(r"#{1,6}(?:[ \t]|$)")
 HEADING_UNDERLINE = re.compile(r"(?:=+|-+)[ \t]*$")
+# The start of an HTML block, matched from the first character of a line that is not a space or a tab (CodeFences). Its
+# seven groups are the seven kinds of HTML block: a pre, script, style or textarea tag; a comment; a processing
+# instruction; a declaration; a CDATA section; the opening or closing tag of a block element; and an open or closing tag
+# of any name with nothing but spaces and tabs after it, which does not interrupt a paragraph.
+HTML_BLOCK = re.compile(
+    r"(<(?:pre|script|style|textarea)(?:[ \t>]|$))|(<!--)|(<\?)|(<![A-Za-z])|(<!\[CDATA\[)"
+    r"|(</?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div"
+    r"|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link"
+    r"|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead"
+    r"|title|tr|track|ul)(?:[ \t]|/?>|$))"
+    r"|((?:<[A-Za-z][A-Za-z0-9-]*(?:[ \t]+[A-Za-z_:][A-Za-z0-9_.:-]*(?:[ \t]*=[ \t]*(?:[^ \t\r\n\"'=<>`]+|'[^']*'"
+    r"|\"[^\"]*\"))?)*[ \t]*/?>|</[A-Za-z][A-Za-z0-9-]*[ \t]*>)[ \t]*$)",
+    re.ASCII | re.IGNORECASE)
+# The line that ends an HTML block of each kind of HTML_BLOCK, matched from its first character that is not a space or
+# a tab: a line that holds a closing pre, script, style or textarea tag, "-->", "?>", ">" or "]]>", or a blank line.
+HTML_BLOCK_END = tuple(re.compile(end, re.ASCII | re.IGNORECASE) for end in (
+    r".*?</(?:pre|script|style|textarea)>", r".*?-->", r".*?\?>", r".*?>", r".*?\]\]>", r"\Z", r"\Z"))
 # [^*]+ and one greedy value group keep a long row that does not match linear;
 # the earlier (.+?) ... (.*?) form backtracked quadratically on such a row.
 ATTRIBUTE_ROW = re.compile(r"^\| \*\*([^*]+)\*\* \| (.*) \|\s*$")
@@ -392,55 +411,106 @@ def closes_fence(fence, rest):
     return len(run) >= len(fence) and run == fence[0] * len(run)
 
 
+def past_quote_marker(line, index, column):
+    """(index, column, start) for the block quote marker ">" at index of line, which is at column: the index and the
+    column of the first character after the marker that is not a space or a tab, or of the end of the line, and the
+    column where the content of the quote starts, which is the column after the marker, or the one after that when a
+    space or a tab follows the marker."""
+    index, column = index + 1, column + 1
+    start = column + 1 if index < len(line) and line[index] in " \t" else column
+    index, column = first_character(line, index, column)
+    return index, column, start
+
+
 class CodeFences:
     """Tells which lines of a Markdown file are lines of a fenced code block, given its lines one at a time, in order.
 
-    A fence opens or closes at a line indented at most three spaces past the content column of the list item that
-    holds the line, or past the start of the line outside a list item, and a block inside a list item ends with the
-    item. The list items are read by the CommonMark rules. An item opens at a bullet (-, + or *), or at one to nine
-    digits and a period or a closing parenthesis, indented at most three spaces and followed by a space, a tab or the
-    end of the line, unless the line is a thematic break such as "- - -". Its content column is the column after the
-    marker and the one to four spaces that follow it, or the column after the marker and one space when nothing or
-    five spaces or more follow it. An item interrupts a paragraph only when text follows its marker, and an ordered
-    item only when its number is 1. A later line continues the item when it is indented at least to the content
-    column, when it is blank and the item holds a block, or when it continues a paragraph of the item without that
-    indentation. A tab advances to the next multiple of four columns. The paragraphs, ATX and setext headings,
-    thematic breaks and indented code blocks that decide where an item ends are read too; block quotes and HTML
-    blocks are not.
+    A fence opens or closes at a line indented at most three spaces past the column where the content of the list item
+    or block quote that holds the line starts, or past the start of the line outside them, and a block inside a list
+    item or a block quote ends with it. The list items and block quotes are read by the CommonMark rules. An item
+    opens at a bullet (-, + or *), or at one to nine digits and a period or a closing parenthesis, indented at most
+    three spaces and followed by a space, a tab or the end of the line, unless the line is a thematic break such as
+    "- - -". Its content starts at the column after the marker and the one to four spaces that follow it, or at the
+    column after the marker and one space when nothing or five spaces or more follow it. An item interrupts a
+    paragraph only when text follows its marker, and an ordered item only when its number is 1. A later line continues
+    the item when it is indented at least to the column where the item's content starts, when it is blank and the item
+    holds a block, or when it continues a paragraph of the item without that indentation. A block quote opens at a ">"
+    indented at most three spaces. Its content starts at the column after the ">", or at the one after that when a
+    space or a tab follows the ">". A later line continues the quote when it holds such a ">", or when it continues a
+    paragraph of the quote without one, so a blank line ends it. Inside a list item or a block quote, the indentation
+    of a line is counted from the column where the content of the item or quote starts. A tab advances to the next
+    multiple of four columns. The paragraphs, ATX and setext headings, thematic breaks and indented code blocks that
+    decide where an item or a quote ends are read too, and so are the HTML blocks. An HTML block opens at a line that
+    starts, after at most three spaces, with one of the seven kinds of start of HTML_BLOCK, the last of which does not
+    interrupt a paragraph, and no other block opens inside it. It ends at the first line, from the one that opens it,
+    that holds the end of its kind (HTML_BLOCK_END), which for the last two kinds is a blank line, or with the list
+    item or block quote that holds it.
     """
 
     def __init__(self):
-        self.items = []  # the content column of each open list item, outermost first; each is past the one before
-        self.empty = False  # the innermost item opened at a line that held only its marker, and holds no block yet
-        self.paragraph = False  # the last block read is a paragraph, which a line can continue without indentation
+        # The open list items and block quotes, outermost first: 0 for a block quote, and for a list item the number of
+        # columns from the column where the content of the item or quote that holds it starts, or from the start of the
+        # line, to the column where its own content starts, which is 2 or more.
+        self.containers = []
+        self.quotes = []  # the index in containers of each open block quote, in order
+        # The innermost container is a list item opened at a line that held only its marker, and holds no block yet.
+        self.empty = False
+        self.paragraph = False  # the last block read is a paragraph, which a line can continue without its containers
         self.fence = None  # the run of backticks or tildes that opened the fenced code block that is open
+        self.html = None  # the pattern of HTML_BLOCK_END that ends the HTML block that is open
+
+    def close(self, depth):
+        """Ends the open list items and block quotes past the first depth of them."""
+        del self.containers[depth:]
+        del self.quotes[bisect.bisect_left(self.quotes, depth):]
 
     def read(self, line):
         """True when line, the next line of the file, opens, continues or closes a fenced code block."""
         if line.endswith("\r"):  # the carriage return of a CRLF line ending
             line = line[:-1]
         index, column = first_character(line, 0, 0)
+        # The open containers the line continues, outermost first, and the column where the content of the innermost
+        # of them starts. A list item is continued by a line indented to the column where its content starts, and a
+        # block quote by a line that holds its ">". Once the rest of the line is blank, the line continues the list
+        # items up to the next block quote, but not that quote, nor an item that holds no block. Each list item a line
+        # continues takes two columns or more of its indentation, and each block quote a character, so the containers
+        # of a line are read in time linear in its length, with one binary search when the rest of it is blank.
+        matched, base = 0, 0
+        while matched < len(self.containers):
+            if index == len(line):
+                quote = bisect.bisect_left(self.quotes, matched)
+                matched = (self.quotes[quote] if quote < len(self.quotes)
+                           else len(self.containers) - (1 if self.empty else 0))
+                break
+            indent = self.containers[matched]
+            if indent and column - base >= indent:
+                base += indent
+            elif not indent and line[index] == ">" and column - base <= 3:
+                index, column, base = past_quote_marker(line, index, column)
+            else:
+                break
+            matched += 1
         blank = index == len(line)
-        # The open items the line continues. The content columns increase, so they are the first ones.
-        if blank:
-            matched = len(self.items) - (1 if self.empty else 0)
-        else:
-            matched = bisect.bisect_right(self.items, column)
         if self.fence is not None:
-            if matched == len(self.items):
-                base = self.items[-1] if self.items else 0
+            if matched == len(self.containers):
                 if not blank and column - base <= 3 and closes_fence(self.fence, line[index:]):
                     self.fence = None
                 return True
-            self.fence = None  # the line ends the list item that holds the block, and the block with it
-        lazy = self.paragraph and matched < len(self.items)
+            self.fence = None  # the line ends a list item or a block quote that holds the block, and the block with it
+        if self.html is not None:
+            if matched == len(self.containers):
+                if self.html.match(line, index):
+                    self.html = None  # the line holds the end of the block
+                return False
+            self.html = None  # the line ends a list item or a block quote that holds the block, and the block with it
+        lazy = self.paragraph and matched < len(self.containers)
         in_paragraph = self.paragraph and not lazy
-        base = self.items[matched - 1] if matched else 0
-        opened = False  # the line opens a list item
-        leaf = None  # the run of a fence the line opens, or "" for a heading or a thematic break
+        opened = False  # the line opens a list item or a block quote
+        leaf = None  # the run of a fence the line opens, or "" for a heading, a thematic break or an HTML block
+        html = None  # the pattern of HTML_BLOCK_END that ends the HTML block the line opens
         # No thematic break of mark starts before stop, where a scan from an earlier index ended without one. Each scan
         # starts at or after the index where the one before it ended, so a line is read in time linear in its length,
-        # however many list markers it holds.
+        # however many list markers and block quote markers it holds.
         mark, stop = "", 0
         while not blank and column - base <= 3:
             fence = FENCE.match(line, index)
@@ -450,6 +520,13 @@ class CodeFences:
             if ATX_HEADING.match(line, index) or (in_paragraph and HEADING_UNDERLINE.match(line, index)):
                 leaf = ""
                 break
+            if line[index] == "<":
+                # The last kind of HTML block does not interrupt a paragraph, so it does not open on a line that would
+                # continue one.
+                start = HTML_BLOCK.match(line, index)
+                if start and (start.lastindex < len(HTML_BLOCK_END) or opened or not self.paragraph):
+                    leaf, html = "", HTML_BLOCK_END[start.lastindex - 1]
+                break
             if line[index] in "-_*" and (line[index] != mark or index >= stop):
                 mark, stop, count = line[index], index, 0
                 while stop < len(line) and line[stop] in (mark, " ", "\t"):
@@ -458,6 +535,16 @@ class CodeFences:
                 if stop == len(line) and count >= 3:
                     leaf = ""
                     break
+            if line[index] == ">":
+                if not opened:
+                    self.close(matched)
+                    opened = True
+                self.quotes.append(len(self.containers))
+                self.containers.append(0)
+                index, column, base = past_quote_marker(line, index, column)
+                blank = index == len(line)
+                in_paragraph = False
+                continue
             marker = LIST_MARKER.match(line, index)
             end = marker.end() if marker else index
             if not marker or (end < len(line) and line[end] not in " \t"):
@@ -466,24 +553,26 @@ class CodeFences:
             if in_paragraph and (after == len(line) or (marker.group(1) and int(marker.group(1)) != 1)):
                 break
             if not opened:
-                del self.items[matched:]
+                self.close(matched)
                 opened = True
             end_column = column + end - index
             spaced = after < len(line) and after_column - end_column <= 4
-            self.items.append(after_column if spaced else end_column + 1)
-            base = self.items[-1]
+            content = after_column if spaced else end_column + 1
+            self.containers.append(content - base)
+            base = content
             index, column, blank = after, after_column, after == len(line)
             in_paragraph = False
         if leaf is not None or opened:
             if not opened:
-                del self.items[matched:]
+                self.close(matched)
             self.paragraph = leaf is None and not blank and column - base <= 3
-            self.empty = leaf is None and blank
+            self.empty = leaf is None and blank and self.containers[-1] > 0
             self.fence = leaf or None
+            self.html = None if html is None or html.match(line, index) else html
             return bool(leaf)
         if lazy and not blank:
-            return False  # the line continues the paragraph, and the items that hold it stay open
-        del self.items[matched:]
+            return False  # the line continues the paragraph, and the containers that hold it stay open
+        self.close(matched)
         self.paragraph = not blank and (in_paragraph or column - base <= 3)
         self.empty = False
         return False
@@ -493,8 +582,9 @@ def fenced_lines(lines):
     """For each line, True when it is part of a fenced code block as CodeFences reads it, the reader load_domains
     uses: the line that opens the block, the lines inside it, and the line that closes it.
 
-    A block that no line closes runs to the end of the list item that holds it, or to the end of the text, as in
-    CommonMark. GFM renders the lines inside a block as code, so none of these lines is a heading or a table row.
+    A block that no line closes runs to the end of the list item or block quote that holds it, or to the end of the
+    text, as in CommonMark. GFM renders the lines inside a block as code, so none of these lines is a heading or a
+    table row.
     """
     fences = CodeFences()
     return [fences.read(line) for line in lines]
