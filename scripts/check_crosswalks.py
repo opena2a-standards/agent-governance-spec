@@ -75,6 +75,9 @@ FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
 # [^*]+ and one greedy value group keep a long row that does not match linear;
 # the earlier (.+?) ... (.*?) form backtracked quadratically on such a row.
 ATTRIBUTE_ROW = re.compile(r"^\| \*\*([^*]+)\*\* \| (.*) \|\s*$")
+# The start of an attribute row without its leading pipe; matching the start alone lets its trailing pipe be absent
+# too. GFM renders a line of this form directly under the last row of a table as a row of that table.
+PIPELESS_ATTRIBUTE_ROW = re.compile(r"^\*\*[^*]+\*\* \|")
 TABLE_HEADER = re.compile(r"^\| Attribute \| Value \|\s*$")
 TABLE_RULE = re.compile(r"^\|(\s*:?-+:?\s*\|)+\s*$")
 # The rows an attribute table may carry. The other attributes of section 5.1
@@ -337,10 +340,14 @@ def load_domains(errors, domains_dir=DOMAINS):
 
     The attribute table is the first table after a control heading. Its rows
     are the header, the rule, and one row per name in ATTRIBUTES; any other row
-    is red. The table ends at the first line that is not a table row. An
-    attribute-shaped row after that and before the next control heading,
+    is red. The table ends at the first line that does not start with a pipe.
+    An attribute-shaped row after that and before the next control heading,
     indented or not, is red as separated from its table, unless it is inside a
-    fenced code block (FENCE), so an example block can show attribute rows.
+    fenced code block (FENCE), so an example block can show attribute rows. A
+    row is attribute-shaped when it is an attribute row (ATTRIBUTE_ROW) or
+    starts as one without its leading pipe (PIPELESS_ATTRIBUTE_ROW); GFM
+    renders the latter, unindented and directly under the last row of the
+    table, as a row of that table.
     attributes maps each control ID to (location of its heading, {attribute
     name: value}), with surrounding backticks stripped from each value. Each
     file is read by read_source.
@@ -389,7 +396,8 @@ def load_domains(errors, domains_dir=DOMAINS):
             if not row and phase == "in":
                 phase = "after"
             if phase == "after":
-                if ATTRIBUTE_ROW.match(line.lstrip()):
+                stripped = line.lstrip()
+                if ATTRIBUTE_ROW.match(stripped) or PIPELESS_ATTRIBUTE_ROW.match(stripped):
                     fail(errors, f"{rel}:{lineno}",
                          f"attribute row separated from the attribute table of {cid}; it is not read")
                 continue

@@ -390,6 +390,32 @@ class EntryAttributes(unittest.TestCase):
                                     errors[0])
                     self.assertEqual(entries[0]["status"], "active")
 
+    def test_attribute_row_without_its_leading_pipe_after_the_table_is_red(self):
+        # Unindented and directly under the last row of the table, GFM renders such a row as a row of that table.
+        text = domain_file([ACTIVE])
+        for indent in ("", " ", "   ", "    ", "\t"):
+            for row in (f"{indent}**Status** | deprecated |", f"{indent}**Status** | deprecated"):
+                for place, variant in (
+                        ("on the line under the last row of the table",
+                         text.replace("| **Severity** | HIGH |\n", f"| **Severity** | HIGH |\n{row}\n")),
+                        ("after the blank line that ends the table",
+                         text.replace("**Description**: Text.", f"{row}\n\n**Description**: Text."))):
+                    with self.subTest(row=row, place=place):
+                        lineno = variant.splitlines().index(row) + 1
+                        entries, errors = entries_for_text(variant)
+                        self.assertEqual(len(errors), 1, errors)
+                        self.assertTrue(errors[0].endswith(f"11-trust-hierarchy.md:{lineno}: attribute row separated "
+                                                           "from the attribute table of SOUL-TH-001; it is not read"),
+                                        errors[0])
+                        self.assertEqual(entries[0]["status"], "active")
+
+    def test_attribute_row_without_its_leading_pipe_inside_a_fenced_block_is_not_read(self):
+        example = "```\n| **Status** | ignored |\n```"
+        self.assertIn(example, domain_file([ACTIVE]))
+        entries, errors = entries_for_text(domain_file([ACTIVE]).replace(example, "```\n**Status** | ignored |\n```"))
+        self.assertEqual(errors, [])
+        self.assertEqual(entries[0]["status"], "active")
+
     def test_attribute_row_inside_a_fenced_block_is_not_read(self):
         # domain_file puts "| **Status** | ignored |" in a fenced block after every table.
         self.assertIn("```\n| **Status** | ignored |\n```", domain_file([ACTIVE]))
@@ -964,6 +990,26 @@ class MainRun(unittest.TestCase):
         self.assertEqual(code, 1, out)
         self.assertIn("RED conformance.md: the table under '### HIGH Controls' has no row for SOUL-IH-004\n", out)
         self.assertIn("\n1 problem(s) found", out)
+
+    def test_attribute_row_without_its_leading_pipe_under_an_attribute_table_is_red(self):
+        rel = "domains/11-trust-hierarchy.md"
+        last = "| **Applicable tiers** | All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT) |"
+        lines = (cc.ROOT / rel).read_text(encoding="utf-8").splitlines()
+        index = lines.index(last, lines.index("### SOUL-TH-001: Trust Chain Defined"))
+        self.assertEqual(lines[index + 1], "")
+
+        def drift(root):
+            path = root / rel
+            text = path.read_text(encoding="utf-8").splitlines()
+            path.write_text("\n".join(text[:index + 1] + ["**Status** | deprecated |"] + text[index + 1:]) + "\n",
+                            encoding="utf-8")
+        code, out, _ = self.run_main([], drift)
+        self.assertEqual(code, 1, out)
+        self.assertIn(f"RED {rel}:{index + 2}: attribute row separated from the attribute table of SOUL-TH-001; "
+                      "it is not read\n", out)
+        # The row is not read, so the render of controls.json keeps SOUL-TH-001 active and equal to the committed file.
+        self.assertIn("\n1 problem(s) found", out)
+        self.assertNotIn("all checks green", out)
 
     def test_missing_conformance_file_is_red(self):
         code, out, _ = self.run_main([], lambda root: (root / cc.CONFORMANCE).unlink())

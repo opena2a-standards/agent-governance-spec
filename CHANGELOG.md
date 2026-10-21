@@ -34,14 +34,15 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   section 8.2), and a version is `MAJOR.MINOR.PATCH` in ASCII digits without
   leading zeros. An attribute table row outside ID, Severity, Applicable
   tiers, Status, Replaced by, and Version, a table row that is not an
-  attribute row, an attribute row separated from its table, indented or not,
-  and a control in a domain file with no `# Domain N:` heading are reported;
-  an attribute row inside a code block fenced by backticks or tildes is not
-  read. A byte that is not UTF-8 in a domain file, `specification.md` or
-  `conformance.md` is reported at its line, and the rest of the file is read
-  with U+FFFD in its place. A domain or control heading with a long run of
-  spaces inside its title is read in time linear in the length of the line.
-  Tests in `scripts/test_check_crosswalks.py`.
+  attribute row, an attribute row separated from its table, indented or not
+  and with or without its leading pipe, and a control in a domain file with
+  no `# Domain N:` heading are reported; an attribute row inside a code block
+  fenced by backticks or tildes is not read. A byte that is not UTF-8 in a
+  domain file, `specification.md` or `conformance.md` is reported at its
+  line, and the rest of the file is read with U+FFFD in its place. A domain
+  or control heading with a long run of spaces inside its title is read in
+  time linear in the length of the line. Tests in
+  `scripts/test_check_crosswalks.py`.
 - Control identifier stability rule (`specification.md` section 8.2): IDs are
   never reused or renumbered; a withdrawn control is deprecated with
   `replacedBy`; the status vocabulary `draft`, `active`, `deprecated` and the
