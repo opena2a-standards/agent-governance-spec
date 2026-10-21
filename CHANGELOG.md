@@ -46,10 +46,11 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   directly under the last row of an attribute table must be blank (empty, or
   spaces and tabs only): GFM renders a line there that is not blank as a row
   of the table unless the line starts another block, so such a line is
-  reported at its line, a heading or a fence included. A domain file is split
-  into lines where GFM ends a line, at LF, CR LF, or CR, so a vertical tab, a
-  form feed, U+001C to U+001E, U+0085, U+2028, or U+2029 does not end a line
-  there. A byte that is not UTF-8 in a domain file, `specification.md` or
+  reported at its line, a heading or a fence included. A domain file,
+  `specification.md` and `conformance.md` are split into lines where GFM ends
+  a line, at LF, CR LF, or CR, so a vertical tab, a form feed, U+001C to
+  U+001E, U+0085, U+2028, or U+2029 does not end a line in them. A byte that
+  is not UTF-8 in a domain file, `specification.md` or
   `conformance.md` is reported at its line, and the rest of the file is read
   with U+FFFD in its place. A domain or control heading with a long run of
   spaces inside its title is read in time linear in the length of the line.

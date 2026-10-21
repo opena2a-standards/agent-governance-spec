@@ -632,6 +632,9 @@ class ReplacementChains(unittest.TestCase):
         ])
 
 
+# The characters other than LF and CR at which str.splitlines ends a line. GFM ends a line only at LF, CR LF, or CR.
+SPLITLINES_ONLY = ("\v", "\f", "\x1c", "\x1d", "\x1e", "\x85", "\N{LINE SEPARATOR}", "\N{PARAGRAPH SEPARATOR}")
+
 REGISTRY = """# Spec
 
 ### 5.3 Complete Control Registry
@@ -733,6 +736,19 @@ class RegistryTable(unittest.TestCase):
                     "RED specification.md:9: line directly under the last row of the registry table under section "
                     "5.3 is not blank and does not start with a pipe; GFM renders it as a row of that table unless "
                     "it starts another block, and it is not read"])
+
+    def test_line_under_the_last_row_that_starts_with_a_character_splitlines_ends_a_line_at_is_red(self):
+        # Each character leads the line, or is the whole line with the row on the line after it.
+        rows = ["| SOUL-TH-001 | First Control | Trust Hierarchy | HIGH |",
+                "| SOUL-TH-002 | Second Control | Trust Hierarchy | LOW |"]
+        row = "SOUL-TH-001 | First Control | Trust Hierarchy | LOW |"
+        for char in SPLITLINES_ONLY:
+            for lines in ([char + row], [char, row]):
+                with self.subTest(lines=lines):
+                    self.assertEqual(self.check(rows + lines), [
+                        "RED specification.md:9: line directly under the last row of the registry table under section "
+                        "5.3 is not blank and does not start with a pipe; GFM renders it as a row of that table unless "
+                        "it starts another block, and it is not read"])
 
     def test_line_of_spaces_and_tabs_under_the_last_row_ends_the_table(self):
         rows = ["| SOUL-TH-001 | First Control | Trust Hierarchy | HIGH |",
@@ -887,6 +903,28 @@ class ConformanceLevels(unittest.TestCase):
             "blank and does not start with a pipe; GFM renders it as a row of that table unless it starts another "
             "block, and it is not read"])
 
+    def test_line_under_the_last_row_that_starts_with_a_character_splitlines_ends_a_line_at_is_red(self):
+        # Each character leads the line, or is the whole line with the row on the line after it.
+        critical = "| SOUL-TH-001 | First control | All tiers |\n"
+        text = CONFORMANCE.format(rows="\n".join(self.ROWS), steps="\n".join(self.STEPS))
+        self.assertEqual(text.count(critical), 1)
+        row = "SOUL-TH-006 | Sixth control | AGENTIC, MULTI-AGENT |"
+        for char in SPLITLINES_ONLY:
+            for lines in ([char + row], [char, row]):
+                with self.subTest(table="HIGH", lines=lines):
+                    self.assertEqual(self.check(rows=self.ROWS + lines), [
+                        "RED conformance.md:19: line directly under the last row of the table under '### HIGH "
+                        "Controls' is not blank and does not start with a pipe; GFM renders it as a row of that table "
+                        "unless it starts another block, and it is not read"])
+                with self.subTest(table="CRITICAL", lines=lines):
+                    errors = []
+                    variant = text.replace(critical, critical + "\n".join(lines) + "\n")
+                    cc.check_conformance_levels(errors, "conformance.md", variant, self.ENTRIES, self.ATTRIBUTES)
+                    self.assertEqual(errors, [
+                        "RED conformance.md:8: line directly under the last row of the table under '### CRITICAL "
+                        "Controls' is not blank and does not start with a pipe; GFM renders it as a row of that table "
+                        "unless it starts another block, and it is not read"])
+
     def test_control_named_only_outside_the_path_section_is_red(self):
         self.assertEqual(self.check(steps=self.STEPS[:1]), [
             "RED conformance.md: the section '### Path to Standard' names no step for SOUL-TH-003",
@@ -1016,6 +1054,17 @@ class ApplicabilityMatrix(unittest.TestCase):
             "and does not start with a pipe; GFM renders it as a row of that table unless it starts another block, "
             "and it is not read"])
 
+    def test_line_under_the_last_row_that_starts_with_a_character_splitlines_ends_a_line_at_is_red(self):
+        # Each character leads the line, or is the whole line with the row on the line after it.
+        row = "SOUL-TH-002 | Yes | Yes | Yes | Yes |"
+        for char in SPLITLINES_ONLY:
+            for lines in ([char + row], [char, row]):
+                with self.subTest(lines=lines):
+                    self.assertEqual(self.check(self.GREEN + lines), [
+                        "RED specification.md:9: line directly under the last row of the matrix under section 3.5 is "
+                        "not blank and does not start with a pipe; GFM renders it as a row of that table unless it "
+                        "starts another block, and it is not read"])
+
     def test_missing_heading_or_header_is_red(self):
         errors = []
         cc.check_applicability_matrix(errors, "specification.md", "# Spec\n", self.TIERS)
@@ -1070,6 +1119,18 @@ class TierCounts(unittest.TestCase):
         self.assertEqual(self.check(TIER_SECTIONS.format(1, 1, 3, 3)), [
             "RED specification.md:15: Applicable controls 3 of AGENTIC differs from the 2 controls whose "
             "Applicable tiers attribute names AGENTIC"])
+
+    def test_count_that_differs_is_red_at_its_line_counted_where_gfm_ends_a_line(self):
+        # GFM ends a line only at LF, CR LF, or CR, so the count stays on line 15 with any of these characters in a
+        # line above it.
+        text = TIER_SECTIONS.format(1, 1, 3, 3)
+        self.assertIn("**Definition**: Text.", text)
+        for char in SPLITLINES_ONLY:
+            with self.subTest(char=char):
+                variant = text.replace("**Definition**: Text.", f"**Definition**: Text.{char}More.")
+                self.assertEqual(self.check(variant), [
+                    "RED specification.md:15: Applicable controls 3 of AGENTIC differs from the 2 controls whose "
+                    "Applicable tiers attribute names AGENTIC"])
 
     def test_counts_are_not_compared_when_an_attribute_is_red(self):
         tiers = {**self.TIERS, "SOUL-TH-003": ("a.md:3", None)}

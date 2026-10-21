@@ -558,7 +558,7 @@ def check_registry_table(errors, rel, text, entries, domain_names):
     the rows are out of that order, the first row placed after a row that it
     precedes in that order is red at its line.
     """
-    lines = text.splitlines()
+    lines = gfm_lines(text)
     rows = table_after(errors, rel, lines, REGISTRY_HEADING, "the registry table under section 5.3")
     if rows is None:
         fail(errors, rel, f"heading {REGISTRY_HEADING!r} not found")
@@ -628,7 +628,7 @@ def check_conformance_levels(errors, rel, text, entries, attributes):
     with All (...) written as All tiers. The path section that follows the
     table names each of those controls.
     """
-    lines = text.splitlines()
+    lines = gfm_lines(text)
     for heading, path_heading, severity in CONFORMANCE_LEVELS:
         rows = table_after(errors, rel, lines, heading, f"the table under {heading!r}")
         if rows is None:
@@ -711,7 +711,7 @@ def check_applicability_matrix(errors, rel, text, tiers):
     other columns. tiers is the map control_tiers returns. A control whose
     attribute is already red is not compared.
     """
-    lines = text.splitlines()
+    lines = gfm_lines(text)
     if MATRIX_HEADING not in lines:
         fail(errors, rel, f"heading {MATRIX_HEADING!r} not found")
         return
@@ -760,7 +760,7 @@ def check_tier_counts(errors, rel, text, tiers):
     """
     counts = {}
     tier = None
-    for lineno, line in enumerate(text.splitlines(), start=1):
+    for lineno, line in enumerate(gfm_lines(text), start=1):
         if line.startswith("#"):
             m = TIER_HEADING.match(line)
             tier = m.group(1) if m else None
