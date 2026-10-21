@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Tests for scripts/check_crosswalks.py: the JSON control export, the render
-comparison, the domain and control headings, the attribute tables, the
-section 5.3 registry table, the section 3.5 applicability matrix and the tier
-counts of section 3, the report on a byte that is not UTF-8 in a file it
-reads, and the .gitattributes line-ending pins of the files it compares byte
-for byte; the name its message gives a README.md passage it requires
-verbatim; and the terms README.md and the docs pages that took its reference
-text use in their prose.
+comparison, the domain and control headings, the lines it splits a domain
+file into, the attribute tables, the section 5.3 registry table, the section
+3.5 applicability matrix and the tier counts of section 3, the report on a
+byte that is not UTF-8 in a file it reads, and the .gitattributes line-ending
+pins of the files it compares byte for byte; the name its message gives a
+README.md passage it requires verbatim; and the terms README.md and the docs
+pages that took its reference text use in their prose.
 
 Run from anywhere:  python3 scripts/test_check_crosswalks.py
 
@@ -271,6 +271,9 @@ def skip_the_time_bound_when_optimized(test):
 
 
 ACTIVE = ("### SOUL-TH-001: First", [("ID", "SOUL-TH-001"), ("Severity", "HIGH")])
+# The red line for a line that is not blank directly under the attribute table of SOUL-TH-001.
+NOT_BLANK_UNDER_THE_TABLE = ("line directly under the attribute table of SOUL-TH-001 is not blank; "
+                             "a blank line must end the table")
 
 
 class EntryAttributes(unittest.TestCase):
@@ -409,6 +412,64 @@ class EntryAttributes(unittest.TestCase):
                                         errors[0])
                         self.assertEqual(entries[0]["status"], "active")
 
+    def test_line_directly_under_the_table_that_is_not_blank_is_red(self):
+        # GFM renders a line there that is not blank as a row of the table unless the line starts another block.
+        # A line of a no-break space is not blank to GFM, which counts only spaces and tabs as blank.
+        text = domain_file([ACTIVE])
+        for inserted in ("Status | deprecated |", "**Status**  | deprecated |", "**Status**|deprecated|",
+                         "   | **Status** | deprecated", "**Description**: Text.", "\xa0", "---",
+                         "~~~~\n| **Status** | ignored |\n~~~~"):
+            with self.subTest(inserted=inserted):
+                variant = text.replace("| **Severity** | HIGH |\n", f"| **Severity** | HIGH |\n{inserted}\n")
+                lineno = variant.splitlines().index("| **Severity** | HIGH |") + 2
+                entries, errors = entries_for_text(variant)
+                self.assertEqual(len(errors), 1, errors)
+                self.assertTrue(errors[0].endswith(f"11-trust-hierarchy.md:{lineno}: {NOT_BLANK_UNDER_THE_TABLE}"),
+                                errors[0])
+                self.assertEqual(entries[0]["status"], "active")
+
+    def test_line_under_the_table_that_starts_with_a_character_splitlines_ends_a_line_at_is_red(self):
+        # GFM ends a line only at LF, CR LF, or CR, so each inserted line is one line, a row of the table to GFM.
+        text = domain_file([ACTIVE])
+        for char in ("\v", "\f", "\x1c", "\x1d", "\x1e", "\x85", "\N{LINE SEPARATOR}", "\N{PARAGRAPH SEPARATOR}"):
+            with self.subTest(char=char):
+                variant = text.replace("| **Severity** | HIGH |\n",
+                                       f"| **Severity** | HIGH |\n{char}Status | deprecated |\n")
+                lineno = variant.split("\n").index("| **Severity** | HIGH |") + 2
+                entries, errors = entries_for_text(variant)
+                self.assertEqual(len(errors), 1, errors)
+                self.assertTrue(errors[0].endswith(f"11-trust-hierarchy.md:{lineno}: {NOT_BLANK_UNDER_THE_TABLE}"),
+                                errors[0])
+                self.assertEqual(entries[0]["status"], "active")
+
+    def test_control_heading_directly_under_the_table_is_red_and_starts_its_control(self):
+        second = ("### SOUL-TH-002: Second", [("ID", "SOUL-TH-002"), ("Severity", "LOW")])
+        lines = domain_file([ACTIVE, second]).split("\n")
+        last = lines.index("| **Severity** | HIGH |")
+        entries, errors = entries_for_text("\n".join(lines[:last + 1] + lines[lines.index(second[0]):]))
+        self.assertEqual(len(errors), 1, errors)
+        self.assertTrue(errors[0].endswith(f"11-trust-hierarchy.md:{last + 2}: {NOT_BLANK_UNDER_THE_TABLE}"), errors[0])
+        self.assertEqual([(e["id"], e["severity"]) for e in entries], [("SOUL-TH-001", "HIGH"), ("SOUL-TH-002", "LOW")])
+
+    def test_line_of_spaces_and_tabs_directly_under_the_table_is_green(self):
+        text = domain_file([ACTIVE])
+        self.assertIn("| **Severity** | HIGH |\n\n", text)
+        for blank in (" ", "   ", "\t", " \t "):
+            with self.subTest(blank=blank):
+                entries, errors = entries_for_text(text.replace("| **Severity** | HIGH |\n\n",
+                                                                f"| **Severity** | HIGH |\n{blank}\n"))
+                self.assertEqual(errors, [])
+                self.assertEqual(entries[0]["status"], "active")
+
+    def test_table_that_ends_the_file_is_green(self):
+        text = domain_file([ACTIVE])
+        last = "| **Severity** | HIGH |"
+        for end in ("", "\n"):
+            with self.subTest(end=end):
+                entries, errors = entries_for_text(text[:text.index(last) + len(last)] + end)
+                self.assertEqual(errors, [])
+                self.assertEqual(entries[0]["severity"], "HIGH")
+
     def test_attribute_row_without_its_leading_pipe_inside_a_fenced_block_is_not_read(self):
         example = "```\n| **Status** | ignored |\n```"
         self.assertIn(example, domain_file([ACTIVE]))
@@ -526,6 +587,19 @@ class EntryAttributes(unittest.TestCase):
                         errors[0])
 
 
+class GfmLines(unittest.TestCase):
+    def test_lines_end_at_lf_cr_lf_and_cr_only(self):
+        line = "d\ve\ff\x1cg\x1dh\x1ei\x85j\N{LINE SEPARATOR}k\N{PARAGRAPH SEPARATOR}l"
+        self.assertEqual(cc.gfm_lines(f"a\r\nb\rc\n{line}\n"), ["a", "b", "c", line])
+
+    def test_line_ending_at_the_end_of_the_text_starts_no_further_line_as_with_splitlines(self):
+        for text, lines in (("", []), ("a", ["a"]), ("a\n", ["a"]), ("a\r", ["a"]), ("a\r\n", ["a"]),
+                            ("\n", [""]), ("a\n\n", ["a", ""]), ("a\r\r\n", ["a", ""])):
+            with self.subTest(text=text):
+                self.assertEqual(cc.gfm_lines(text), lines)
+                self.assertEqual(text.splitlines(), lines)
+
+
 def deprecated(cid, successor):
     return (f"### {cid}: Withdrawn", [("ID", cid), ("Severity", "LOW"), ("Status", "deprecated"),
                                        ("Replaced by", successor)])
@@ -557,6 +631,9 @@ class ReplacementChains(unittest.TestCase):
             "it must end at an active control",
         ])
 
+
+# The characters other than LF and CR at which str.splitlines ends a line. GFM ends a line only at LF, CR LF, or CR.
+SPLITLINES_ONLY = ("\v", "\f", "\x1c", "\x1d", "\x1e", "\x85", "\N{LINE SEPARATOR}", "\N{PARAGRAPH SEPARATOR}")
 
 REGISTRY = """# Spec
 
@@ -647,6 +724,46 @@ class RegistryTable(unittest.TestCase):
             "| SOUL-TH-001 | First Control | Trust Hierarchy | HIGH |  ",
             "| SOUL-TH-002 | Second Control | Trust Hierarchy | LOW |\t",
         ]), [])
+
+    def test_line_under_the_last_row_without_a_leading_pipe_is_red_and_not_read(self):
+        rows = ["| SOUL-TH-001 | First Control | Trust Hierarchy | HIGH |",
+                "| SOUL-TH-002 | Second Control | Trust Hierarchy | LOW |"]
+        # None of these lines is blank, and none starts with a pipe.
+        for line in ("SOUL-TH-001 | First Control | Trust Hierarchy | LOW |", "SOUL-TH-001 | First Control",
+                     "SOUL-TH-001", "   | SOUL-TH-001 | First Control | Trust Hierarchy | LOW |", "\N{NO-BREAK SPACE}"):
+            with self.subTest(line=line):
+                self.assertEqual(self.check(rows + [line]), [
+                    "RED specification.md:9: line directly under the last row of the registry table under section "
+                    "5.3 is not blank and does not start with a pipe; GFM renders it as a row of that table unless "
+                    "it starts another block, and it is not read"])
+
+    def test_line_under_the_last_row_that_starts_with_a_character_splitlines_ends_a_line_at_is_red(self):
+        # Each character leads the line, or is the whole line with the row on the line after it.
+        rows = ["| SOUL-TH-001 | First Control | Trust Hierarchy | HIGH |",
+                "| SOUL-TH-002 | Second Control | Trust Hierarchy | LOW |"]
+        row = "SOUL-TH-001 | First Control | Trust Hierarchy | LOW |"
+        for char in SPLITLINES_ONLY:
+            for lines in ([char + row], [char, row]):
+                with self.subTest(lines=lines):
+                    self.assertEqual(self.check(rows + lines), [
+                        "RED specification.md:9: line directly under the last row of the registry table under section "
+                        "5.3 is not blank and does not start with a pipe; GFM renders it as a row of that table unless "
+                        "it starts another block, and it is not read"])
+
+    def test_line_of_spaces_and_tabs_under_the_last_row_ends_the_table(self):
+        rows = ["| SOUL-TH-001 | First Control | Trust Hierarchy | HIGH |",
+                "| SOUL-TH-002 | Second Control | Trust Hierarchy | LOW |"]
+        for blank in ("", " ", "\t", " \t "):
+            with self.subTest(blank=blank):
+                # The line after the blank line is neither read nor reported.
+                self.assertEqual(self.check(rows + [blank, "SOUL-TH-001 | First Control | Trust Hierarchy | LOW |"]),
+                                 [])
+        # A table that ends the file is green.
+        text = REGISTRY.format(rows="\n".join(rows))
+        errors = []
+        cc.check_registry_table(errors, "specification.md", text[:text.index("\n\nText after the table.")],
+                                self.ENTRIES, self.DOMAINS)
+        self.assertEqual(errors, [])
 
     def test_missing_heading_is_red(self):
         errors = []
@@ -767,6 +884,46 @@ class ConformanceLevels(unittest.TestCase):
             "RED conformance.md:20: row has 2 cells; expected 3",
             "RED conformance.md: the rows under '### HIGH Controls' are not in domain order then NNN",
         ])
+
+    def test_line_under_the_last_row_without_a_leading_pipe_is_red_and_not_read(self):
+        # SOUL-TH-006 is an active MEDIUM control.
+        self.assertEqual(self.check(rows=self.ROWS + ["SOUL-TH-006 | Sixth control | AGENTIC, MULTI-AGENT |"]), [
+            "RED conformance.md:19: line directly under the last row of the table under '### HIGH Controls' is not "
+            "blank and does not start with a pipe; GFM renders it as a row of that table unless it starts another "
+            "block, and it is not read"])
+        critical = "| SOUL-TH-001 | First control | All tiers |\n"
+        text = CONFORMANCE.format(rows="\n".join(self.ROWS), steps="\n".join(self.STEPS))
+        self.assertEqual(text.count(critical), 1)
+        errors = []
+        cc.check_conformance_levels(errors, "conformance.md",
+                                    text.replace(critical, critical + "SOUL-TH-002 | Second control | All tiers |\n"),
+                                    self.ENTRIES, self.ATTRIBUTES)
+        self.assertEqual(errors, [
+            "RED conformance.md:8: line directly under the last row of the table under '### CRITICAL Controls' is not "
+            "blank and does not start with a pipe; GFM renders it as a row of that table unless it starts another "
+            "block, and it is not read"])
+
+    def test_line_under_the_last_row_that_starts_with_a_character_splitlines_ends_a_line_at_is_red(self):
+        # Each character leads the line, or is the whole line with the row on the line after it.
+        critical = "| SOUL-TH-001 | First control | All tiers |\n"
+        text = CONFORMANCE.format(rows="\n".join(self.ROWS), steps="\n".join(self.STEPS))
+        self.assertEqual(text.count(critical), 1)
+        row = "SOUL-TH-006 | Sixth control | AGENTIC, MULTI-AGENT |"
+        for char in SPLITLINES_ONLY:
+            for lines in ([char + row], [char, row]):
+                with self.subTest(table="HIGH", lines=lines):
+                    self.assertEqual(self.check(rows=self.ROWS + lines), [
+                        "RED conformance.md:19: line directly under the last row of the table under '### HIGH "
+                        "Controls' is not blank and does not start with a pipe; GFM renders it as a row of that table "
+                        "unless it starts another block, and it is not read"])
+                with self.subTest(table="CRITICAL", lines=lines):
+                    errors = []
+                    variant = text.replace(critical, critical + "\n".join(lines) + "\n")
+                    cc.check_conformance_levels(errors, "conformance.md", variant, self.ENTRIES, self.ATTRIBUTES)
+                    self.assertEqual(errors, [
+                        "RED conformance.md:8: line directly under the last row of the table under '### CRITICAL "
+                        "Controls' is not blank and does not start with a pipe; GFM renders it as a row of that table "
+                        "unless it starts another block, and it is not read"])
 
     def test_control_named_only_outside_the_path_section_is_red(self):
         self.assertEqual(self.check(steps=self.STEPS[:1]), [
@@ -891,6 +1048,23 @@ class ApplicabilityMatrix(unittest.TestCase):
             "RED specification.md: the matrix under section 3.5 has no row for SOUL-TH-001",
         ])
 
+    def test_line_under_the_last_row_without_a_leading_pipe_is_red_and_not_read(self):
+        self.assertEqual(self.check(self.GREEN + ["SOUL-TH-002 | Yes | Yes | Yes | Yes |"]), [
+            "RED specification.md:9: line directly under the last row of the matrix under section 3.5 is not blank "
+            "and does not start with a pipe; GFM renders it as a row of that table unless it starts another block, "
+            "and it is not read"])
+
+    def test_line_under_the_last_row_that_starts_with_a_character_splitlines_ends_a_line_at_is_red(self):
+        # Each character leads the line, or is the whole line with the row on the line after it.
+        row = "SOUL-TH-002 | Yes | Yes | Yes | Yes |"
+        for char in SPLITLINES_ONLY:
+            for lines in ([char + row], [char, row]):
+                with self.subTest(lines=lines):
+                    self.assertEqual(self.check(self.GREEN + lines), [
+                        "RED specification.md:9: line directly under the last row of the matrix under section 3.5 is "
+                        "not blank and does not start with a pipe; GFM renders it as a row of that table unless it "
+                        "starts another block, and it is not read"])
+
     def test_missing_heading_or_header_is_red(self):
         errors = []
         cc.check_applicability_matrix(errors, "specification.md", "# Spec\n", self.TIERS)
@@ -945,6 +1119,18 @@ class TierCounts(unittest.TestCase):
         self.assertEqual(self.check(TIER_SECTIONS.format(1, 1, 3, 3)), [
             "RED specification.md:15: Applicable controls 3 of AGENTIC differs from the 2 controls whose "
             "Applicable tiers attribute names AGENTIC"])
+
+    def test_count_that_differs_is_red_at_its_line_counted_where_gfm_ends_a_line(self):
+        # GFM ends a line only at LF, CR LF, or CR, so the count stays on line 15 with any of these characters in a
+        # line above it.
+        text = TIER_SECTIONS.format(1, 1, 3, 3)
+        self.assertIn("**Definition**: Text.", text)
+        for char in SPLITLINES_ONLY:
+            with self.subTest(char=char):
+                variant = text.replace("**Definition**: Text.", f"**Definition**: Text.{char}More.")
+                self.assertEqual(self.check(variant), [
+                    "RED specification.md:15: Applicable controls 3 of AGENTIC differs from the 2 controls whose "
+                    "Applicable tiers attribute names AGENTIC"])
 
     def test_counts_are_not_compared_when_an_attribute_is_red(self):
         tiers = {**self.TIERS, "SOUL-TH-003": ("a.md:3", None)}
@@ -1050,6 +1236,52 @@ class MainRun(unittest.TestCase):
         # The row is not read, so the render of controls.json keeps SOUL-TH-001 active and equal to the committed file.
         self.assertIn("\n1 problem(s) found", out)
         self.assertNotIn("all checks green", out)
+
+    def test_line_that_is_not_blank_directly_under_an_attribute_table_is_red(self):
+        rel = "domains/11-trust-hierarchy.md"
+        last = "| **Applicable tiers** | All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT) |"
+        lines = (cc.ROOT / rel).read_text(encoding="utf-8").splitlines()
+        index = lines.index(last, lines.index("### SOUL-TH-001: Trust Chain Defined"))
+        self.assertEqual(lines[index + 1], "")
+        for inserted in ("Status | deprecated |", "**Status**  | deprecated |", "**Status**|deprecated|",
+                         "   | **Status** | deprecated", "**Description**: Text."):
+            def drift(root, inserted=inserted):
+                path = root / rel
+                text = path.read_text(encoding="utf-8").splitlines()
+                path.write_text("\n".join(text[:index + 1] + [inserted] + text[index + 1:]) + "\n", encoding="utf-8")
+            with self.subTest(inserted=inserted):
+                code, out, _ = self.run_main([], drift)
+                self.assertEqual(code, 1, out)
+                self.assertIn(f"RED {rel}:{index + 2}: {NOT_BLANK_UNDER_THE_TABLE}\n", out)
+                self.assertIn("\n1 problem(s) found", out)
+                self.assertNotIn("all checks green", out)
+
+    def test_line_without_a_leading_pipe_under_the_last_row_of_a_table_it_reads_is_red(self):
+        # SOUL-TH-001 is a HIGH control and SOUL-TH-002 a MEDIUM one in the domain files.
+        for rel, heading, line, name in (
+                (cc.SPECIFICATION, cc.REGISTRY_HEADING, "SOUL-TH-001 | Trust Chain Defined | Trust Hierarchy | LOW |",
+                 "the registry table under section 5.3"),
+                (cc.CONFORMANCE, "### HIGH Controls", "SOUL-TH-002 | Conflict Resolution | All |",
+                 "the table under '### HIGH Controls'"),
+                (cc.SPECIFICATION, cc.MATRIX_HEADING, "SOUL-TH-001 | Yes | Yes | Yes | -- |",
+                 "the matrix under section 3.5")):
+            lines = (cc.ROOT / rel).read_text(encoding="utf-8").splitlines()
+            start = next(i for i in range(lines.index(heading), len(lines)) if lines[i].startswith("|"))
+            under = next(i for i in range(start, len(lines)) if not lines[i].startswith("|"))
+            self.assertEqual(lines[under], "")
+
+            def drift(root, rel=rel, line=line, under=under):
+                path = root / rel
+                text = path.read_text(encoding="utf-8").splitlines()
+                path.write_text("\n".join(text[:under] + [line] + text[under:]) + "\n", encoding="utf-8")
+            with self.subTest(table=name):
+                code, out, _ = self.run_main([], drift)
+                self.assertEqual(code, 1, out)
+                self.assertIn(f"RED {rel}:{under + 1}: line directly under the last row of {name} is not blank and "
+                              "does not start with a pipe; GFM renders it as a row of that table unless it starts "
+                              "another block, and it is not read\n", out)
+                self.assertIn("\n1 problem(s) found", out)
+                self.assertNotIn("all checks green", out)
 
     def test_missing_conformance_file_is_red(self):
         code, out, _ = self.run_main([], lambda root: (root / cc.CONFORMANCE).unlink())

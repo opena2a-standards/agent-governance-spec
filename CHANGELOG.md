@@ -42,11 +42,19 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   no `# Domain N:` heading are reported; an attribute row inside a code block
   fenced by backticks or tildes is not read. In a domain file such a fence
   opens and closes only at a line indented by at most three spaces, and a
-  run of backticks with a backtick after it on the line opens none. A byte
-  that is not UTF-8 in a domain file, `specification.md` or `conformance.md`
-  is reported at its line, and the rest of the file is read with U+FFFD in
-  its place. A domain or control heading with a long run of spaces inside
-  its title is read in time linear in the length of the line. Tests in
+  run of backticks with a backtick after it on the line opens none. The line
+  directly under the last row of an attribute table must be blank (empty, or
+  spaces and tabs only): GFM renders a line there that is not blank as a row
+  of the table unless the line starts another block, so such a line is
+  reported at its line, a heading or a fence included. A domain file,
+  `specification.md` and `conformance.md` are split into lines where GFM ends
+  a line, at LF, CR LF, or CR, so a vertical tab, a form feed, U+001C to
+  U+001E, U+0085, U+2028, or U+2029 does not end a line in them. A byte that
+  is not UTF-8 in a domain file, `specification.md` or
+  `conformance.md` is reported at its line, and the rest of the file is read
+  with U+FFFD in its place. A domain or control heading with a long run of
+  spaces inside its title is read in time linear in the length of the line.
+  Tests in
   `scripts/test_check_crosswalks.py`.
 - Control identifier stability rule (`specification.md` section 8.2): IDs are
   never reused or renumbered; a withdrawn control is deprecated with
@@ -133,7 +141,11 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   SOUL-AS-003, and SOUL-HT-002, and in letter case alone for the other 67.
   The validator now holds the table to the domain files. It reports a row
   with no closing pipe, and names the first row out of domain order, at its
-  line, with the row it follows.
+  line, with the row it follows. A line that is not blank and does not start
+  with a pipe, directly under the last row of this table, of the CRITICAL or
+  HIGH table in `conformance.md` or of the section 3.5 matrix, is reported
+  at its line: GFM renders it as a row of that table unless it starts
+  another block, and the validator does not read it.
 - README Repository Structure lists `CHANGELOG.md`, `controls.json`,
   `scripts/`, and `integrations/`.
 - The README Use cases section expands AAP as the Agent Authorization

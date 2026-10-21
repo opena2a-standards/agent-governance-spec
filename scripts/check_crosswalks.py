@@ -35,7 +35,11 @@ The two crosswalk CSV files are canonical. This script:
   * requires the applicability matrix in specification.md section 3.5 to mark,
     for each control, the tiers its Applicable tiers attribute names, in the
     order of controls.json, and the Applicable controls count of each tier in
-    sections 3.1 to 3.4 to equal the number of controls that name that tier.
+    sections 3.1 to 3.4 to equal the number of controls that name that tier;
+  * requires each of those four tables to be followed by a blank line or the
+    end of the file: GFM renders a line that is not blank directly under the
+    last row of a table as a row of that table unless it starts another
+    block, and the script reads only the rows that start with a pipe.
 
 Run from anywhere:  python3 scripts/check_crosswalks.py
 Re-render the .md files and controls.json:  python3 scripts/check_crosswalks.py --write
@@ -326,6 +330,18 @@ def read_source(errors, path, location):
     return data.decode("utf-8", errors="replace") if text is None else text
 
 
+def gfm_lines(text):
+    """The lines of text without their line endings, split where GFM ends a line: at LF, CR LF, or CR.
+
+    str.splitlines also ends a line at a vertical tab, a form feed, U+001C to
+    U+001E, U+0085, U+2028, and U+2029, which GFM reads as characters of the
+    line. As with str.splitlines, a line ending at the end of the text starts
+    no further line.
+    """
+    lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    return lines[:-1] if lines[-1] == "" else lines
+
+
 def display(path):
     try:
         return str(path.relative_to(ROOT))
@@ -342,22 +358,33 @@ def closes_fence(fence, line):
     return indent <= 3 and len(run) >= len(fence) and run == fence[0] * len(run)
 
 
+def attribute_shaped(line):
+    """True when the line, after any indent, is an attribute row or starts as one without its leading pipe."""
+    stripped = line.lstrip()
+    return bool(ATTRIBUTE_ROW.match(stripped) or PIPELESS_ATTRIBUTE_ROW.match(stripped))
+
+
 def load_domains(errors, domains_dir=DOMAINS):
     """Read the domain and control headings, and each control's attribute table.
 
     The attribute table is the first table after a control heading. Its rows
     are the header, the rule, and one row per name in ATTRIBUTES; any other row
-    is red. The table ends at the first line that does not start with a pipe.
-    An attribute-shaped row after that and before the next control heading,
-    indented or not, is red as separated from its table, unless it is inside a
-    fenced code block (FENCE), so an example block can show attribute rows. A
-    row is attribute-shaped when it is an attribute row (ATTRIBUTE_ROW) or
-    starts as one without its leading pipe (PIPELESS_ATTRIBUTE_ROW); GFM
-    renders the latter, unindented and directly under the last row of the
-    table, as a row of that table.
+    is red. The table ends at the first line that does not start with a pipe,
+    and that line must be blank (empty, or spaces and tabs only): GFM renders
+    a line there that is not blank as a row of the table unless the line
+    starts another block, so such a line is red at its line, a heading or a
+    fence included. An attribute-shaped row after the table and before the
+    next control heading, indented or not, is red as separated from its
+    table, unless it is inside a fenced code block (FENCE), so an example
+    block can show attribute rows. A row is attribute-shaped when it is an
+    attribute row (ATTRIBUTE_ROW) or starts as one without its leading pipe
+    (PIPELESS_ATTRIBUTE_ROW); GFM renders the latter, unindented and directly
+    under the last row of the table, as a row of that table. An
+    attribute-shaped row directly under the table is red once, as separated.
     attributes maps each control ID to (location of its heading, {attribute
     name: value}), with surrounding backticks stripped from each value. Each
-    file is read by read_source.
+    file is read by read_source and split into lines by gfm_lines, where GFM
+    ends a line.
     """
     controls = {}
     domain_order = []
@@ -369,7 +396,15 @@ def load_domains(errors, domains_dir=DOMAINS):
         table = None
         phase = None
         fence = None
-        for lineno, line in enumerate(read_source(errors, path, rel).splitlines(), start=1):
+        for lineno, line in enumerate(gfm_lines(read_source(errors, path, rel)), start=1):
+            row = line.startswith("|")
+            if phase == "in" and not row:
+                # The line directly under the last row ends the table. It is read before the heading and fence rules
+                # below, so a heading or a fence there is red too.
+                phase = "after"
+                if line.strip(" \t") and not attribute_shaped(line):
+                    fail(errors, f"{rel}:{lineno}", f"line directly under the attribute table of {cid} is not blank; "
+                                                    "a blank line must end the table")
             m = DOMAIN_HEADING.match(line)
             if m:
                 number, name = int(m.group(1)), m.group(2)
@@ -394,17 +429,11 @@ def load_domains(errors, domains_dir=DOMAINS):
             m = FENCE.match(line)
             if m:
                 fence = m.group(1)
-                if phase == "in":
-                    phase = "after"
                 continue
             if table is None:
                 continue
-            row = line.startswith("|")
-            if not row and phase == "in":
-                phase = "after"
             if phase == "after":
-                stripped = line.lstrip()
-                if ATTRIBUTE_ROW.match(stripped) or PIPELESS_ATTRIBUTE_ROW.match(stripped):
+                if attribute_shaped(line):
                     fail(errors, f"{rel}:{lineno}",
                          f"attribute row separated from the attribute table of {cid}; it is not read")
                 continue
@@ -496,8 +525,14 @@ def check_replacement_chains(errors, statuses, links):
             fail(errors, where, f"Replaced by chain {path} ends at a draft control; it must end at an active control")
 
 
-def table_after(lines, heading):
-    """The rows of the first table after the line heading, as (line number, cells); None when heading is absent."""
+def table_after(errors, rel, lines, heading, name):
+    """The rows of the first table after the line heading, as (line number, cells); None when heading is absent.
+
+    The table starts at the first line after heading that starts with a pipe and ends at the next line that does
+    not. GFM renders a line that is not blank directly under the last row of a table as a row of that table unless
+    it starts another block, so the line that ends the table is red at its line when it is not blank, with the table
+    named as name, and it is not read. A blank line holds nothing but spaces and tabs.
+    """
     if heading not in lines:
         return None
     start = lines.index(heading) + 1
@@ -506,6 +541,10 @@ def table_after(lines, heading):
         if line.startswith("|"):
             rows.append((lineno, [cell.strip() for cell in line.strip()[1:-1].split("|")]))
         elif rows:
+            if line.strip(" \t"):
+                fail(errors, f"{rel}:{lineno}", f"line directly under the last row of {name} is not blank and does "
+                                                "not start with a pipe; GFM renders it as a row of that table unless "
+                                                "it starts another block, and it is not read")
             break
     return rows
 
@@ -519,8 +558,8 @@ def check_registry_table(errors, rel, text, entries, domain_names):
     the rows are out of that order, the first row placed after a row that it
     precedes in that order is red at its line.
     """
-    lines = text.splitlines()
-    rows = table_after(lines, REGISTRY_HEADING)
+    lines = gfm_lines(text)
+    rows = table_after(errors, rel, lines, REGISTRY_HEADING, "the registry table under section 5.3")
     if rows is None:
         fail(errors, rel, f"heading {REGISTRY_HEADING!r} not found")
         return
@@ -589,9 +628,9 @@ def check_conformance_levels(errors, rel, text, entries, attributes):
     with All (...) written as All tiers. The path section that follows the
     table names each of those controls.
     """
-    lines = text.splitlines()
+    lines = gfm_lines(text)
     for heading, path_heading, severity in CONFORMANCE_LEVELS:
-        rows = table_after(lines, heading)
+        rows = table_after(errors, rel, lines, heading, f"the table under {heading!r}")
         if rows is None:
             fail(errors, rel, f"heading {heading!r} not found")
             continue
@@ -672,11 +711,11 @@ def check_applicability_matrix(errors, rel, text, tiers):
     other columns. tiers is the map control_tiers returns. A control whose
     attribute is already red is not compared.
     """
-    lines = text.splitlines()
+    lines = gfm_lines(text)
     if MATRIX_HEADING not in lines:
         fail(errors, rel, f"heading {MATRIX_HEADING!r} not found")
         return
-    rows = table_after(lines, MATRIX_HEADING)
+    rows = table_after(errors, rel, lines, MATRIX_HEADING, "the matrix under section 3.5")
     header = ["Control ID", *TIERS]
     if len(rows) < 2 or rows[0][1] != header:
         fail(errors, rel, f"the matrix under section 3.5 must have the header | {' | '.join(header)} |")
@@ -721,7 +760,7 @@ def check_tier_counts(errors, rel, text, tiers):
     """
     counts = {}
     tier = None
-    for lineno, line in enumerate(text.splitlines(), start=1):
+    for lineno, line in enumerate(gfm_lines(text), start=1):
         if line.startswith("#"):
             m = TIER_HEADING.match(line)
             tier = m.group(1) if m else None
