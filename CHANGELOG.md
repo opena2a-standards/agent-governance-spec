@@ -42,8 +42,9 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   tiers, Status, Replaced by, and Version, a table row that is not an
   attribute row, an attribute row separated from its table, indented or not
   and with or without its leading pipe, and a control in a domain file with
-  no `# Domain N:` heading are reported; an attribute row inside a code block
-  fenced by backticks or tildes is not read. In a domain file such a fence
+  no `# Domain N:` heading are reported; a `# Domain N:` heading, a control
+  heading or an attribute row inside a code block fenced by backticks or
+  tildes is not read. In a domain file such a fence
   opens and closes only at a line indented by at most three spaces, counted
   inside a list item or a block quote from the column where its content
   starts, and closes only at a line with nothing but spaces and tabs after
@@ -100,7 +101,16 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   carriage return, a byte that is not UTF-8, a difference from the render,
   and a shorter or longer text name
   `python3 scripts/check_crosswalks.py --write`; the reports on a CSV file
-  do not, as `--write` does not write the CSV files.
+  do not, as `--write` does not write the CSV files. The index statement,
+  the basis definitions and the scope block are required verbatim in
+  `crosswalks/README.md`, and the crosswalk bullet of the Documentation list
+  in README.md, each in lines outside a code block fenced by backticks or
+  tildes, which GFM renders as code; a fence there opens and closes as in a
+  domain file. A copy inside such a block satisfied the requirement, so the
+  bullet could be altered in the list GFM renders while a fenced copy of the
+  unchanged bullet at the end of the file kept the run green. When the file
+  holds such a text and each copy of it has a line inside such a block, the
+  report says the text is missing or altered outside a fenced code block.
 - `scripts/test_readme.py` reads the numbers the README states against
   their sources: each count of domains, controls and conformance levels
   ("nine behavioral domains", "72 controls", "the 72-control export",

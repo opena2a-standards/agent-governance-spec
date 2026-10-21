@@ -10,9 +10,11 @@ The two crosswalk CSV files are canonical. This script:
   * enforces the closed basis vocabulary, the note rules, the sort order,
     the exact header, and the file encoding (UTF-8 without BOM, LF line
     endings, RFC 4180 with minimal quoting);
-  * requires the ruled statements, basis definitions, scope block, and
-    crosswalk bullet of the Documentation list verbatim in crosswalks/README.md
-    and README.md;
+  * requires the index statement, basis definitions, and scope block verbatim
+    in crosswalks/README.md, and the crosswalk bullet of the Documentation list
+    verbatim in README.md, each in lines outside a fenced code block, which GFM
+    renders as code, so a fenced copy does not stand in for the text GFM
+    renders;
   * scans authored text for the banned vocabulary and for percentage,
     ratio, grade, or score wording: the basis and note cells of each
     crosswalk CSV, plus the authored files under crosswalks/ other than
@@ -40,12 +42,13 @@ The two crosswalk CSV files are canonical. This script:
     end of the file: GFM renders a line that is not blank directly under the
     last row of a table as a row of that table unless it starts another
     block, and the script reads only the rows that start with a pipe;
-  * reads the headings it looks for in specification.md and conformance.md,
-    the rows of those four tables, and the Applicable controls lines only
-    outside a fenced code block, which GFM renders as code, and ends a path
-    or tier section only at a line that starts with # outside one: a fenced
-    example that repeats a heading and its table is not read in place of the
-    section GFM renders under that heading.
+  * reads the domain and control headings and the attribute rows of the
+    domain files, the headings it looks for in specification.md and
+    conformance.md, the rows of those four tables, and the Applicable
+    controls lines only outside a fenced code block, which GFM renders as
+    code, and ends a path or tier section only at a line that starts with #
+    outside one: a fenced example that repeats a heading and its table is
+    not read in place of the section GFM renders under that heading.
 
 Run from anywhere:  python3 scripts/check_crosswalks.py
 Re-render the .md files and controls.json:  python3 scripts/check_crosswalks.py --write
@@ -58,6 +61,7 @@ import bisect
 import csv
 import hashlib
 import io
+import itertools
 import json
 import os
 import re
@@ -598,6 +602,16 @@ def heading_line(lines, fenced, heading):
     return next((i for i, line in enumerate(lines) if line == heading and not fenced[i]), None)
 
 
+def unfenced_runs(lines):
+    """The runs of consecutive lines that are not part of a fenced code block (fenced_lines), each joined by LF.
+
+    A passage found in one of the runs lies in lines none of which is part of a fenced code block.
+    """
+    return ["\n".join(line for line, _ in run)
+            for fenced, run in itertools.groupby(zip(lines, fenced_lines(lines)), key=lambda pair: pair[1])
+            if not fenced]
+
+
 def attribute_shaped(line):
     """True when the line, after any indent, is an attribute row or starts as one without its leading pipe."""
     stripped = line.lstrip()
@@ -621,7 +635,9 @@ def load_domains(errors, domains_dir=DOMAINS):
     starts as one without its leading pipe (PIPELESS_ATTRIBUTE_ROW); GFM
     renders the latter, unindented and directly under the last row of the
     table, as a row of that table. An attribute-shaped row directly under the
-    table is red once, as separated.
+    table is red once, as separated. A line inside a fenced code block is not
+    read as a domain or control heading either, so an example block can show
+    a heading too.
     A control heading above every domain heading of its file is red. A domain
     heading whose number int() refuses is red at its line (read_int) and is
     left out of domain_order; the controls under it are read with no domain
@@ -645,12 +661,15 @@ def load_domains(errors, domains_dir=DOMAINS):
             fenced = fences.read(line)
             row = line.startswith("|")
             if phase == "in" and not row:
-                # The line directly under the last row ends the table. It is read before the heading and fence rules
-                # below, so a heading or a fence there is red too.
+                # The line directly under the last row ends the table. It is read before the fence and heading rules
+                # below, so a fence or a heading there is red too.
                 phase = "after"
                 if line.strip(" \t") and not attribute_shaped(line):
                     fail(errors, f"{rel}:{lineno}", f"line directly under the attribute table of {cid} is not blank; "
                                                     "a blank line must end the table")
+            if fenced:
+                # No line of a fenced code block is a heading or a table row: GFM renders the lines inside it as code.
+                continue
             m = DOMAIN_HEADING.match(line)
             if m:
                 number, name = read_int(errors, f"{rel}:{lineno}", "domain number", m.group(1)), m.group(2)
@@ -668,8 +687,6 @@ def load_domains(errors, domains_dir=DOMAINS):
                 table = {}
                 phase = "before"
                 attributes[cid] = (f"{rel}:{lineno}", table)
-                continue
-            if fenced:
                 continue
             if table is None:
                 continue
@@ -1264,12 +1281,26 @@ def check_ruled_digests(errors):
 
 
 def check_required_prose(errors):
+    """Require each text of REQUIRED_PROSE verbatim in its file, in lines that are not part of a fenced code block.
+
+    The file is split where GFM ends a line (gfm_lines), and the text must lie in a run of consecutive lines none of
+    which is part of such a block (unfenced_runs): GFM renders the lines of a fenced code block as code, so a copy
+    there does not stand in for the text GFM renders, as a heading of specification.md or conformance.md is not read
+    inside one. When the file holds the text and each copy of it has a line inside such a block, the message says
+    that the text is missing or altered outside a fenced code block.
+    """
     for rel, name, text in REQUIRED_PROSE:
         path = ROOT / rel
         if not path.is_file():
             fail(errors, rel, "file is missing")
             continue
-        if text not in path.read_text(encoding="utf-8"):
+        content = path.read_text(encoding="utf-8")
+        if any(text in run for run in unfenced_runs(gfm_lines(content))):
+            continue
+        if text in content:
+            fail(errors, rel, f"the ruled {name} is missing or altered outside a fenced code block, which GFM renders "
+                              "as code; it is required verbatim outside one")
+        else:
             fail(errors, rel, f"the ruled {name} is missing or altered; it is required verbatim")
 
 
