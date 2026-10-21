@@ -97,6 +97,11 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   as LF, differs in length from the render, and a shorter or longer report
   on a file that had a BOM or a carriage return says the text was read that
   way. A crosswalk CSV that holds a byte that is not UTF-8 is not rendered.
+  A CSV row whose control_id is not a control heading in a domain file,
+  which is reported at its row, is listed under no domain of the render, so
+  the report is printed. Such a row, which deleting the heading of a mapped
+  control or leaving it inside a fence that no line closes also gives, ended
+  the run with a KeyError.
   On a rendered `.md` file or `controls.json`, the reports of a BOM, a
   carriage return, a byte that is not UTF-8, a difference from the render,
   and a shorter or longer text name
@@ -111,6 +116,12 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   unchanged bullet at the end of the file kept the run green. When the file
   holds such a text and each copy of it has a line inside such a block, the
   report says the text is missing or altered outside a fenced code block.
+  A copy in an indented code block, or in an HTML block such as an HTML
+  comment that starts a line, does not satisfy the requirement either; when
+  each copy outside a fenced code block has a line in one, the report says
+  the text is missing or altered outside a code block or an HTML block.
+  A byte that is not UTF-8 in README.md or `crosswalks/README.md` is
+  reported once at its line, and the rest of the checks run.
 - `scripts/test_readme.py` reads the numbers the README states against
   their sources: each count of domains, controls and conformance levels
   ("nine behavioral domains", "72 controls", "the 72-control export",
@@ -119,7 +130,9 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `conformance.md`; the OASB-2 domain range against the domain headings and
   the OASB-1 range against `specification.md`; and the exit code the quick
   start gives `scan-soul` for each case against the exit code list in
-  `integrations/README.md`.
+  `integrations/README.md`. A `# Domain N:` line inside a fenced code block
+  of a domain file is not counted as a domain heading, as
+  `scripts/check_crosswalks.py` does not read it as one.
 - This changelog; version qualified to the spec-family ladder (1.0.0-draft).
 
 ### Changed

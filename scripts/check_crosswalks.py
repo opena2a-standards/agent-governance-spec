@@ -12,8 +12,9 @@ The two crosswalk CSV files are canonical. This script:
     endings, RFC 4180 with minimal quoting);
   * requires the index statement, basis definitions, and scope block verbatim
     in crosswalks/README.md, and the crosswalk bullet of the Documentation list
-    verbatim in README.md, each in lines outside a fenced code block, which GFM
-    renders as code, so a fenced copy does not stand in for the text GFM
+    verbatim in README.md, each in lines outside a fenced code block, an
+    indented code block, and an HTML block, which GFM does not render as
+    Markdown text, so a copy in one does not stand in for the text GFM
     renders;
   * scans authored text for the banned vocabulary and for percentage,
     ratio, grade, or score wording: the basis and note cells of each
@@ -354,7 +355,8 @@ def decode_utf8(errors, location, data, hint=""):
 
 
 def read_source(errors, path, location):
-    """The text of a domain file, specification.md, or conformance.md.
+    """The text of a domain file, specification.md, conformance.md, README.md, or a file under crosswalks/ that
+    check_required_prose or scan_banned reads.
 
     A byte that is not UTF-8 is red at its line (decode_utf8), and the text is
     then read with U+FFFD in place of each byte sequence that is not UTF-8, so
@@ -448,7 +450,10 @@ class CodeFences:
     starts, after at most three spaces, with one of the seven kinds of start of HTML_BLOCK, the last of which does not
     interrupt a paragraph, and no other block opens inside it. It ends at the first line, from the one that opens it,
     that holds the end of its kind (HTML_BLOCK_END), which for the last two kinds is a blank line, or with the list
-    item or block quote that holds it.
+    item or block quote that holds it. After a line is read, literal is True when the line is part of an HTML block,
+    or is a line of an indented code block that is not blank: a line indented four spaces or more past the column
+    where the content of its list item or block quote starts, or past the start of the line outside them, that does
+    not continue a paragraph. GFM renders neither as Markdown text.
     """
 
     def __init__(self):
@@ -462,6 +467,7 @@ class CodeFences:
         self.paragraph = False  # the last block read is a paragraph, which a line can continue without its containers
         self.fence = None  # the run of backticks or tildes that opened the fenced code block that is open
         self.html = None  # the pattern of HTML_BLOCK_END that ends the HTML block that is open
+        self.literal = False  # the last line read is part of an HTML block or an indented code block
 
     def close(self, depth):
         """Ends the open list items and block quotes past the first depth of them."""
@@ -501,8 +507,10 @@ class CodeFences:
                     self.fence = None
                 return True
             self.fence = None  # the line ends a list item or a block quote that holds the block, and the block with it
+        self.literal = False
         if self.html is not None:
             if matched == len(self.containers):
+                self.literal = True
                 if self.html.match(line, index):
                     self.html = None  # the line holds the end of the block
                 return False
@@ -573,10 +581,12 @@ class CodeFences:
             self.empty = leaf is None and blank and self.containers[-1] > 0
             self.fence = leaf or None
             self.html = None if html is None or html.match(line, index) else html
+            self.literal = html is not None or (leaf is None and not blank and column - base > 3)
             return bool(leaf)
         if lazy and not blank:
             return False  # the line continues the paragraph, and the containers that hold it stay open
         self.close(matched)
+        self.literal = not blank and not in_paragraph and column - base > 3
         self.paragraph = not blank and (in_paragraph or column - base <= 3)
         self.empty = False
         return False
@@ -610,6 +620,20 @@ def unfenced_runs(lines):
     return ["\n".join(line for line, _ in run)
             for fenced, run in itertools.groupby(zip(lines, fenced_lines(lines)), key=lambda pair: pair[1])
             if not fenced]
+
+
+def text_runs(lines):
+    """The runs of consecutive lines GFM renders as Markdown text, each joined by LF.
+
+    A line is left out of every run when it is part of a fenced code block (fenced_lines), or when CodeFences reads it
+    as literal: part of an HTML block, such as an HTML comment that starts at the start of a line, or a line of an
+    indented code block that is not blank. A passage found in one of the runs lies in lines none of which is such a line.
+    """
+    fences = CodeFences()
+    rendered = [not fences.read(line) and not fences.literal for line in lines]
+    return ["\n".join(line for line, _ in run)
+            for text, run in itertools.groupby(zip(lines, rendered), key=lambda pair: pair[1])
+            if text]
 
 
 def attribute_shaped(line):
@@ -1209,9 +1233,16 @@ def md_cell(text):
 
 
 def render_md(spec, rows, controls, domain_order):
+    """The crosswalk .md for the rows of its CSV.
+
+    A row whose control_id is not a control heading in domains/, which
+    validate_rows reports as red, is counted in the row count and is listed
+    under no domain, so the report is still printed.
+    """
     mapped = {}
     for row in rows:
-        mapped.setdefault(row[0], []).append(row)
+        if row[0] in controls:
+            mapped.setdefault(row[0], []).append(row)
     unmapped = sorted(cid for cid in controls if cid not in mapped)
     n_rows = len(rows)
     n_mapped = len(mapped)
@@ -1227,7 +1258,7 @@ def render_md(spec, rows, controls, domain_order):
     ]
     for number, name in domain_order:
         lines += [f"## Domain {number}: {name}", ""]
-        domain_rows = [r for r in rows if controls[r[0]][1] == number]
+        domain_rows = [r for r in rows if r[0] in controls and controls[r[0]][1] == number]
         if domain_rows:
             lines += ["| Control | Target | Basis | Note |", "| --- | --- | --- | --- |"]
             for cid, ctitle, tid, ttitle, basis, note in domain_rows:
@@ -1281,23 +1312,34 @@ def check_ruled_digests(errors):
 
 
 def check_required_prose(errors):
-    """Require each text of REQUIRED_PROSE verbatim in its file, in lines that are not part of a fenced code block.
+    """Require each text of REQUIRED_PROSE verbatim in its file, in lines GFM renders as Markdown text.
 
-    The file is split where GFM ends a line (gfm_lines), and the text must lie in a run of consecutive lines none of
-    which is part of such a block (unfenced_runs): GFM renders the lines of a fenced code block as code, so a copy
-    there does not stand in for the text GFM renders, as a heading of specification.md or conformance.md is not read
-    inside one. When the file holds the text and each copy of it has a line inside such a block, the message says
-    that the text is missing or altered outside a fenced code block.
+    The file is read by read_source, so a byte that is not UTF-8 is red at its line and the rest of the checks run,
+    and is split where GFM ends a line (gfm_lines). The text must lie in a run of consecutive lines none of which is
+    part of a fenced code block, an HTML block or an indented code block (text_runs): GFM renders the lines of a code
+    block as code and does not render an HTML comment, so a copy there does not stand in for the text GFM renders, as
+    a heading of specification.md or conformance.md is not read inside a fenced code block. When the file holds the
+    text and each copy of it has a line inside a fenced code block, the message says that the text is missing or
+    altered outside a fenced code block; when a copy lies in lines outside one and each such copy has a line inside an
+    indented code block or an HTML block, it says that the text is missing or altered outside a code block or an HTML
+    block.
     """
+    contents = {}  # each file is read once, so a byte that is not UTF-8 in it is red once
     for rel, name, text in REQUIRED_PROSE:
         path = ROOT / rel
         if not path.is_file():
             fail(errors, rel, "file is missing")
             continue
-        content = path.read_text(encoding="utf-8")
-        if any(text in run for run in unfenced_runs(gfm_lines(content))):
+        if rel not in contents:
+            contents[rel] = read_source(errors, path, rel)
+        content = contents[rel]
+        lines = gfm_lines(content)
+        if any(text in run for run in text_runs(lines)):
             continue
-        if text in content:
+        if any(text in run for run in unfenced_runs(lines)):
+            fail(errors, rel, f"the ruled {name} is missing or altered outside a code block or an HTML block, which "
+                              "GFM does not render as Markdown text; it is required verbatim outside one")
+        elif text in content:
             fail(errors, rel, f"the ruled {name} is missing or altered outside a fenced code block, which GFM renders "
                               "as code; it is required verbatim outside one")
         else:
@@ -1349,6 +1391,7 @@ def scan_cells(errors, rel, rows):
 def scan_banned(errors):
     rendered = {spec["md"] for spec in CROSSWALK_SET}
     canonical = {spec["csv"] for spec in CROSSWALK_SET}
+    prose_files = {rel for rel, _, _ in REQUIRED_PROSE}
     for path in sorted(CROSSWALKS.rglob("*")):
         if not path.is_file():
             continue
@@ -1360,7 +1403,10 @@ def scan_banned(errors):
         if path.name in rendered or path.name in canonical:
             continue
         rel = path.relative_to(ROOT)
-        text = subtract_constants(path.read_text(encoding="utf-8"))
+        # A byte that is not UTF-8 is red at its line (read_source), once: check_required_prose has already reported
+        # it for a file it reads.
+        reported = [] if str(rel) in prose_files else errors
+        text = subtract_constants(read_source(reported, path, str(rel)))
         scan_text(errors, str(rel), text)
 
 
@@ -1388,7 +1434,7 @@ def main(argv):
             print(f"wrote crosswalks/{spec['md']}")
         else:
             compare_render(errors, f"crosswalks/{spec['md']}", read_committed(md_path), rendered, "its CSV")
-        mapped = {r[0] for r in rows}
+        mapped = {r[0] for r in rows if r[0] in controls}
         print(
             f"crosswalks/{spec['csv']}: {len(rows)} rows, {len(mapped)} of "
             f"{len(controls)} controls mapped, {len(controls) - len(mapped)} with no mapping asserted"

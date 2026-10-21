@@ -22,10 +22,14 @@ import fnmatch
 import json
 import re
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import check_crosswalks  # noqa: E402  (the fence reader of the crosswalk check, so both read a domain file alike)
 
 README = Path(__file__).resolve().parent.parent / "README.md"
 # The docs pages that took the README's reference text; a test of the README's prose reads them with it.
@@ -475,11 +479,20 @@ def levels_without_minimum(requirements, minimum, section="section 2.3"):
     return missing
 
 
-def domain_numbers():
-    """The number of each domain heading in the files under domains/, in ascending order."""
-    return sorted(
-        int(m.group(1)) for path in DOMAINS_DIR.glob("*.md") for m in DOMAIN_HEADING.finditer(path.read_text(encoding="utf-8"))
-    )
+def domain_numbers(domains_dir=DOMAINS_DIR):
+    """The number of each domain heading in the files under domains_dir, in ascending order.
+
+    As in load_domains of scripts/check_crosswalks.py, a file is split where GFM ends a line, and a line that is part
+    of a fenced code block, which GFM renders as code, is not read as a heading.
+    """
+    numbers = []
+    for path in domains_dir.glob("*.md"):
+        lines = check_crosswalks.gfm_lines(path.read_text(encoding="utf-8"))
+        for line, fenced in zip(lines, check_crosswalks.fenced_lines(lines)):
+            m = None if fenced else DOMAIN_HEADING.match(line)
+            if m:
+                numbers.append(int(m.group(1)))
+    return sorted(numbers)
 
 
 def count_claims(text):
@@ -1177,6 +1190,16 @@ class ReadmeNumbers(unittest.TestCase):
 
     def test_domain_numbers_have_no_gap(self):
         self.assertEqual(list(range(self.domains[0], self.domains[-1] + 1)), self.domains)
+
+    def test_domain_heading_inside_a_fenced_block_is_not_counted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "11-example.md"
+            path.write_text("# Domain 11: Example\n\n```markdown\n# Domain 12: Capability Boundaries\n```\n\n"
+                            "- item\n  ~~~\n  # Domain 13: In a list item\n  ~~~\n", encoding="utf-8")
+            self.assertEqual(domain_numbers(Path(tmp)), [11])
+            path.write_text("# Domain 11: Example\n\n```markdown\n```\n\n# Domain 12: After the block\n",
+                            encoding="utf-8")
+            self.assertEqual(domain_numbers(Path(tmp)), [11, 12])
 
     def test_each_domain_range_is_the_one_its_source_gives(self):
         claims = domain_range_claims(self.text)
