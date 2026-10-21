@@ -48,6 +48,7 @@ Standard library only. No network access. Exits 0 when green, 1 when red;
 each red line names the file and the row or line concerned.
 """
 
+import bisect
 import csv
 import hashlib
 import io
@@ -74,12 +75,17 @@ CONTROL_HEADING = re.compile(r"^### (SOUL-[A-Z]{2}-\d{3}): (.*\S|.)\s*$")
 DOMAIN_HEADING = re.compile(r"^# Domain (\d+): (.*\S|.)\s*$")
 # A fenced code block opens at a line that starts, after at most three spaces, with a run of three
 # or more backticks or tildes, where no backtick follows a run of backticks on the line (the info
-# string of a backtick fence holds none). These are the CommonMark conditions on the line, and a
-# line that breaks one opens no fence at the top level of a file. List items are not read, so a
-# fence indented four spaces or more inside one is read as text. The block closes at a line that
-# holds, after at most three spaces, only a run of its own character at least as long (see
-# closes_fence).
-FENCE = re.compile(r"^ {0,3}(`{3,}(?=[^`]*$)|~{3,})")
+# string of a backtick fence holds none). These are the CommonMark conditions on the line; FENCE
+# matches the run from the first character of the line that is not a space or a tab, and
+# CodeFences reads the indentation before it, which inside a list item is counted from the item's
+# content column. The block closes at a line that holds, after at most three spaces, only a run of
+# its own character at least as long, then nothing but spaces and tabs (see closes_fence).
+FENCE = re.compile(r"`{3,}(?=[^`]*$)|~{3,}")
+# The starts of the other blocks that decide where a list item ends, each matched from the first character of a line
+# that is not a space or a tab (CodeFences): a list marker, an ATX heading, and a setext heading underline.
+LIST_MARKER = re.compile(r"[-+*]|([0-9]{1,9})[.)]")
+ATX_HEADING = re.compile(r"#{1,6}(?:[ \t]|$)")
+HEADING_UNDERLINE = re.compile(r"(?:=+|-+)[ \t]*$")
 # [^*]+ and one greedy value group keep a long row that does not match linear;
 # the earlier (.+?) ... (.*?) form backtracked quadratically on such a row.
 ATTRIBUTE_ROW = re.compile(r"^\| \*\*([^*]+)\*\* \| (.*) \|\s*$")
@@ -349,13 +355,117 @@ def display(path):
         return str(path)
 
 
-def closes_fence(fence, line):
-    """True when the line holds, after at most three spaces, only a run of the fence's own character, at least as long
-    as the fence; whitespace after the run is ignored."""
-    run = line.rstrip()
-    indent = len(run) - len(run.lstrip(" "))
-    run = run[indent:]
-    return indent <= 3 and len(run) >= len(fence) and run == fence[0] * len(run)
+def first_character(line, index, column):
+    """(index, column) of the first character of line at or after index that is not a space or a tab, or of the end
+    of the line. index is at column, and a tab advances the column to the next multiple of four."""
+    while index < len(line) and line[index] in " \t":
+        column = column + 4 - column % 4 if line[index] == "\t" else column + 1
+        index += 1
+    return index, column
+
+
+def closes_fence(fence, rest):
+    """True when rest, a line from its first character that is not a space or a tab, holds only a run of the fence's
+    own character at least as long as the fence, then nothing but spaces and tabs."""
+    run = rest.rstrip(" \t")
+    return len(run) >= len(fence) and run == fence[0] * len(run)
+
+
+class CodeFences:
+    """Tells which lines of a Markdown file are lines of a fenced code block, given its lines one at a time, in order.
+
+    A fence opens or closes at a line indented at most three spaces past the content column of the list item that
+    holds the line, or past the start of the line outside a list item, and a block inside a list item ends with the
+    item. The list items are read by the CommonMark rules. An item opens at a bullet (-, + or *), or at one to nine
+    digits and a period or a closing parenthesis, indented at most three spaces and followed by a space, a tab or the
+    end of the line, unless the line is a thematic break such as "- - -". Its content column is the column after the
+    marker and the one to four spaces that follow it, or the column after the marker and one space when nothing or
+    five spaces or more follow it. An item interrupts a paragraph only when text follows its marker, and an ordered
+    item only when its number is 1. A later line continues the item when it is indented at least to the content
+    column, when it is blank and the item holds a block, or when it continues a paragraph of the item without that
+    indentation. A tab advances to the next multiple of four columns. The paragraphs, ATX and setext headings,
+    thematic breaks and indented code blocks that decide where an item ends are read too; block quotes and HTML
+    blocks are not.
+    """
+
+    def __init__(self):
+        self.items = []  # the content column of each open list item, outermost first; each is past the one before
+        self.empty = False  # the innermost item opened at a line that held only its marker, and holds no block yet
+        self.paragraph = False  # the last block read is a paragraph, which a line can continue without indentation
+        self.fence = None  # the run of backticks or tildes that opened the fenced code block that is open
+
+    def read(self, line):
+        """True when line, the next line of the file, opens, continues or closes a fenced code block."""
+        if line.endswith("\r"):  # the carriage return of a CRLF line ending
+            line = line[:-1]
+        index, column = first_character(line, 0, 0)
+        blank = index == len(line)
+        # The open items the line continues. The content columns increase, so they are the first ones.
+        if blank:
+            matched = len(self.items) - (1 if self.empty else 0)
+        else:
+            matched = bisect.bisect_right(self.items, column)
+        if self.fence is not None:
+            if matched == len(self.items):
+                base = self.items[-1] if self.items else 0
+                if not blank and column - base <= 3 and closes_fence(self.fence, line[index:]):
+                    self.fence = None
+                return True
+            self.fence = None  # the line ends the list item that holds the block, and the block with it
+        lazy = self.paragraph and matched < len(self.items)
+        in_paragraph = self.paragraph and not lazy
+        base = self.items[matched - 1] if matched else 0
+        opened = False  # the line opens a list item
+        leaf = None  # the run of a fence the line opens, or "" for a heading or a thematic break
+        # No thematic break of mark starts before stop, where a scan from an earlier index ended without one. Each scan
+        # starts at or after the index where the one before it ended, so a line is read in time linear in its length,
+        # however many list markers it holds.
+        mark, stop = "", 0
+        while not blank and column - base <= 3:
+            fence = FENCE.match(line, index)
+            if fence:
+                leaf = fence.group()
+                break
+            if ATX_HEADING.match(line, index) or (in_paragraph and HEADING_UNDERLINE.match(line, index)):
+                leaf = ""
+                break
+            if line[index] in "-_*" and (line[index] != mark or index >= stop):
+                mark, stop, count = line[index], index, 0
+                while stop < len(line) and line[stop] in (mark, " ", "\t"):
+                    count += line[stop] == mark
+                    stop += 1
+                if stop == len(line) and count >= 3:
+                    leaf = ""
+                    break
+            marker = LIST_MARKER.match(line, index)
+            end = marker.end() if marker else index
+            if not marker or (end < len(line) and line[end] not in " \t"):
+                break
+            after, after_column = first_character(line, end, column + end - index)
+            if in_paragraph and (after == len(line) or (marker.group(1) and int(marker.group(1)) != 1)):
+                break
+            if not opened:
+                del self.items[matched:]
+                opened = True
+            end_column = column + end - index
+            spaced = after < len(line) and after_column - end_column <= 4
+            self.items.append(after_column if spaced else end_column + 1)
+            base = self.items[-1]
+            index, column, blank = after, after_column, after == len(line)
+            in_paragraph = False
+        if leaf is not None or opened:
+            if not opened:
+                del self.items[matched:]
+            self.paragraph = leaf is None and not blank and column - base <= 3
+            self.empty = leaf is None and blank
+            self.fence = leaf or None
+            return bool(leaf)
+        if lazy and not blank:
+            return False  # the line continues the paragraph, and the items that hold it stay open
+        del self.items[matched:]
+        self.paragraph = not blank and (in_paragraph or column - base <= 3)
+        self.empty = False
+        return False
 
 
 def attribute_shaped(line):
@@ -375,12 +485,13 @@ def load_domains(errors, domains_dir=DOMAINS):
     starts another block, so such a line is red at its line, a heading or a
     fence included. An attribute-shaped row after the table and before the
     next control heading, indented or not, is red as separated from its
-    table, unless it is inside a fenced code block (FENCE), so an example
-    block can show attribute rows. A row is attribute-shaped when it is an
-    attribute row (ATTRIBUTE_ROW) or starts as one without its leading pipe
-    (PIPELESS_ATTRIBUTE_ROW); GFM renders the latter, unindented and directly
-    under the last row of the table, as a row of that table. An
-    attribute-shaped row directly under the table is red once, as separated.
+    table, unless it is inside a fenced code block (CodeFences), at the top
+    level or in a list item, so an example block can show attribute rows. A
+    row is attribute-shaped when it is an attribute row (ATTRIBUTE_ROW) or
+    starts as one without its leading pipe (PIPELESS_ATTRIBUTE_ROW); GFM
+    renders the latter, unindented and directly under the last row of the
+    table, as a row of that table. An attribute-shaped row directly under the
+    table is red once, as separated.
     attributes maps each control ID to (location of its heading, {attribute
     name: value}), with surrounding backticks stripped from each value. Each
     file is read by read_source and split into lines by gfm_lines, where GFM
@@ -395,8 +506,9 @@ def load_domains(errors, domains_dir=DOMAINS):
         name = None
         table = None
         phase = None
-        fence = None
+        fences = CodeFences()
         for lineno, line in enumerate(gfm_lines(read_source(errors, path, rel)), start=1):
+            fenced = fences.read(line)
             row = line.startswith("|")
             if phase == "in" and not row:
                 # The line directly under the last row ends the table. It is read before the heading and fence rules
@@ -422,13 +534,7 @@ def load_domains(errors, domains_dir=DOMAINS):
                 phase = "before"
                 attributes[cid] = (f"{rel}:{lineno}", table)
                 continue
-            if fence is not None:
-                if closes_fence(fence, line):
-                    fence = None
-                continue
-            m = FENCE.match(line)
-            if m:
-                fence = m.group(1)
+            if fenced:
                 continue
             if table is None:
                 continue

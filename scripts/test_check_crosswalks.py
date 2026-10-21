@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
 """Tests for scripts/check_crosswalks.py: the JSON control export, the render
 comparison, the domain and control headings, the lines it splits a domain
-file into, the attribute tables, the section 5.3 registry table, the section
-3.5 applicability matrix and the tier counts of section 3, the report on a
-byte that is not UTF-8 in a file it reads, and the .gitattributes line-ending
-pins of the files it compares byte for byte; the name its message gives a
-README.md passage it requires verbatim; and the terms README.md and the docs
-pages that took its reference text use in their prose.
+file into, the attribute tables and the fenced code blocks around them, the
+section 5.3 registry table, the section 3.5 applicability matrix and the tier
+counts of section 3, the report on a byte that is not UTF-8 in a file it
+reads, and the .gitattributes line-ending pins of the files it compares byte
+for byte; the name its message gives a README.md passage it requires
+verbatim; that its fence reader is the copy in scripts/check_docs_prose.py;
+and the terms README.md and the docs pages that took its reference text use
+in their prose.
 
 Run from anywhere:  python3 scripts/test_check_crosswalks.py
 
 Standard library only. The tests read the committed domain files,
-controls.json, specification.md, README.md and the pages under docs/, ask git for the eol attribute of the
+controls.json, specification.md, README.md and the pages under docs/, and the source of the two checks, ask git for the eol attribute of the
 byte-checked files, and write no tracked file: the synthetic domain files and
 the repository copy that main() runs against are written to a temporary
 directory, and bytecode caching is turned off before the import.
 """
 
 import contextlib
+import inspect
 import io
 import json
 import re
@@ -34,6 +37,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import check_crosswalks as cc  # noqa: E402
+import check_docs_prose as cdp  # noqa: E402
 
 MEMBERS = ["id", "title", "domain", "severity", "status", "version"]
 DEPRECATED_MEMBERS = ["id", "title", "domain", "severity", "status", "replacedBy", "version"]
@@ -506,11 +510,11 @@ class EntryAttributes(unittest.TestCase):
 
     def test_fence_opens_and_closes_only_after_at_most_three_spaces(self):
         # Markdown reads a run indented four spaces, or by a tab, as text and not as a fence, whether the run would
-        # open the block or close it.
+        # open the block or close it. A run indented one to three spaces closes the block, so the row under it is red.
         example = "```\n| **Status** | ignored |\n```"
         self.assertIn(example, domain_file([ACTIVE]))
-        for block, red in (("   ```\n| **Status** | ignored |\n ```", False),
-                           (" ~~~\n| **Status** | ignored |\n   ~~~", False),
+        for block, red in (("   ```\n| **Status** | ignored |\n ```\n| **Status** | deprecated |", True),
+                           (" ~~~\n| **Status** | ignored |\n   ~~~\n| **Status** | deprecated |", True),
                            ("    ```\n| **Status** | ignored |\n    ```", True),
                            ("\t~~~\n| **Status** | ignored |\n\t~~~", True),
                            ("   \t```\n| **Status** | ignored |\n   \t```", True),
@@ -543,6 +547,52 @@ class EntryAttributes(unittest.TestCase):
         entries, errors = entries_for_text(text)
         self.assertEqual(errors, [])
         self.assertEqual([(e["id"], e["severity"]) for e in entries], [("SOUL-TH-001", "HIGH"), ("SOUL-TH-002", "LOW")])
+
+    def test_fence_closes_only_at_a_line_with_nothing_but_spaces_and_tabs_after_its_run(self):
+        # A no-break space (U+00A0) after the run is text, so the row under that line is inside the block.
+        example = "```\n| **Status** | ignored |\n```"
+        self.assertIn(example, domain_file([ACTIVE]))
+        for block, red in (("```\n```\N{NO-BREAK SPACE}\n| **Status** | ignored |\n```", False),
+                           ("~~~\n~~~\N{NO-BREAK SPACE}\n| **Status** | ignored |\n~~~", False),
+                           ("```\n``` \t\n| **Status** | ignored |", True)):
+            with self.subTest(block=block):
+                _, errors = entries_for_text(domain_file([ACTIVE]).replace(example, block))
+                self.assertEqual([e.split(": ", 1)[1] for e in errors],
+                                 ["attribute row separated from the attribute table of SOUL-TH-001; it is not read"]
+                                 if red else [])
+
+    def test_attribute_row_inside_a_fenced_block_in_a_list_item_is_not_read(self):
+        # Inside a list item Markdown counts the indentation of a fence from the item's content column.
+        example = "```\n| **Status** | ignored |\n```"
+        self.assertIn(example, domain_file([ACTIVE]))
+        for block in ("1. Example:\n\n    ```\n    | **Status** | ignored |\n    ```",
+                      "10. Example:\n    ```\n    | **Status** | ignored |\n    ```",
+                      "- Example:\n\n  ```\n  | **Status** | ignored |\n      ```\n  | **Status** | ignored |\n     ```",
+                      "- ```\n  | **Status** | ignored |\n  ```"):
+            with self.subTest(block=block):
+                entries, errors = entries_for_text(domain_file([ACTIVE]).replace(example, block))
+                self.assertEqual(errors, [])
+                self.assertEqual(entries[0]["status"], "active")
+
+    def test_fenced_block_in_a_list_item_closes_where_markdown_closes_it(self):
+        # A run indented at most three spaces past the content column of the item closes the block, and so does a line
+        # that ends the item; the row under the block is then red at its line.
+        example = "```\n| **Status** | ignored |\n```"
+        self.assertIn(example, domain_file([ACTIVE]))
+        row = "| **Status** | deprecated |"
+        for block in ("- Example:\n\n  ```\n  text\n    ```\n\n" + row,
+                      "- Example:\n\n  ```\n  text\n     ```\n  " + row,
+                      "1.  Example:\n\n    ```\n    text\n       ```\n\n" + row,
+                      "- Example:\n\n  ```\n  text\n\t```\n\n" + row,
+                      "- Example:\n\n  ```\n  text\n" + row):
+            with self.subTest(block=block):
+                variant = domain_file([ACTIVE]).replace(example, block)
+                lineno = [line.strip() for line in variant.splitlines()].index(row) + 1
+                entries, errors = entries_for_text(variant)
+                self.assertEqual(len(errors), 1, errors)
+                self.assertTrue(errors[0].endswith(f"11-trust-hierarchy.md:{lineno}: attribute row separated from the "
+                                                   "attribute table of SOUL-TH-001; it is not read"), errors[0])
+                self.assertEqual(entries[0]["status"], "active")
 
     def test_long_row_that_does_not_match_is_rejected_in_linear_time(self):
         skip_the_time_bound_when_optimized(self)
@@ -1156,6 +1206,18 @@ class LineEndingPins(unittest.TestCase):
         self.assertEqual(result.stdout.splitlines(), [f"{p}: eol: lf" for p in paths])
 
 
+class FenceReader(unittest.TestCase):
+    def test_the_fence_reader_is_the_one_in_the_prose_check(self):
+        # Each check is a file of its own, so each holds a copy of the reader. scripts/test_check_docs_prose.py tests the
+        # lines its copy reads as code, and EntryAttributes the attribute rows this copy leaves unread.
+        for name in ("first_character", "closes_fence", "CodeFences"):
+            with self.subTest(name=name):
+                self.assertEqual(inspect.getsource(getattr(cc, name)), inspect.getsource(getattr(cdp, name)))
+        for name in ("FENCE", "LIST_MARKER", "ATX_HEADING", "HEADING_UNDERLINE"):
+            with self.subTest(name=name):
+                self.assertEqual(getattr(cc, name).pattern, getattr(cdp, name).pattern)
+
+
 class MainRun(unittest.TestCase):
     """main() against a copy of the repository files it reads, in a temporary directory."""
 
@@ -1348,6 +1410,35 @@ class MainRun(unittest.TestCase):
                 self.assertIn(f"RED {rel}:{first + lines.index(row)}: attribute row separated from the attribute table "
                               "of SOUL-TH-001; it is not read\n", out)
                 self.assertIn("\n1 problem(s) found", out)
+
+    def test_attribute_row_after_a_fenced_block_in_a_list_item_is_red_at_its_line(self):
+        # The lines go after the blank line that ends the attribute table of SOUL-TH-001. Inside a list item Markdown
+        # counts the indentation of a fence from the item's content column: the block of the first item closes at its
+        # line indented four spaces, so the row under it is red, and the block of the second opens at its line indented
+        # four spaces, so the row inside it is not read.
+        rel = "domains/11-trust-hierarchy.md"
+        table_end = ("| **ID** | SOUL-TH-001 |\n| **Severity** | HIGH |\n"
+                     "| **Applicable tiers** | All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT) |\n\n")
+        text = (cc.ROOT / rel).read_text(encoding="utf-8")
+        self.assertIn(table_end, text)
+        first = text[:text.index(table_end) + len(table_end)].count("\n") + 1
+        row = "| **Status** | deprecated |"
+        for lines, red in ((["- Example:", "", "  ```", "  text", "    ```", "", row], True),
+                           (["1. Example:", "", "    ```", "    " + row, "    ```", ""], False)):
+            def drift(root, lines=lines):
+                path = root / rel
+                path.write_text(path.read_text(encoding="utf-8").replace(table_end, table_end + "\n".join(lines) + "\n",
+                                                                         1), encoding="utf-8")
+            with self.subTest(lines=lines):
+                code, out, _ = self.run_main([], drift)
+                if red:
+                    self.assertEqual(code, 1, out)
+                    self.assertIn(f"RED {rel}:{first + lines.index(row)}: attribute row separated from the attribute "
+                                  "table of SOUL-TH-001; it is not read\n", out)
+                    self.assertIn("\n1 problem(s) found", out)
+                else:
+                    self.assertEqual(code, 0, out)
+                    self.assertIn("crosswalks: all checks green", out)
 
     def test_carriage_return_in_a_crosswalk_csv_is_red_without_the_write_hint(self):
         spec = cc.CROSSWALK_SET[0]
