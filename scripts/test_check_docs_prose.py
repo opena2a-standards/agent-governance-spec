@@ -93,6 +93,15 @@ def lines(*text):
     return "\n".join(text)
 
 
+def assert_dashes_at(test, cases):
+    """For each (lines, line numbers) case, require one spaced double hyphen finding at each of the line numbers of the
+    text those lines make, and no other finding."""
+    for text, numbers in cases:
+        with test.subTest(text=text):
+            test.assertEqual([(number, "spaced double hyphen used as a dash") for number in numbers],
+                             cdp.findings(lines(*text)))
+
+
 class Fences(unittest.TestCase):
     DASH = "spaced double hyphen used as a dash"
 
@@ -141,6 +150,82 @@ class Fences(unittest.TestCase):
 
     def test_tilde_fence_with_a_backtick_in_its_info_string_opens_a_fence(self):
         self.assertEqual([(4, self.DASH)], cdp.findings(lines("~~~ a ``` b", "code -- a", "~~~", "After -- y")))
+
+    def test_closing_line_ignores_only_spaces_and_tabs_after_its_run(self):
+        # A no-break space (U+00A0) after the run is text, so the line does not close the block.
+        assert_dashes_at(self, (
+            (("# Doc", "", "```", "code", "```\N{NO-BREAK SPACE}", "still code -- b", "```"), []),
+            (("```", "code -- a", "```\N{NO-BREAK SPACE}", "still code -- b", "```", "After -- y"), [6]),
+            (("- a", "", "  ```", "  ```\N{NO-BREAK SPACE}", "  still code -- b", "  ```", "After -- y"), [7]),
+            (("```", "code -- a", "``` \t ", "After -- y"), [4]),
+        ))
+
+
+class ListItemFences(unittest.TestCase):
+    # Inside a list item, CommonMark counts the indentation of a fence from the item's content column, and a fenced
+    # block ends with the item that holds it.
+    DASH = "spaced double hyphen used as a dash"
+
+    def test_fence_in_a_list_item_opens_and_closes_at_most_three_spaces_past_its_content_column(self):
+        assert_dashes_at(self, (
+            (("# Steps", "", "1. Run the check:", "", "    ```sh", "    npm run check -- --fix", "    ```", "",
+              "2. Read the output."), []),
+            (("# Steps", "", "- Run the check:", "", "  ```sh", "  make check", "    ```", "", "After the list -- y"), [9]),
+            (("- a", "", "  ```", "  code -- a", "     ```", "After -- y"), [6]),
+            (("- a", "", "  ```", "  code -- a", "      ```", "  still code -- b", "  ```", "After -- y"), [8]),
+            (("1.  a", "", "    ```", "    code -- a", "       ```", "After -- y"), [6]),
+            (("-\ta", "", "    ```", "    code -- a", "       ```", "After -- y"), [6]),
+            (("- a", "", "  ```", "  code -- a", "\t```", "After -- y"), [6]),
+            (("- ```", "  code -- a", "    ```", "After -- y"), [4]),
+            (("- a", "  1. b", "", "     ```", "     code -- a", "        ```", "After -- y"), [7]),
+            (("- a\r", "\r", "  ```\r", "  code -- a\r", "    ```\r", "After -- y\r"), [6]),
+            # Outside a list item, a run indented four spaces stays text.
+            (("1. Item", "", "Text.", "", "    ```", "After -- y", "    ```"), [6]),
+        ))
+
+    def test_fenced_block_in_a_list_item_ends_with_the_item(self):
+        assert_dashes_at(self, (
+            (("- a", "", "  ```", "  code -- a", "After -- y"), [5]),
+            # The line that ends the item opens a block outside it.
+            (("- a", "", "  ```", "  code -- a", "```", "code -- b", "```", "After -- y"), [8]),
+            (("- a", "  1. b", "", "     ```", "     code -- a", "  ```", "  code -- b", "  ```", "After -- y"), [9]),
+            # A blank line does not end an item that holds a block.
+            (("- a", "", "  ```", "", "  code -- a", "", "    ```", "After -- y"), [8]),
+        ))
+
+    def test_line_without_the_indentation_continues_the_item_only_when_it_continues_a_paragraph(self):
+        assert_dashes_at(self, (
+            (("- a", "b", "  ```", "  code -- a", "    ```", "After -- y"), [6]),
+            (("- a", "      b", "c", "  ```", "  code -- a", "    ```", "After -- y"), [7]),
+            # Under a blank line, an ATX heading, a setext heading or an indented code block, such a line ends the
+            # item, so the block under it opens outside the item, where a line indented four spaces does not close it.
+            (("- a", "", "b", "  ```", "  code -- a", "    ```", "After -- y"), []),
+            (("- a", "# H", "  ```", "  code -- a", "    ```", "After -- y"), []),
+            (("- Title", "  -", "text", "  ```", "  code -- a", "    ```", "After -- y"), []),
+            (("- a", "", "      code", "b", "  ```", "  code -- a", "    ```", "After -- y"), []),
+        ))
+
+    def test_list_item_opens_as_commonmark_opens_one(self):
+        assert_dashes_at(self, (
+            # Five spaces after the marker put the content column one space past it.
+            (("-     a", "  ```", "  code -- a", "    ```", "After -- y"), [5]),
+            # An item that opens with a blank line ends at a second one.
+            (("-", "  ```", "  code -- a", "    ```", "After -- y"), [5]),
+            (("-", "", "  ```", "  code -- a", "    ```", "After -- y"), []),
+            # An item interrupts a paragraph only with text after its marker, and an ordered one only at 1.
+            (("Text", "1. b", "   ```", "   code -- a", "      ```", "After -- y"), [6]),
+            (("Text", "2. b", "   ```", "   code -- a", "      ```", "After -- y"), []),
+            (("Text", "*", "  ```", "  code -- a", "    ```", "After -- y"), []),
+            # Three hyphens set apart by spaces are a thematic break, not three items.
+            (("- - -", "  ```", "  code -- a", "    ```", "After -- y"), []),
+        ))
+
+    def test_line_of_many_list_markers_is_read_in_linear_time(self):
+        skip_the_time_bound_when_optimized(self)
+        for line in ("- " * 100000 + "x", "* - " * 50000 + "x", "1. " * 100000 + "x", "-\t" * 100000 + "x"):
+            start = time.perf_counter()
+            self.assertEqual([(2, self.DASH)], cdp.findings(lines(line, "  text -- a")))
+            self.assertLess(time.perf_counter() - start, 2.0)
 
 
 class DashEdges(unittest.TestCase):
@@ -352,6 +437,23 @@ class CommandLine(unittest.TestCase):
             write_tree(tmp, {"README.md": "# Title\n\nPlain prose.\n"})
             with mock.patch.object(cdp.subprocess, "run", side_effect=OSError("no git")):
                 self.assertEqual((0, "", ""), run_main(tmp))
+
+    def test_code_blocks_in_list_items_and_after_a_no_break_space_are_skipped_up_to_their_closing_line(self):
+        # The block of numbered.md opens at a line indented four spaces inside its item, the block of bullet.md closes
+        # at a line indented four spaces inside its item, and the line after the run that does not close the block of
+        # no-break.md holds a no-break space.
+        with tempfile.TemporaryDirectory() as tmp:
+            write_tree(tmp, {
+                "numbered.md": "# Steps\n\n1. Run the check:\n\n    ```sh\n    npm run check -- --fix\n    ```\n\n"
+                               "2. Read the output.\n",
+                "bullet.md": "# Steps\n\n- Run the check:\n\n  ```sh\n  make check\n    ```\n\nAfter the list -- y\n",
+                "no-break.md": "# Doc\n\n```\ncode\n```\N{NO-BREAK SPACE}\nstill code -- b\n```\n",
+            })
+            with mock.patch.object(cdp.subprocess, "run", side_effect=OSError("no git")):
+                code, out, err = run_main(tmp)
+        self.assertEqual(1, code)
+        self.assertEqual("bullet.md:9: spaced double hyphen used as a dash\n", out)
+        self.assertEqual("1 finding(s); " + self.HINT, err)
 
     def test_tracked_md_and_mdx_files_are_read_and_untracked_ones_are_not(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -835,9 +937,10 @@ class TimeBounds(unittest.TestCase):
                 unittest.TestSuite([
                     CodeSpans("test_long_runs_of_backticks_are_scanned_in_linear_time"),
                     Contributing("test_clause_break_splits_a_run_of_whitespace_in_linear_time"),
+                    ListItemFences("test_line_of_many_list_markers_is_read_in_linear_time"),
                 ]).run(result)
                 clock.perf_counter.assert_not_called()
-                self.assertEqual([TIME_BOUND_SKIP] * 2, [reason for _, reason in result.skipped])
+                self.assertEqual([TIME_BOUND_SKIP] * 3, [reason for _, reason in result.skipped])
 
     def test_the_run_without_python3_O_checks_the_time_bounds(self):
         # A skip here would report this test as skipped, not failed, so skipTest is replaced and must not be called.
