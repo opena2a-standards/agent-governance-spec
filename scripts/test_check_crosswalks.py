@@ -639,6 +639,39 @@ class EntryAttributes(unittest.TestCase):
                                                    "attribute table of SOUL-TH-001; it is not read"), errors[0])
                 self.assertEqual(entries[0]["status"], "active")
 
+    def test_domain_or_control_heading_inside_a_fenced_block_is_not_read(self):
+        # Markdown reads the lines of a fenced block as code, so a heading there starts no domain and no control, and
+        # the attribute table under it sets no attribute.
+        example = "```\n| **Status** | ignored |\n```"
+        second = ("### SOUL-TH-002: Second", [("ID", "SOUL-TH-002"), ("Severity", "LOW")])
+        text = domain_file([ACTIVE, second])
+        self.assertIn(example, text)
+        table = "\n\n| Attribute | Value |\n|-----------|-------|\n| **Status** | deprecated |"
+        for heading in ("### SOUL-TH-001: First", "### SOUL-TH-002: Second", "### SOUL-TH-003: Third",
+                        "# Domain 11: Trust Hierarchy", "# Domain 12: Capability Boundaries"):
+            for block in (f"```markdown\n{heading}\n```", f"~~~\n{heading}{table}\n~~~"):
+                with self.subTest(block=block), tempfile.TemporaryDirectory() as tmp:
+                    (Path(tmp) / "11-trust-hierarchy.md").write_text(text.replace(example, block, 1), encoding="utf-8")
+                    errors = []
+                    found, domain_order, attributes = cc.load_domains(errors, Path(tmp))
+                    entries = cc.control_entries(errors, found, attributes)
+                    self.assertEqual(errors, [])
+                    self.assertEqual(domain_order, [(11, "Trust Hierarchy")])
+                    self.assertEqual([(e["id"], e["domain"], e["severity"], e["status"]) for e in entries],
+                                     [("SOUL-TH-001", 11, "HIGH", "active"), ("SOUL-TH-002", 11, "LOW", "active")])
+
+    def test_heading_that_ends_a_list_item_holding_a_fenced_block_is_read(self):
+        # A line that is not indented ends the list item above it and the fenced block the item holds, so Markdown
+        # reads the heading of SOUL-TH-002 under a block that no line closes as a heading.
+        second = ("### SOUL-TH-002: Second", [("ID", "SOUL-TH-002"), ("Severity", "LOW")])
+        example = "```\n| **Status** | ignored |\n```\n\n---\n\n"
+        text = domain_file([ACTIVE, second])
+        self.assertIn(example + second[0], text)
+        block = "- Example:\n\n  ```\n  | **Status** | ignored |\n"
+        entries, errors = entries_for_text(text.replace(example, block, 1))
+        self.assertEqual(errors, [])
+        self.assertEqual([(e["id"], e["severity"]) for e in entries], [("SOUL-TH-001", "HIGH"), ("SOUL-TH-002", "LOW")])
+
     def test_long_row_that_does_not_match_is_rejected_in_linear_time(self):
         skip_the_time_bound_when_optimized(self)
         row = "| **x** | " + "** | " * 20000 + "x"
@@ -1806,6 +1839,24 @@ class MainRun(unittest.TestCase):
                 else:
                     self.assertEqual(code, 0, out)
                     self.assertIn("crosswalks: all checks green", out)
+
+    def test_heading_inside_a_fenced_block_of_a_domain_file_is_not_read(self):
+        # The lines go after the blank line that ends the attribute table of SOUL-TH-001. Markdown reads the lines of a
+        # fenced block as code, so the heading there starts no control and no domain, and the copy stays green.
+        rel = "domains/11-trust-hierarchy.md"
+        table_end = ("| **ID** | SOUL-TH-001 |\n| **Severity** | HIGH |\n"
+                     "| **Applicable tiers** | All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT) |\n\n")
+        self.assertIn(table_end, (cc.ROOT / rel).read_text(encoding="utf-8"))
+        for heading in ("### SOUL-TH-001: Trust Chain Defined", "# Domain 12: Capability Boundaries"):
+            def drift(root, heading=heading):
+                path = root / rel
+                lines = ["```markdown", heading, "```", ""]
+                path.write_text(path.read_text(encoding="utf-8").replace(table_end, table_end + "\n".join(lines) + "\n",
+                                                                         1), encoding="utf-8")
+            with self.subTest(heading=heading):
+                code, out, _ = self.run_main([], drift)
+                self.assertEqual(code, 0, out)
+                self.assertIn("crosswalks: all checks green", out)
 
     def test_carriage_return_in_a_crosswalk_csv_is_red_without_the_write_hint(self):
         spec = cc.CROSSWALK_SET[0]

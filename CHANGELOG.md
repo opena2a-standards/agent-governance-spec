@@ -42,8 +42,9 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   tiers, Status, Replaced by, and Version, a table row that is not an
   attribute row, an attribute row separated from its table, indented or not
   and with or without its leading pipe, and a control in a domain file with
-  no `# Domain N:` heading are reported; an attribute row inside a code block
-  fenced by backticks or tildes is not read. In a domain file such a fence
+  no `# Domain N:` heading are reported; a `# Domain N:` heading, a control
+  heading or an attribute row inside a code block fenced by backticks or
+  tildes is not read. In a domain file such a fence
   opens and closes only at a line indented by at most three spaces, counted
   inside a list item or a block quote from the column where its content
   starts, and closes only at a line with nothing but spaces and tabs after

@@ -42,12 +42,13 @@ The two crosswalk CSV files are canonical. This script:
     end of the file: GFM renders a line that is not blank directly under the
     last row of a table as a row of that table unless it starts another
     block, and the script reads only the rows that start with a pipe;
-  * reads the headings it looks for in specification.md and conformance.md,
-    the rows of those four tables, and the Applicable controls lines only
-    outside a fenced code block, which GFM renders as code, and ends a path
-    or tier section only at a line that starts with # outside one: a fenced
-    example that repeats a heading and its table is not read in place of the
-    section GFM renders under that heading.
+  * reads the domain and control headings and the attribute rows of the
+    domain files, the headings it looks for in specification.md and
+    conformance.md, the rows of those four tables, and the Applicable
+    controls lines only outside a fenced code block, which GFM renders as
+    code, and ends a path or tier section only at a line that starts with #
+    outside one: a fenced example that repeats a heading and its table is
+    not read in place of the section GFM renders under that heading.
 
 Run from anywhere:  python3 scripts/check_crosswalks.py
 Re-render the .md files and controls.json:  python3 scripts/check_crosswalks.py --write
@@ -634,7 +635,9 @@ def load_domains(errors, domains_dir=DOMAINS):
     starts as one without its leading pipe (PIPELESS_ATTRIBUTE_ROW); GFM
     renders the latter, unindented and directly under the last row of the
     table, as a row of that table. An attribute-shaped row directly under the
-    table is red once, as separated.
+    table is red once, as separated. A line inside a fenced code block is not
+    read as a domain or control heading either, so an example block can show
+    a heading too.
     A control heading above every domain heading of its file is red. A domain
     heading whose number int() refuses is red at its line (read_int) and is
     left out of domain_order; the controls under it are read with no domain
@@ -658,12 +661,15 @@ def load_domains(errors, domains_dir=DOMAINS):
             fenced = fences.read(line)
             row = line.startswith("|")
             if phase == "in" and not row:
-                # The line directly under the last row ends the table. It is read before the heading and fence rules
-                # below, so a heading or a fence there is red too.
+                # The line directly under the last row ends the table. It is read before the fence and heading rules
+                # below, so a fence or a heading there is red too.
                 phase = "after"
                 if line.strip(" \t") and not attribute_shaped(line):
                     fail(errors, f"{rel}:{lineno}", f"line directly under the attribute table of {cid} is not blank; "
                                                     "a blank line must end the table")
+            if fenced:
+                # No line of a fenced code block is a heading or a table row: GFM renders the lines inside it as code.
+                continue
             m = DOMAIN_HEADING.match(line)
             if m:
                 number, name = read_int(errors, f"{rel}:{lineno}", "domain number", m.group(1)), m.group(2)
@@ -681,8 +687,6 @@ def load_domains(errors, domains_dir=DOMAINS):
                 table = {}
                 phase = "before"
                 attributes[cid] = (f"{rel}:{lineno}", table)
-                continue
-            if fenced:
                 continue
             if table is None:
                 continue
