@@ -39,7 +39,13 @@ The two crosswalk CSV files are canonical. This script:
   * requires each of those four tables to be followed by a blank line or the
     end of the file: GFM renders a line that is not blank directly under the
     last row of a table as a row of that table unless it starts another
-    block, and the script reads only the rows that start with a pipe.
+    block, and the script reads only the rows that start with a pipe;
+  * reads the headings it looks for in specification.md and conformance.md,
+    the rows of those four tables, and the Applicable controls lines only
+    outside a fenced code block, which GFM renders as code, and ends a path
+    or tier section only at a line that starts with # outside one: a fenced
+    example that repeats a heading and its table is not read in place of the
+    section GFM renders under that heading.
 
 Run from anywhere:  python3 scripts/check_crosswalks.py
 Re-render the .md files and controls.json:  python3 scripts/check_crosswalks.py --write
@@ -483,6 +489,25 @@ class CodeFences:
         return False
 
 
+def fenced_lines(lines):
+    """For each line, True when it is part of a fenced code block as CodeFences reads it, the reader load_domains
+    uses: the line that opens the block, the lines inside it, and the line that closes it.
+
+    A block that no line closes runs to the end of the list item that holds it, or to the end of the text, as in
+    CommonMark. GFM renders the lines inside a block as code, so none of these lines is a heading or a table row.
+    """
+    fences = CodeFences()
+    return [fences.read(line) for line in lines]
+
+
+def heading_line(lines, fenced, heading):
+    """The index of the first line equal to heading that is not part of a fenced code block, or None.
+
+    fenced is the list fenced_lines returns for lines.
+    """
+    return next((i for i, line in enumerate(lines) if line == heading and not fenced[i]), None)
+
+
 def attribute_shaped(line):
     """True when the line, after any indent, is an attribute row or starts as one without its leading pipe."""
     stripped = line.lstrip()
@@ -655,17 +680,23 @@ def check_replacement_chains(errors, statuses, links):
 def table_after(errors, rel, lines, heading, name):
     """The rows of the first table after the line heading, as (line number, cells); None when heading is absent.
 
-    The table starts at the first line after heading that starts with a pipe and ends at the next line that does
-    not. GFM renders a line that is not blank directly under the last row of a table as a row of that table unless
-    it starts another block, so the line that ends the table is red at its line when it is not blank, with the table
-    named as name, and it is not read. A blank line holds nothing but spaces and tabs.
+    The heading is the first line equal to heading that is not part of a fenced code block, and the table starts at
+    the first line after it that starts with a pipe and is not part of one (fenced_lines): GFM renders the lines of
+    a fenced code block as code, so a heading or a table that an example block repeats is not read in place of the
+    table GFM renders under the heading. The table ends at the next line that does not start with a pipe. GFM
+    renders a line that is not blank directly under the last row of a table as a row of that table unless it starts
+    another block, so the line that ends the table is red at its line when it is not blank, with the table named as
+    name, and it is not read. A blank line holds nothing but spaces and tabs.
     """
-    if heading not in lines:
+    fenced = fenced_lines(lines)
+    start = heading_line(lines, fenced, heading)
+    if start is None:
         return None
-    start = lines.index(heading) + 1
     rows = []
-    for lineno, line in enumerate(lines[start:], start=start + 1):
-        if line.startswith("|"):
+    for index in range(start + 1, len(lines)):
+        line = lines[index]
+        lineno = index + 1
+        if line.startswith("|") and not fenced[index]:
             rows.append((lineno, [cell.strip() for cell in line.strip()[1:-1].split("|")]))
         elif rows:
             if line.strip(" \t"):
@@ -753,9 +784,12 @@ def check_conformance_levels(errors, rel, text, entries, attributes):
     giving the ID, the heading title as Name (letter case aside, so the table
     may use sentence case), and the Applicable tiers of the attribute table,
     with All (...) written as All tiers. The path section that follows the
-    table names each of those controls.
+    table names each of those controls. Each heading is the first line equal
+    to it that is not part of a fenced code block (fenced_lines), and the path
+    section ends at the next line that starts with # and is not part of one.
     """
     lines = gfm_lines(text)
+    fenced = fenced_lines(lines)
     for heading, path_heading, severity in CONFORMANCE_LEVELS:
         rows = table_after(errors, rel, lines, heading, f"the table under {heading!r}")
         if rows is None:
@@ -793,11 +827,12 @@ def check_conformance_levels(errors, rel, text, entries, attributes):
                 fail(errors, rel, f"the table under {heading!r} has no row for {cid}")
         if seen != [cid for cid in order if cid in seen]:
             fail(errors, rel, f"the rows under {heading!r} are not in domain order then NNN")
-        if path_heading not in lines:
+        index = heading_line(lines, fenced, path_heading)
+        if index is None:
             fail(errors, rel, f"heading {path_heading!r} not found")
             continue
-        start = lines.index(path_heading) + 1
-        end = next((i for i in range(start, len(lines)) if lines[i].startswith("#")), len(lines))
+        start = index + 1
+        end = next((i for i in range(start, len(lines)) if lines[i].startswith("#") and not fenced[i]), len(lines))
         section = "\n".join(lines[start:end])
         for cid in order:
             if not re.search(rf"\b{re.escape(cid)}\b", section):
@@ -839,10 +874,10 @@ def check_applicability_matrix(errors, rel, text, tiers):
     attribute is already red is not compared.
     """
     lines = gfm_lines(text)
-    if MATRIX_HEADING not in lines:
+    rows = table_after(errors, rel, lines, MATRIX_HEADING, "the matrix under section 3.5")
+    if rows is None:
         fail(errors, rel, f"heading {MATRIX_HEADING!r} not found")
         return
-    rows = table_after(errors, rel, lines, MATRIX_HEADING, "the matrix under section 3.5")
     header = ["Control ID", *TIERS]
     if len(rows) < 2 or rows[0][1] != header:
         fail(errors, rel, f"the matrix under section 3.5 must have the header | {' | '.join(header)} |")
@@ -885,10 +920,15 @@ def check_tier_counts(errors, rel, text, tiers):
     TIER. tiers is the map control_tiers returns; when an attribute is already
     red, the counts are not compared. An N that int() refuses is red at its
     line (read_int), whether or not an attribute is red, and is not compared.
+    A line that is part of a fenced code block (fenced_lines) is not read, so
+    it neither starts nor ends a tier section and is not its count line.
     """
     counts = {}
     tier = None
-    for lineno, line in enumerate(gfm_lines(text), start=1):
+    lines = gfm_lines(text)
+    for lineno, (line, fenced) in enumerate(zip(lines, fenced_lines(lines)), start=1):
+        if fenced:
+            continue
         if line.startswith("#"):
             m = TIER_HEADING.match(line)
             tier = m.group(1) if m else None

@@ -153,7 +153,18 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   with a pipe, directly under the last row of this table, of the CRITICAL or
   HIGH table in `conformance.md` or of the section 3.5 matrix, is reported
   at its line: GFM renders it as a row of that table unless it starts
-  another block, and the validator does not read it.
+  another block, and the validator does not read it. The validator reads
+  the headings of these four tables, of the Path to Essential and Path to
+  Standard sections, and of the tier sections 3.1 to 3.4 only outside a
+  code block fenced by backticks or tildes, which GFM renders as code, and
+  reads each table from the first line after its heading that starts with
+  a pipe outside such a block; a fence there opens and closes as in a
+  domain file. A line inside such a block is not read as an Applicable
+  controls count, and a line there that starts with `#` ends no path or
+  tier section. A fenced example that repeated the section 5.3 heading and
+  the registry table directly above that heading was read in place of the
+  table GFM renders under it, so a severity changed in that table was not
+  reported.
 - README Repository Structure lists `CHANGELOG.md`, `controls.json`,
   `scripts/`, and `integrations/`.
 - The README Use cases section expands AAP as the Agent Authorization
