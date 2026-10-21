@@ -35,7 +35,11 @@ The two crosswalk CSV files are canonical. This script:
   * requires the applicability matrix in specification.md section 3.5 to mark,
     for each control, the tiers its Applicable tiers attribute names, in the
     order of controls.json, and the Applicable controls count of each tier in
-    sections 3.1 to 3.4 to equal the number of controls that name that tier.
+    sections 3.1 to 3.4 to equal the number of controls that name that tier;
+  * requires each of those four tables to be followed by a blank line or the
+    end of the file: GFM renders a line that is not blank directly under the
+    last row of a table as a row of that table unless it starts another
+    block, and the script reads only the rows that start with a pipe.
 
 Run from anywhere:  python3 scripts/check_crosswalks.py
 Re-render the .md files and controls.json:  python3 scripts/check_crosswalks.py --write
@@ -521,8 +525,14 @@ def check_replacement_chains(errors, statuses, links):
             fail(errors, where, f"Replaced by chain {path} ends at a draft control; it must end at an active control")
 
 
-def table_after(lines, heading):
-    """The rows of the first table after the line heading, as (line number, cells); None when heading is absent."""
+def table_after(errors, rel, lines, heading, name):
+    """The rows of the first table after the line heading, as (line number, cells); None when heading is absent.
+
+    The table starts at the first line after heading that starts with a pipe and ends at the next line that does
+    not. GFM renders a line that is not blank directly under the last row of a table as a row of that table unless
+    it starts another block, so the line that ends the table is red at its line when it is not blank, with the table
+    named as name, and it is not read. A blank line holds nothing but spaces and tabs.
+    """
     if heading not in lines:
         return None
     start = lines.index(heading) + 1
@@ -531,6 +541,10 @@ def table_after(lines, heading):
         if line.startswith("|"):
             rows.append((lineno, [cell.strip() for cell in line.strip()[1:-1].split("|")]))
         elif rows:
+            if line.strip(" \t"):
+                fail(errors, f"{rel}:{lineno}", f"line directly under the last row of {name} is not blank and does "
+                                                "not start with a pipe; GFM renders it as a row of that table unless "
+                                                "it starts another block, and it is not read")
             break
     return rows
 
@@ -545,7 +559,7 @@ def check_registry_table(errors, rel, text, entries, domain_names):
     precedes in that order is red at its line.
     """
     lines = text.splitlines()
-    rows = table_after(lines, REGISTRY_HEADING)
+    rows = table_after(errors, rel, lines, REGISTRY_HEADING, "the registry table under section 5.3")
     if rows is None:
         fail(errors, rel, f"heading {REGISTRY_HEADING!r} not found")
         return
@@ -616,7 +630,7 @@ def check_conformance_levels(errors, rel, text, entries, attributes):
     """
     lines = text.splitlines()
     for heading, path_heading, severity in CONFORMANCE_LEVELS:
-        rows = table_after(lines, heading)
+        rows = table_after(errors, rel, lines, heading, f"the table under {heading!r}")
         if rows is None:
             fail(errors, rel, f"heading {heading!r} not found")
             continue
@@ -701,7 +715,7 @@ def check_applicability_matrix(errors, rel, text, tiers):
     if MATRIX_HEADING not in lines:
         fail(errors, rel, f"heading {MATRIX_HEADING!r} not found")
         return
-    rows = table_after(lines, MATRIX_HEADING)
+    rows = table_after(errors, rel, lines, MATRIX_HEADING, "the matrix under section 3.5")
     header = ["Control ID", *TIERS]
     if len(rows) < 2 or rows[0][1] != header:
         fail(errors, rel, f"the matrix under section 3.5 must have the header | {' | '.join(header)} |")

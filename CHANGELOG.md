@@ -140,7 +140,11 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   SOUL-AS-003, and SOUL-HT-002, and in letter case alone for the other 67.
   The validator now holds the table to the domain files. It reports a row
   with no closing pipe, and names the first row out of domain order, at its
-  line, with the row it follows.
+  line, with the row it follows. A line that is not blank and does not start
+  with a pipe, directly under the last row of this table, of the CRITICAL or
+  HIGH table in `conformance.md` or of the section 3.5 matrix, is reported
+  at its line: GFM renders it as a row of that table unless it starts
+  another block, and the validator does not read it.
 - README Repository Structure lists `CHANGELOG.md`, `controls.json`,
   `scripts/`, and `integrations/`.
 - The README Use cases section expands AAP as the Agent Authorization
