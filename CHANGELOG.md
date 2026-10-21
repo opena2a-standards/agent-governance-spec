@@ -653,7 +653,10 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `*`, `/`, `//`, `%` and `**`, or unary `+` and `-` as each other, fails
   one of those tests. The module docstring of that file now names the
   docstring of `written_number` and the module docstring itself among
-  the wording the file tests, and a test holds it to that wording. (#105)
+  the wording the file tests, and a test holds it to that wording.
+  Issue #103 said that the evaluation of binary `-` and `*` was already
+  held by the test of timeouts that are not a finite number; the test as
+  it was did not hold it. (#105)
 - The test added for #105 in `scripts/test_stripped_docstrings.py`, that
   each operator evaluated as another fails one of the two tests of
   timeouts written as arithmetic, could pass when one of those tests
