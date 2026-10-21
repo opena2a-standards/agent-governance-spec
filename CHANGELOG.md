@@ -16,10 +16,13 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   files, prints one `file:line: message` line per finding, and exits 1. A
   double hyphen or an en dash is a dash when a space, a tab, or the edge of
   the line is on each side of it. A heading is an ATX heading at any indent,
-  a setext heading, or a bold label that starts a line. A code fence closes
-  only at a run of its own character at least as long as the run that
-  opened it. An argument that is not a directory prints a usage message and
-  exits 2. Tests in `scripts/test_check_docs_prose.py`.
+  a setext heading, or a bold label that starts a line. A code fence opens
+  at a run of three or more backticks or tildes after at most three spaces,
+  where no backtick follows a run of backticks on the line, and closes at a
+  line that holds, after at most three spaces, only a run of its own
+  character at least as long as the run that opened it. An argument that is
+  not a directory prints a usage message and exits 2. Tests in
+  `scripts/test_check_docs_prose.py`.
 - `controls.json` at the repository root: the JSON control export named in
   `specification.md` section 8.2, one entry per control ID with `id`,
   `title`, `domain`, `severity`, `status`, `replacedBy` (deprecated entries
@@ -37,11 +40,13 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   attribute row, an attribute row separated from its table, indented or not
   and with or without its leading pipe, and a control in a domain file with
   no `# Domain N:` heading are reported; an attribute row inside a code block
-  fenced by backticks or tildes is not read. A byte that is not UTF-8 in a
-  domain file, `specification.md` or `conformance.md` is reported at its
-  line, and the rest of the file is read with U+FFFD in its place. A domain
-  or control heading with a long run of spaces inside its title is read in
-  time linear in the length of the line. Tests in
+  fenced by backticks or tildes is not read. In a domain file such a fence
+  opens and closes only at a line indented by at most three spaces, and a
+  run of backticks with a backtick after it on the line opens none. A byte
+  that is not UTF-8 in a domain file, `specification.md` or `conformance.md`
+  is reported at its line, and the rest of the file is read with U+FFFD in
+  its place. A domain or control heading with a long run of spaces inside
+  its title is read in time linear in the length of the line. Tests in
   `scripts/test_check_crosswalks.py`.
 - Control identifier stability rule (`specification.md` section 8.2): IDs are
   never reused or renumbered; a withdrawn control is deprecated with
