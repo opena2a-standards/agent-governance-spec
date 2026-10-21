@@ -326,6 +326,18 @@ def read_source(errors, path, location):
     return data.decode("utf-8", errors="replace") if text is None else text
 
 
+def gfm_lines(text):
+    """The lines of text without their line endings, split where GFM ends a line: at LF, CR LF, or CR.
+
+    str.splitlines also ends a line at a vertical tab, a form feed, U+001C to
+    U+001E, U+0085, U+2028, and U+2029, which GFM reads as characters of the
+    line. As with str.splitlines, a line ending at the end of the text starts
+    no further line.
+    """
+    lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    return lines[:-1] if lines[-1] == "" else lines
+
+
 def display(path):
     try:
         return str(path.relative_to(ROOT))
@@ -342,22 +354,33 @@ def closes_fence(fence, line):
     return indent <= 3 and len(run) >= len(fence) and run == fence[0] * len(run)
 
 
+def attribute_shaped(line):
+    """True when the line, after any indent, is an attribute row or starts as one without its leading pipe."""
+    stripped = line.lstrip()
+    return bool(ATTRIBUTE_ROW.match(stripped) or PIPELESS_ATTRIBUTE_ROW.match(stripped))
+
+
 def load_domains(errors, domains_dir=DOMAINS):
     """Read the domain and control headings, and each control's attribute table.
 
     The attribute table is the first table after a control heading. Its rows
     are the header, the rule, and one row per name in ATTRIBUTES; any other row
-    is red. The table ends at the first line that does not start with a pipe.
-    An attribute-shaped row after that and before the next control heading,
-    indented or not, is red as separated from its table, unless it is inside a
-    fenced code block (FENCE), so an example block can show attribute rows. A
-    row is attribute-shaped when it is an attribute row (ATTRIBUTE_ROW) or
-    starts as one without its leading pipe (PIPELESS_ATTRIBUTE_ROW); GFM
-    renders the latter, unindented and directly under the last row of the
-    table, as a row of that table.
+    is red. The table ends at the first line that does not start with a pipe,
+    and that line must be blank (empty, or spaces and tabs only): GFM renders
+    a line there that is not blank as a row of the table unless the line
+    starts another block, so such a line is red at its line, a heading or a
+    fence included. An attribute-shaped row after the table and before the
+    next control heading, indented or not, is red as separated from its
+    table, unless it is inside a fenced code block (FENCE), so an example
+    block can show attribute rows. A row is attribute-shaped when it is an
+    attribute row (ATTRIBUTE_ROW) or starts as one without its leading pipe
+    (PIPELESS_ATTRIBUTE_ROW); GFM renders the latter, unindented and directly
+    under the last row of the table, as a row of that table. An
+    attribute-shaped row directly under the table is red once, as separated.
     attributes maps each control ID to (location of its heading, {attribute
     name: value}), with surrounding backticks stripped from each value. Each
-    file is read by read_source.
+    file is read by read_source and split into lines by gfm_lines, where GFM
+    ends a line.
     """
     controls = {}
     domain_order = []
@@ -369,7 +392,15 @@ def load_domains(errors, domains_dir=DOMAINS):
         table = None
         phase = None
         fence = None
-        for lineno, line in enumerate(read_source(errors, path, rel).splitlines(), start=1):
+        for lineno, line in enumerate(gfm_lines(read_source(errors, path, rel)), start=1):
+            row = line.startswith("|")
+            if phase == "in" and not row:
+                # The line directly under the last row ends the table. It is read before the heading and fence rules
+                # below, so a heading or a fence there is red too.
+                phase = "after"
+                if line.strip(" \t") and not attribute_shaped(line):
+                    fail(errors, f"{rel}:{lineno}", f"line directly under the attribute table of {cid} is not blank; "
+                                                    "a blank line must end the table")
             m = DOMAIN_HEADING.match(line)
             if m:
                 number, name = int(m.group(1)), m.group(2)
@@ -394,17 +425,11 @@ def load_domains(errors, domains_dir=DOMAINS):
             m = FENCE.match(line)
             if m:
                 fence = m.group(1)
-                if phase == "in":
-                    phase = "after"
                 continue
             if table is None:
                 continue
-            row = line.startswith("|")
-            if not row and phase == "in":
-                phase = "after"
             if phase == "after":
-                stripped = line.lstrip()
-                if ATTRIBUTE_ROW.match(stripped) or PIPELESS_ATTRIBUTE_ROW.match(stripped):
+                if attribute_shaped(line):
                     fail(errors, f"{rel}:{lineno}",
                          f"attribute row separated from the attribute table of {cid}; it is not read")
                 continue
