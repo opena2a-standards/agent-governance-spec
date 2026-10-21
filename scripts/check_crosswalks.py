@@ -10,9 +10,11 @@ The two crosswalk CSV files are canonical. This script:
   * enforces the closed basis vocabulary, the note rules, the sort order,
     the exact header, and the file encoding (UTF-8 without BOM, LF line
     endings, RFC 4180 with minimal quoting);
-  * requires the ruled statements, basis definitions, scope block, and
-    crosswalk bullet of the Documentation list verbatim in crosswalks/README.md
-    and README.md;
+  * requires the index statement, basis definitions, and scope block verbatim
+    in crosswalks/README.md, and the crosswalk bullet of the Documentation list
+    verbatim in README.md, each in lines outside a fenced code block, which GFM
+    renders as code, so a fenced copy does not stand in for the text GFM
+    renders;
   * scans authored text for the banned vocabulary and for percentage,
     ratio, grade, or score wording: the basis and note cells of each
     crosswalk CSV, plus the authored files under crosswalks/ other than
@@ -58,6 +60,7 @@ import bisect
 import csv
 import hashlib
 import io
+import itertools
 import json
 import os
 import re
@@ -596,6 +599,16 @@ def heading_line(lines, fenced, heading):
     fenced is the list fenced_lines returns for lines.
     """
     return next((i for i, line in enumerate(lines) if line == heading and not fenced[i]), None)
+
+
+def unfenced_runs(lines):
+    """The runs of consecutive lines that are not part of a fenced code block (fenced_lines), each joined by LF.
+
+    A passage found in one of the runs lies in lines none of which is part of a fenced code block.
+    """
+    return ["\n".join(line for line, _ in run)
+            for fenced, run in itertools.groupby(zip(lines, fenced_lines(lines)), key=lambda pair: pair[1])
+            if not fenced]
 
 
 def attribute_shaped(line):
@@ -1264,12 +1277,26 @@ def check_ruled_digests(errors):
 
 
 def check_required_prose(errors):
+    """Require each text of REQUIRED_PROSE verbatim in its file, in lines that are not part of a fenced code block.
+
+    The file is split where GFM ends a line (gfm_lines), and the text must lie in a run of consecutive lines none of
+    which is part of such a block (unfenced_runs): GFM renders the lines of a fenced code block as code, so a copy
+    there does not stand in for the text GFM renders, as a heading of specification.md or conformance.md is not read
+    inside one. When the file holds the text and each copy of it has a line inside such a block, the message says
+    that the text is missing or altered outside a fenced code block.
+    """
     for rel, name, text in REQUIRED_PROSE:
         path = ROOT / rel
         if not path.is_file():
             fail(errors, rel, "file is missing")
             continue
-        if text not in path.read_text(encoding="utf-8"):
+        content = path.read_text(encoding="utf-8")
+        if any(text in run for run in unfenced_runs(gfm_lines(content))):
+            continue
+        if text in content:
+            fail(errors, rel, f"the ruled {name} is missing or altered outside a fenced code block, which GFM renders "
+                              "as code; it is required verbatim outside one")
+        else:
             fail(errors, rel, f"the ruled {name} is missing or altered; it is required verbatim")
 
 

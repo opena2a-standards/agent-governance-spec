@@ -3,7 +3,8 @@
 comparison, the domain and control headings, the lines it splits a domain
 file into, the attribute tables and the fenced code blocks around them, the
 lines of fenced code blocks it does not read in specification.md and
-conformance.md, the section 5.3 registry table, the section 3.5 applicability
+conformance.md and does not take a ruled text from in crosswalks/README.md
+and README.md, the section 5.3 registry table, the section 3.5 applicability
 matrix and the tier counts of section 3, the report on a byte that is not
 UTF-8 in a file it reads, and the .gitattributes line-ending pins of the files
 it compares byte for byte; the name its message gives a README.md passage it
@@ -741,6 +742,19 @@ class FencedLines(unittest.TestCase):
         self.assertEqual(cc.fenced_lines(lines), [False, False, True, True, True, False])
         lines = ["- a", "  ```", "  ### b", "### c", "```"]
         self.assertEqual(cc.fenced_lines(lines), [False, True, True, False, True])
+
+
+class UnfencedRuns(unittest.TestCase):
+    def test_runs_are_the_lines_between_fenced_blocks_joined_by_lf(self):
+        # The tilde block that no line closes runs to the end of the text, so "e" is part of it.
+        lines = ["a", "", "b", "```", "c", "```", "d", "~~~", "e"]
+        self.assertEqual(cc.unfenced_runs(lines), ["a\n\nb", "d"])
+        self.assertEqual(cc.unfenced_runs(["```", "a"]), [])
+        self.assertEqual(cc.unfenced_runs([]), [])
+
+    def test_fence_in_a_list_item_is_read_as_by_fenced_lines(self):
+        # The line "c" ends the list item, and with it the block the item holds.
+        self.assertEqual(cc.unfenced_runs(["- a", "  ```", "  b", "c"]), ["- a", "c"])
 
 
 def deprecated(cid, successor):
@@ -1912,6 +1926,68 @@ class MainRun(unittest.TestCase):
         self.assertIn("RED README.md: the ruled crosswalk bullet of the Documentation list is missing or altered; "
                       "it is required verbatim\n", out)
         self.assertIn("\n1 problem(s) found", out)
+
+    def test_crosswalk_bullet_altered_in_the_list_with_an_unchanged_copy_in_a_fenced_block_is_red(self):
+        # "RMF" becomes "RMFX" in the bullet of the Documentation list, and a block fenced at the end of the file holds
+        # the unchanged bullet, which GFM renders as code.
+        def drift(root):
+            path = root / "README.md"
+            text = path.read_text(encoding="utf-8")
+            self.assertIn(cc.README_BULLET, text)
+            text = text.replace(cc.README_BULLET, cc.README_BULLET.replace("RMF", "RMFX", 1), 1)
+            path.write_text(text + "```text\n" + cc.README_BULLET + "\n```\n", encoding="utf-8")
+        code, out, _ = self.run_main([], drift)
+        self.assertEqual(code, 1, out)
+        self.assertIn("RED README.md: the ruled crosswalk bullet of the Documentation list is missing or altered "
+                      "outside a fenced code block, which GFM renders as code; it is required verbatim outside one\n",
+                      out)
+        self.assertIn("\n1 problem(s) found", out)
+        self.assertNotIn("all checks green", out)
+
+    def test_ruled_text_held_only_inside_a_fenced_block_is_red(self):
+        # Each text of REQUIRED_PROSE fills lines of its own in its file. Here a block fenced by backticks or by tildes
+        # wraps those lines, so the file holds the text only as code.
+        for rel, name, ruled in cc.REQUIRED_PROSE:
+            for opening, closing in (("```text", "```"), ("~~~", "~~~")):
+                def wrap(root, rel=rel, ruled=ruled, opening=opening, closing=closing):
+                    path = root / rel
+                    text = path.read_text(encoding="utf-8")
+                    self.assertIn(f"\n{ruled}\n", text)
+                    path.write_text(text.replace(f"\n{ruled}\n", f"\n{opening}\n{ruled}\n{closing}\n", 1),
+                                    encoding="utf-8")
+                with self.subTest(text=name, fence=opening):
+                    code, out, _ = self.run_main([], wrap)
+                    self.assertEqual(code, 1, out)
+                    self.assertIn(f"RED {rel}: the ruled {name} is missing or altered outside a fenced code block, "
+                                  "which GFM renders as code; it is required verbatim outside one\n", out)
+                    self.assertIn("\n1 problem(s) found", out)
+                    self.assertNotIn("all checks green", out)
+
+    def test_ruled_text_with_one_of_its_lines_inside_a_fenced_block_is_red(self):
+        # The first of the three lines of the basis definitions becomes the last line of a block fenced in the list item
+        # "- item". The next line ends the item, and the block with it, so GFM renders that first line as code and the
+        # other two as list items.
+        def wrap(root):
+            path = root / "crosswalks" / "README.md"
+            text = path.read_text(encoding="utf-8")
+            ruled = cc.BASIS_DEFINITIONS
+            self.assertIn(f"\n{ruled}\n", text)
+            path.write_text(text.replace(f"\n{ruled}\n", f"\n- item\n  ```\n  {ruled}\n", 1), encoding="utf-8")
+        code, out, _ = self.run_main([], wrap)
+        self.assertEqual(code, 1, out)
+        self.assertIn("RED crosswalks/README.md: the ruled basis definitions is missing or altered outside a fenced "
+                      "code block, which GFM renders as code; it is required verbatim outside one\n", out)
+        self.assertIn("\n1 problem(s) found", out)
+        self.assertNotIn("all checks green", out)
+
+    def test_ruled_text_with_a_copy_in_a_fenced_block_too_is_green(self):
+        def copy(root):
+            for rel, _, ruled in cc.REQUIRED_PROSE:
+                path = root / rel
+                path.write_text(path.read_text(encoding="utf-8") + "\n```text\n" + ruled + "\n```\n", encoding="utf-8")
+        code, out, _ = self.run_main([], copy)
+        self.assertEqual(code, 0, out)
+        self.assertIn("crosswalks: all checks green", out)
 
     def test_unreadable_crosswalk_csv_is_red_without_a_render(self):
         spec = cc.CROSSWALK_SET[0]
