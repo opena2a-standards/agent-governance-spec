@@ -117,6 +117,31 @@ class Fences(unittest.TestCase):
         text = lines("```md", "```sh", "still code -- a", "```", "After -- y")
         self.assertEqual([(5, self.DASH)], cdp.findings(text))
 
+    def test_run_indented_at_most_three_spaces_opens_and_closes_a_fence(self):
+        for indent in (" ", "  ", "   "):
+            with self.subTest(indent=indent):
+                text = lines(f"{indent}~~~", "code -- a", f"{indent}~~~", "After -- y")
+                self.assertEqual([(4, self.DASH)], cdp.findings(text))
+
+    def test_run_indented_four_spaces_or_a_tab_opens_no_fence(self):
+        # Markdown reads such a line as text and not as a fence, so the line under it is prose.
+        for indent in ("    ", "\t", "   \t"):
+            with self.subTest(indent=indent):
+                self.assertEqual([(2, self.DASH)], cdp.findings(lines(f"{indent}```", "After -- y", f"{indent}```")))
+
+    def test_run_indented_four_spaces_or_a_tab_does_not_close_a_fence(self):
+        for indent in ("    ", "\t"):
+            with self.subTest(indent=indent):
+                text = lines("```", "code -- a", f"{indent}```", "still code -- b", "```", "After -- y")
+                self.assertEqual([(6, self.DASH)], cdp.findings(text))
+
+    def test_backtick_line_with_a_backtick_after_its_run_opens_no_fence(self):
+        # The info string of a backtick fence holds no backtick, so Markdown reads such a line as text.
+        self.assertEqual([(1, self.DASH), (2, self.DASH)], cdp.findings(lines("```a``` -- b", "After -- y")))
+
+    def test_tilde_fence_with_a_backtick_in_its_info_string_opens_a_fence(self):
+        self.assertEqual([(4, self.DASH)], cdp.findings(lines("~~~ a ``` b", "code -- a", "~~~", "After -- y")))
+
 
 class DashEdges(unittest.TestCase):
     def test_double_hyphen_at_a_line_edge_or_set_off_by_tabs_is_reported(self):

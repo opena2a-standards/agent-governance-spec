@@ -42,9 +42,12 @@ given with the reason it is not read:
 
 Outside git, the working tree is walked with the same rules.
 
-Skipped inside a checked file: fenced code blocks (a fence closes at a line
-that holds only a run of its own character at least as long as the run that
-opened it), inline code spans, YAML front matter, HTML comments, badge lines
+Skipped inside a checked file: fenced code blocks (a fence opens at a line
+that starts, after at most three spaces, with a run of three or more
+backticks or tildes, where no backtick follows a run of backticks on the
+line, and closes at a line that holds, after at most three spaces, only a
+run of its own character at least as long as the run that opened it),
+inline code spans, YAML front matter, HTML comments, badge lines
 (an image link at the start of the line), a table cell whose whole content is
 "--", which marks an empty cell and is not a dash, and a line of hyphens
 directly under a line of text, which is a setext heading underline.
@@ -70,7 +73,10 @@ EXCLUDED_DIR_NAMES = frozenset(
 EXAMPLE_DIR_NAMES = frozenset(["example", "examples"])
 README_NAMES = frozenset(["readme.md", "readme.mdx"])
 
-FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
+# The CommonMark conditions on the line that opens a fence: at most three spaces, then a run of three or more backticks
+# or tildes, with no backtick after a run of backticks on the line. List items are not read, so a fence indented four
+# spaces or more inside one is read as prose.
+FENCE = re.compile(r"^ {0,3}(`{3,}(?=[^`]*$)|~{3,})")
 BACKTICK_RUN = re.compile(r"`+")
 BADGE_LINE = re.compile(r"^\s*(\[!\[|!\[)")
 WHY_NAME = r"Why this (?:exists|matters)(?![^\W_])"  # the name ends before anything but a letter or a digit
@@ -127,9 +133,12 @@ def tracked_markdown(root):
 
 
 def closes_fence(fence, line):
-    """True when the line holds only a run of the fence's own character, at least as long as the fence."""
-    run = line.strip()
-    return len(run) >= len(fence) and run == fence[0] * len(run)
+    """True when the line holds, after at most three spaces, only a run of the fence's own character, at least as long
+    as the fence; whitespace after the run is ignored."""
+    run = line.rstrip()
+    indent = len(run) - len(run.lstrip(" "))
+    run = run[indent:]
+    return indent <= 3 and len(run) >= len(fence) and run == fence[0] * len(run)
 
 
 def blank_code_spans(line):

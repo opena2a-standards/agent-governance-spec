@@ -68,10 +68,14 @@ NOTE_MAX_CHARS = 200
 # the lazy form backtracked quadratically on a heading with a long run of spaces inside its title.
 CONTROL_HEADING = re.compile(r"^### (SOUL-[A-Z]{2}-\d{3}): (.*\S|.)\s*$")
 DOMAIN_HEADING = re.compile(r"^# Domain (\d+): (.*\S|.)\s*$")
-# A fenced code block opens at a line that starts, after any indent, with a run of three or more
-# backticks or tildes, and closes at a line that holds only a run of its own character at least as
-# long (see closes_fence).
-FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
+# A fenced code block opens at a line that starts, after at most three spaces, with a run of three
+# or more backticks or tildes, where no backtick follows a run of backticks on the line (the info
+# string of a backtick fence holds none). These are the CommonMark conditions on the line, and a
+# line that breaks one opens no fence at the top level of a file. List items are not read, so a
+# fence indented four spaces or more inside one is read as text. The block closes at a line that
+# holds, after at most three spaces, only a run of its own character at least as long (see
+# closes_fence).
+FENCE = re.compile(r"^ {0,3}(`{3,}(?=[^`]*$)|~{3,})")
 # [^*]+ and one greedy value group keep a long row that does not match linear;
 # the earlier (.+?) ... (.*?) form backtracked quadratically on such a row.
 ATTRIBUTE_ROW = re.compile(r"^\| \*\*([^*]+)\*\* \| (.*) \|\s*$")
@@ -330,9 +334,12 @@ def display(path):
 
 
 def closes_fence(fence, line):
-    """True when the line holds only a run of the fence's own character, at least as long as the fence."""
-    run = line.strip()
-    return len(run) >= len(fence) and run == fence[0] * len(run)
+    """True when the line holds, after at most three spaces, only a run of the fence's own character, at least as long
+    as the fence; whitespace after the run is ignored."""
+    run = line.rstrip()
+    indent = len(run) - len(run.lstrip(" "))
+    run = run[indent:]
+    return indent <= 3 and len(run) >= len(fence) and run == fence[0] * len(run)
 
 
 def load_domains(errors, domains_dir=DOMAINS):

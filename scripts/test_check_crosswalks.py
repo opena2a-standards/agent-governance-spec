@@ -443,6 +443,46 @@ class EntryAttributes(unittest.TestCase):
                                  ["attribute row separated from the attribute table of SOUL-TH-001; it is not read"]
                                  if red else [])
 
+    def test_fence_opens_and_closes_only_after_at_most_three_spaces(self):
+        # Markdown reads a run indented four spaces, or by a tab, as text and not as a fence, whether the run would
+        # open the block or close it.
+        example = "```\n| **Status** | ignored |\n```"
+        self.assertIn(example, domain_file([ACTIVE]))
+        for block, red in (("   ```\n| **Status** | ignored |\n ```", False),
+                           (" ~~~\n| **Status** | ignored |\n   ~~~", False),
+                           ("    ```\n| **Status** | ignored |\n    ```", True),
+                           ("\t~~~\n| **Status** | ignored |\n\t~~~", True),
+                           ("   \t```\n| **Status** | ignored |\n   \t```", True),
+                           ("```\n    ```\n| **Status** | ignored |\n```", False),
+                           ("~~~\n\t~~~\n| **Status** | ignored |\n~~~", False)):
+            with self.subTest(block=block):
+                _, errors = entries_for_text(domain_file([ACTIVE]).replace(example, block))
+                self.assertEqual([e.split(": ", 1)[1] for e in errors],
+                                 ["attribute row separated from the attribute table of SOUL-TH-001; it is not read"]
+                                 if red else [])
+
+    def test_backtick_line_with_a_backtick_after_its_run_opens_no_fence(self):
+        # The info string of a backtick fence holds no backtick, so Markdown reads such a line as text. The info string
+        # of a tilde fence may hold one.
+        example = "```\n| **Status** | ignored |\n```"
+        self.assertIn(example, domain_file([ACTIVE]))
+        for block, red in (("```a``` b\n| **Status** | ignored |", True),
+                           ("```` sh`\n| **Status** | ignored |", True),
+                           ("```sh\n| **Status** | ignored |\n```", False),
+                           ("~~~ a ``` b\n| **Status** | ignored |\n~~~", False)):
+            with self.subTest(block=block):
+                _, errors = entries_for_text(domain_file([ACTIVE]).replace(example, block))
+                self.assertEqual([e.split(": ", 1)[1] for e in errors],
+                                 ["attribute row separated from the attribute table of SOUL-TH-001; it is not read"]
+                                 if red else [])
+
+    def test_tables_after_a_backtick_line_with_a_backtick_after_its_run_are_read(self):
+        second = ("### SOUL-TH-002: Second", [("ID", "SOUL-TH-002"), ("Severity", "LOW")])
+        text = domain_file([ACTIVE, second]).replace("**Description**: Text.", "```a``` b\n\n**Description**: Text.", 1)
+        entries, errors = entries_for_text(text)
+        self.assertEqual(errors, [])
+        self.assertEqual([(e["id"], e["severity"]) for e in entries], [("SOUL-TH-001", "HIGH"), ("SOUL-TH-002", "LOW")])
+
     def test_long_row_that_does_not_match_is_rejected_in_linear_time(self):
         skip_the_time_bound_when_optimized(self)
         row = "| **x** | " + "** | " * 20000 + "x"
@@ -1054,6 +1094,28 @@ class MainRun(unittest.TestCase):
         self.assertIn(f"RED specification.md:{lineno}: Name 'Trust Chain Defined" "\N{REPLACEMENT CHARACTER}" "' of "
                       "SOUL-TH-001 differs from the domain heading 'Trust Chain Defined'\n", out)
         self.assertIn("\n2 problem(s) found", out)
+
+    def test_attribute_row_under_a_line_that_markdown_does_not_read_as_a_fence_is_red_at_its_line(self):
+        # The lines go after the blank line that ends the attribute table of SOUL-TH-001. Markdown reads none of their
+        # backtick lines as a fence, so the attribute row is outside a code block and the tables after it are read.
+        rel = "domains/11-trust-hierarchy.md"
+        table_end = ("| **ID** | SOUL-TH-001 |\n| **Severity** | HIGH |\n"
+                     "| **Applicable tiers** | All (BASIC, TOOL-USING, AGENTIC, MULTI-AGENT) |\n\n")
+        text = (cc.ROOT / rel).read_text(encoding="utf-8")
+        self.assertIn(table_end, text)
+        first = text[:text.index(table_end) + len(table_end)].count("\n") + 1
+        row = "| **Status** | deprecated |"
+        for lines in (["    ```", row, "    ```"], ["\t```", row, "\t```"], ["```a``` b", row]):
+            def drift(root, lines=lines):
+                path = root / rel
+                path.write_text(path.read_text(encoding="utf-8").replace(table_end, table_end + "\n".join(lines) + "\n",
+                                                                         1), encoding="utf-8")
+            with self.subTest(lines=lines):
+                code, out, _ = self.run_main([], drift)
+                self.assertEqual(code, 1, out)
+                self.assertIn(f"RED {rel}:{first + lines.index(row)}: attribute row separated from the attribute table "
+                              "of SOUL-TH-001; it is not read\n", out)
+                self.assertIn("\n1 problem(s) found", out)
 
     def test_carriage_return_in_a_crosswalk_csv_is_red_without_the_write_hint(self):
         spec = cc.CROSSWALK_SET[0]
