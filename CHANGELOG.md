@@ -59,7 +59,10 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `conformance.md` is reported at its line, and the rest of the file is read
   with U+FFFD in its place. A domain or control heading with a long run of
   spaces inside its title is read in time linear in the length of the line.
-  Tests in
+  A `# Domain N:` heading, or an Applicable controls line of
+  `specification.md` sections 3.1 to 3.4, whose number has more digits than
+  Python converts to an integer (4300 unless the interpreter is configured
+  otherwise) is reported at its line, and the number is not read. Tests in
   `scripts/test_check_crosswalks.py`.
 - Control identifier stability rule (`specification.md` section 8.2): IDs are
   never reused or renumbered; a withdrawn control is deprecated with

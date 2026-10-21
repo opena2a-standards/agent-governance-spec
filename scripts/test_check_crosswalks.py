@@ -274,6 +274,20 @@ def skip_the_time_bound_when_optimized(test):
         test.skipTest(TIME_BOUND_SKIP)
 
 
+def int_digit_limit(test):
+    # The most digits int() converts. An interpreter without a limit converts a run of any length, so there is no run
+    # that read_int reports and the test is skipped.
+    limit = getattr(sys, "get_int_max_str_digits", lambda: 0)()
+    if not limit:
+        test.skipTest("int() converts a run of any number of digits in this interpreter")
+    return limit
+
+
+def too_long(what, limit):
+    # The red message for a run of limit + 1 digits, which int() refuses.
+    return f"{what} has {limit + 1} digits, more than the {limit} digits Python converts to an integer; it is not read"
+
+
 ACTIVE = ("### SOUL-TH-001: First", [("ID", "SOUL-TH-001"), ("Severity", "HIGH")])
 # The red line for a line that is not blank directly under the attribute table of SOUL-TH-001.
 NOT_BLANK_UNDER_THE_TABLE = ("line directly under the attribute table of SOUL-TH-001 is not blank; "
@@ -635,6 +649,29 @@ class EntryAttributes(unittest.TestCase):
         self.assertEqual(len(errors), 1, errors)
         self.assertTrue(errors[0].endswith("12-capability-boundaries.md: control SOUL-CB-001 before domain heading"),
                         errors[0])
+
+    def test_domain_number_longer_than_int_converts_is_red_at_its_line_without_a_traceback(self):
+        limit = int_digit_limit(self)
+        heading = f"# Domain {'1' * (limit + 1)}: Long"
+        second = ("### SOUL-TH-002: Second", [("ID", "SOUL-TH-002"), ("Severity", "LOW")])
+        text = domain_file([ACTIVE, second])
+        # The heading in place of the domain heading of the file, and added above the second control. The controls under
+        # it have no domain number, and are not red as above every domain heading.
+        for variant, order, domains in (
+                (text.replace("# Domain 11: Trust Hierarchy", heading, 1), [], [None, None]),
+                (text.replace("### SOUL-TH-002", f"{heading}\n\n### SOUL-TH-002", 1), [(11, "Trust Hierarchy")],
+                 [11, None])):
+            lineno = variant.split("\n").index(heading) + 1
+            with self.subTest(line=lineno), tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "11-trust-hierarchy.md"
+                path.write_text(variant, encoding="utf-8")
+                errors = []
+                found, domain_order, attributes = cc.load_domains(errors, Path(tmp))
+                entries = cc.control_entries(errors, found, attributes)
+                self.assertEqual(errors, [f"RED {cc.display(path)}:{lineno}: {too_long('domain number', limit)}"])
+                self.assertEqual(domain_order, order)
+                self.assertEqual([(e["id"], e["domain"]) for e in entries],
+                                 [("SOUL-TH-001", domains[0]), ("SOUL-TH-002", domains[1])])
 
 
 class GfmLines(unittest.TestCase):
@@ -1193,6 +1230,20 @@ class TierCounts(unittest.TestCase):
         self.assertEqual(self.check(text.replace("**Applicable controls**: 3 (all controls)", "All controls.")),
                          ["RED specification.md: the section on MULTI-AGENT has no '**Applicable controls**: N' line"])
 
+    def test_count_longer_than_int_converts_is_red_at_its_line_and_not_compared(self):
+        limit = int_digit_limit(self)
+        red = f"RED specification.md:15: {too_long('Applicable controls of AGENTIC', limit)}"
+        # int() counts leading zeros, so a run of limit + 1 digits whose value is the expected 2 is red too.
+        for digits in ("1" * (limit + 1), "0" * limit + "2"):
+            with self.subTest(digits=f"{digits[0]}...{digits[-1]}"):
+                self.assertEqual(self.check(TIER_SECTIONS.format(1, 1, digits, 3)), [red])
+                # The other counts are still compared, and the count is red when an attribute is red too.
+                self.assertEqual(self.check(TIER_SECTIONS.format(1, 1, digits, 4)), [
+                    red, "RED specification.md:19: Applicable controls 4 of MULTI-AGENT differs from the 3 controls "
+                         "whose Applicable tiers attribute names MULTI-AGENT"])
+                self.assertEqual(self.check(TIER_SECTIONS.format(9, 9, digits, 9),
+                                            {**self.TIERS, "SOUL-TH-003": ("a.md:3", None)}), [red])
+
 
 class LineEndingPins(unittest.TestCase):
     def test_the_byte_checked_files_are_pinned_to_lf(self):
@@ -1476,6 +1527,38 @@ class MainRun(unittest.TestCase):
         self.assertIn(f"RED specification.md:{count + 1}: Applicable controls {stated} of AGENTIC differs from the "
                       f"{stated + 1} controls whose Applicable tiers attribute names AGENTIC\n", out)
         self.assertIn("\n2 problem(s) found", out)
+
+    def long_number(self, rel, line, pattern, digits):
+        # An edit that writes digits in place of the number that pattern reads on line, which rel holds once.
+        def edit(root):
+            path = root / rel
+            text = path.read_text(encoding="utf-8")
+            self.assertEqual(text.count(line), 1)
+            m = pattern.match(line)
+            path.write_text(text.replace(line, line[:m.start(1)] + digits + line[m.end(1):]), encoding="utf-8")
+        return edit
+
+    def test_count_longer_than_int_converts_is_red_at_its_line(self):
+        limit = int_digit_limit(self)
+        spec = (cc.ROOT / cc.SPECIFICATION).read_text(encoding="utf-8").splitlines()
+        count = next(i for i in range(spec.index("### 3.1 BASIC"), len(spec)) if cc.TIER_COUNT.match(spec[i]))
+        code, out, _ = self.run_main([], self.long_number(cc.SPECIFICATION, spec[count], cc.TIER_COUNT,
+                                                          "1" * (limit + 1)))
+        self.assertEqual(code, 1, out)
+        self.assertIn(f"RED specification.md:{count + 1}: {too_long('Applicable controls of BASIC', limit)}\n", out)
+        self.assertIn("\n1 problem(s) found", out)
+
+    def test_domain_number_longer_than_int_converts_is_red_at_its_line(self):
+        limit = int_digit_limit(self)
+        rel = "domains/11-trust-hierarchy.md"
+        heading = (cc.ROOT / rel).read_text(encoding="utf-8").splitlines()[0]
+        self.assertEqual(heading, "# Domain 11: Trust Hierarchy")
+        code, out, _ = self.run_main([], self.long_number(rel, heading, cc.DOMAIN_HEADING, "1" * (limit + 1)))
+        self.assertEqual(code, 1, out)
+        # The red lines after it follow from it: the controls under the heading have no domain number.
+        self.assertEqual(next(line for line in out.splitlines() if line.startswith("RED ")),
+                         f"RED {rel}:1: {too_long('domain number', limit)}")
+        self.assertNotIn("before domain heading", out)
 
     def test_write_restores_controls_json(self):
         rendered = (cc.ROOT / cc.CONTROLS_EXPORT).read_bytes()

@@ -336,6 +336,21 @@ def read_source(errors, path, location):
     return data.decode("utf-8", errors="replace") if text is None else text
 
 
+def read_int(errors, location, what, digits):
+    """The value of digits, a run that \\d matches, or None when int() refuses it, which is red at location.
+
+    int() reads each character \\d matches as a digit, and refuses with
+    ValueError a run of more digits than sys.get_int_max_str_digits(), leading
+    zeros counted (4300 unless the interpreter is configured otherwise).
+    """
+    try:
+        return int(digits)
+    except ValueError:
+        fail(errors, location, f"{what} has {len(digits)} digits, more than the {sys.get_int_max_str_digits()} "
+                               "digits Python converts to an integer; it is not read")
+        return None
+
+
 def gfm_lines(text):
     """The lines of text without their line endings, split where GFM ends a line: at LF, CR LF, or CR.
 
@@ -492,6 +507,10 @@ def load_domains(errors, domains_dir=DOMAINS):
     renders the latter, unindented and directly under the last row of the
     table, as a row of that table. An attribute-shaped row directly under the
     table is red once, as separated.
+    A control heading above every domain heading of its file is red. A domain
+    heading whose number int() refuses is red at its line (read_int) and is
+    left out of domain_order; the controls under it are read with no domain
+    number (None), and are not red as above every domain heading.
     attributes maps each control ID to (location of its heading, {attribute
     name: value}), with surrounding backticks stripped from each value. Each
     file is read by read_source and split into lines by gfm_lines, where GFM
@@ -519,15 +538,16 @@ def load_domains(errors, domains_dir=DOMAINS):
                                                     "a blank line must end the table")
             m = DOMAIN_HEADING.match(line)
             if m:
-                number, name = int(m.group(1)), m.group(2)
-                domain_order.append((number, name))
+                number, name = read_int(errors, f"{rel}:{lineno}", "domain number", m.group(1)), m.group(2)
+                if number is not None:
+                    domain_order.append((number, name))
                 continue
             m = CONTROL_HEADING.match(line)
             if m:
                 cid, title = m.group(1), m.group(2)
                 if cid in controls:
                     fail(errors, rel, f"duplicate control heading {cid}")
-                if number is None:
+                if name is None:
                     fail(errors, rel, f"control {cid} before domain heading")
                 controls[cid] = (title, number)
                 table = {}
@@ -568,7 +588,8 @@ def control_entries(errors, controls, attributes):
     Members per specification.md section 8.2. status and version are written on
     every entry: an absent Status is active and an absent Version is 1.0.0.
     replacedBy is written on deprecated entries only. A control with no domain
-    heading above it (already red) sorts after the others.
+    number (no domain heading above it, or one whose number int() refuses;
+    already red) sorts after the others.
     """
     entries = []
     statuses = {}
@@ -862,7 +883,8 @@ def check_tier_counts(errors, rel, text, tiers):
     The first "**Applicable controls**: N" line under the heading "### 3.n TIER"
     gives N, the number of controls whose Applicable tiers attribute names
     TIER. tiers is the map control_tiers returns; when an attribute is already
-    red, the counts are not compared.
+    red, the counts are not compared. An N that int() refuses is red at its
+    line (read_int), whether or not an attribute is red, and is not compared.
     """
     counts = {}
     tier = None
@@ -875,19 +897,22 @@ def check_tier_counts(errors, rel, text, tiers):
         elif tier is not None and counts[tier] is None:
             m = TIER_COUNT.match(line)
             if m:
-                counts[tier] = (lineno, int(m.group(1)))
+                counts[tier] = (lineno, m.group(1))
     known = all(names is not None for _, names in tiers.values())
     for tier in TIERS:
         if tier not in counts:
             fail(errors, rel, f"section 3 has no heading '### 3.n {tier}'")
         elif counts[tier] is None:
             fail(errors, rel, f"the section on {tier} has no '**Applicable controls**: N' line")
-        elif known:
-            lineno, stated = counts[tier]
-            expected = sum(1 for _, names in tiers.values() if tier in names)
-            if stated != expected:
-                fail(errors, f"{rel}:{lineno}", f"Applicable controls {stated} of {tier} differs from the "
-                                                f"{expected} controls whose Applicable tiers attribute names {tier}")
+        else:
+            lineno, digits = counts[tier]
+            stated = read_int(errors, f"{rel}:{lineno}", f"Applicable controls of {tier}", digits)
+            if known and stated is not None:
+                expected = sum(1 for _, names in tiers.values() if tier in names)
+                if stated != expected:
+                    fail(errors, f"{rel}:{lineno}", f"Applicable controls {stated} of {tier} differs from the "
+                                                    f"{expected} controls whose Applicable tiers attribute names "
+                                                    f"{tier}")
 
 
 def render_controls_json(entries):
