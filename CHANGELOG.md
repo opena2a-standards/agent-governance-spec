@@ -34,9 +34,14 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   section 8.2), and a version is `MAJOR.MINOR.PATCH` in ASCII digits without
   leading zeros. An attribute table row outside ID, Severity, Applicable
   tiers, Status, Replaced by, and Version, a table row that is not an
-  attribute row, an attribute row separated from its table, and a control in
-  a domain file with no `# Domain N:` heading are reported. Tests in
-  `scripts/test_check_crosswalks.py`.
+  attribute row, an attribute row separated from its table, indented or not,
+  and a control in a domain file with no `# Domain N:` heading are reported;
+  an attribute row inside a code block fenced by backticks or tildes is not
+  read. A byte that is not UTF-8 in a domain file, `specification.md` or
+  `conformance.md` is reported at its line, and the rest of the file is read
+  with U+FFFD in its place. A domain or control heading with a long run of
+  spaces inside its title is read in time linear in the length of the line.
+  Tests in `scripts/test_check_crosswalks.py`.
 - Control identifier stability rule (`specification.md` section 8.2): IDs are
   never reused or renumbered; a withdrawn control is deprecated with
   `replacedBy`; the status vocabulary `draft`, `active`, `deprecated` and the
@@ -61,14 +66,17 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   files and `controls.json`, so a checkout with `core.autocrlf=true` is
   green. A carriage return or a UTF-8
   BOM in one of these files is reported at its line in the words used for
-  the CSV files, a byte that is not UTF-8 at its line, and a length
+  the CSV files, a byte that is not UTF-8 at its line, counted before
+  carriage returns are read as LF, and a length
   difference only when the text, read with the BOM removed and CRLF and CR
   as LF, differs in length from the render, and a shorter or longer report
   on a file that had a BOM or a carriage return says the text was read that
-  way. The reports that a file differs
-  from its render, is shorter or longer than it, or holds a byte that is not
-  UTF-8 name `python3 scripts/check_crosswalks.py --write`; the BOM and
-  carriage-return reports do not.
+  way. A crosswalk CSV that holds a byte that is not UTF-8 is not rendered.
+  On a rendered `.md` file or `controls.json`, the reports of a BOM, a
+  carriage return, a byte that is not UTF-8, a difference from the render,
+  and a shorter or longer text name
+  `python3 scripts/check_crosswalks.py --write`; the reports on a CSV file
+  do not, as `--write` does not write the CSV files.
 - `scripts/test_readme.py` reads the numbers the README states against
   their sources: each count of domains, controls and conformance levels
   ("nine behavioral domains", "72 controls", "the 72-control export",
@@ -117,7 +125,9 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   heading title as its Name, as `controls.json` does; it differed for all 72
   controls: in wording for SOUL-HB-003, SOUL-AS-001, SOUL-AS-002,
   SOUL-AS-003, and SOUL-HT-002, and in letter case alone for the other 67.
-  The validator now holds the table to the domain files.
+  The validator now holds the table to the domain files. It reports a row
+  with no closing pipe, and names the first row out of domain order, at its
+  line, with the row it follows.
 - README Repository Structure lists `CHANGELOG.md`, `controls.json`,
   `scripts/`, and `integrations/`.
 - The README Use cases section expands AAP as the Agent Authorization

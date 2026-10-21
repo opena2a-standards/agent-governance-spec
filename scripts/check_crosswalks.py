@@ -64,8 +64,14 @@ HEADER = ["control_id", "control_title", "target_id", "target_title", "basis", "
 BASIS_VOCABULARY = ("partially-addresses", "evidence-for", "related")
 NOTE_MAX_CHARS = 200
 
-CONTROL_HEADING = re.compile(r"^### (SOUL-[A-Z]{2}-\d{3}): (.+?)\s*$")
-DOMAIN_HEADING = re.compile(r"^# Domain (\d+): (.+?)\s*$")
+# The greedy (.*\S|.) reads the title the earlier lazy (.+?) read before \s*$, in linear time;
+# the lazy form backtracked quadratically on a heading with a long run of spaces inside its title.
+CONTROL_HEADING = re.compile(r"^### (SOUL-[A-Z]{2}-\d{3}): (.*\S|.)\s*$")
+DOMAIN_HEADING = re.compile(r"^# Domain (\d+): (.*\S|.)\s*$")
+# A fenced code block opens at a line that starts, after any indent, with a run of three or more
+# backticks or tildes, and closes at a line that holds only a run of its own character at least as
+# long (see closes_fence).
+FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
 # [^*]+ and one greedy value group keep a long row that does not match linear;
 # the earlier (.+?) ... (.*?) form backtracked quadratically on such a row.
 ATTRIBUTE_ROW = re.compile(r"^\| \*\*([^*]+)\*\* \| (.*) \|\s*$")
@@ -286,11 +292,44 @@ def check_bytes(errors, path, data):
         fail(errors, f"{rel}:{data.count(chr(10).encode()) + 1}", "missing trailing newline")
 
 
+def decode_utf8(errors, location, data, hint=""):
+    """The text of data, or None when a byte of it is not UTF-8, which is red at its line.
+
+    Only the first such byte is reported. Its line is counted by the LF bytes
+    before it in data as given, as check_bytes counts the line of a carriage
+    return. hint is appended to the message.
+    """
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        line = data[: exc.start].count(b"\n") + 1
+        fail(errors, f"{location}:{line}", f"byte 0x{data[exc.start]:02X} is not UTF-8{hint}")
+        return None
+
+
+def read_source(errors, path, location):
+    """The text of a domain file, specification.md, or conformance.md.
+
+    A byte that is not UTF-8 is red at its line (decode_utf8), and the text is
+    then read with U+FFFD in place of each byte sequence that is not UTF-8, so
+    the checks of the rest of the file still run.
+    """
+    data = path.read_bytes()
+    text = decode_utf8(errors, location, data)
+    return data.decode("utf-8", errors="replace") if text is None else text
+
+
 def display(path):
     try:
         return str(path.relative_to(ROOT))
     except ValueError:
         return str(path)
+
+
+def closes_fence(fence, line):
+    """True when the line holds only a run of the fence's own character, at least as long as the fence."""
+    run = line.strip()
+    return len(run) >= len(fence) and run == fence[0] * len(run)
 
 
 def load_domains(errors, domains_dir=DOMAINS):
@@ -299,11 +338,12 @@ def load_domains(errors, domains_dir=DOMAINS):
     The attribute table is the first table after a control heading. Its rows
     are the header, the rule, and one row per name in ATTRIBUTES; any other row
     is red. The table ends at the first line that is not a table row. An
-    attribute-shaped row after that and before the next control heading is red
-    as separated from its table, unless it is inside a fenced code block, so an
-    example block can show attribute rows. attributes maps each control ID to
-    (location of its heading, {attribute name: value}), with surrounding
-    backticks stripped from each value.
+    attribute-shaped row after that and before the next control heading,
+    indented or not, is red as separated from its table, unless it is inside a
+    fenced code block (FENCE), so an example block can show attribute rows.
+    attributes maps each control ID to (location of its heading, {attribute
+    name: value}), with surrounding backticks stripped from each value. Each
+    file is read by read_source.
     """
     controls = {}
     domain_order = []
@@ -314,8 +354,8 @@ def load_domains(errors, domains_dir=DOMAINS):
         name = None
         table = None
         phase = None
-        fenced = False
-        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        fence = None
+        for lineno, line in enumerate(read_source(errors, path, rel).splitlines(), start=1):
             m = DOMAIN_HEADING.match(line)
             if m:
                 number, name = int(m.group(1)), m.group(2)
@@ -333,21 +373,27 @@ def load_domains(errors, domains_dir=DOMAINS):
                 phase = "before"
                 attributes[cid] = (f"{rel}:{lineno}", table)
                 continue
-            if line.startswith("```"):
-                fenced = not fenced
+            if fence is not None:
+                if closes_fence(fence, line):
+                    fence = None
+                continue
+            m = FENCE.match(line)
+            if m:
+                fence = m.group(1)
                 if phase == "in":
                     phase = "after"
                 continue
-            if table is None or fenced:
+            if table is None:
                 continue
-            if not line.startswith("|"):
-                if phase == "in":
-                    phase = "after"
-                continue
+            row = line.startswith("|")
+            if not row and phase == "in":
+                phase = "after"
             if phase == "after":
-                if ATTRIBUTE_ROW.match(line):
+                if ATTRIBUTE_ROW.match(line.lstrip()):
                     fail(errors, f"{rel}:{lineno}",
                          f"attribute row separated from the attribute table of {cid}; it is not read")
+                continue
+            if not row:
                 continue
             phase = "in"
             if TABLE_HEADER.match(line) or TABLE_RULE.match(line):
@@ -454,7 +500,9 @@ def check_registry_table(errors, rel, text, entries, domain_names):
 
     One row per control, in the order of controls.json, giving the ID, the
     heading title as Name, the domain heading name as Domain, and the Severity
-    of the attribute table.
+    of the attribute table. A row with no closing pipe is red and not read. When
+    the rows are out of that order, the first row placed after a row that it
+    precedes in that order is red at its line.
     """
     lines = text.splitlines()
     rows = table_after(lines, REGISTRY_HEADING)
@@ -466,9 +514,15 @@ def check_registry_table(errors, rel, text, entries, domain_names):
         return
     expected = {e["id"]: e for e in entries}
     order = [e["id"] for e in entries]
-    seen = []
+    # The location of each row read, by control ID, in the order of the rows.
+    seen = {}
     for lineno, cells in rows[2:]:
         where = f"{rel}:{lineno}"
+        # table_after reads the cells between the first and the last character of a row, so a row with no
+        # closing pipe would lose the last character of its last cell.
+        if not lines[lineno - 1].rstrip().endswith("|"):
+            fail(errors, where, "registry row has no closing pipe; it is not read")
+            continue
         if len(cells) != 4:
             fail(errors, where, f"registry row has {len(cells)} cells; expected 4")
             continue
@@ -479,7 +533,7 @@ def check_registry_table(errors, rel, text, entries, domain_names):
         if cid in seen:
             fail(errors, where, f"registry row {cid} is repeated")
             continue
-        seen.append(cid)
+        seen[cid] = where
         entry = expected[cid]
         if name != entry["title"]:
             fail(errors, where, f"Name {name!r} of {cid} differs from the domain heading {entry['title']!r}")
@@ -492,8 +546,13 @@ def check_registry_table(errors, rel, text, entries, domain_names):
     for cid in order:
         if cid not in seen:
             fail(errors, rel, f"the registry table under section 5.3 has no row for {cid}")
-    if seen != [cid for cid in order if cid in seen]:
-        fail(errors, rel, "the registry rows under section 5.3 are not in domain order then NNN")
+    rank = {cid: i for i, cid in enumerate(order)}
+    read = list(seen)
+    for before, after in zip(read, read[1:]):
+        if rank[after] < rank[before]:
+            fail(errors, seen[after], f"registry row {after} follows {before}; the rows under section 5.3 must be "
+                                      "in domain order then NNN")
+            break
 
 
 def tiers_cell(value):
@@ -680,16 +739,18 @@ def compare_render(errors, rel, committed, rendered, source):
 
     A UTF-8 BOM, a carriage return, or a byte that is not UTF-8 is reported
     first, the BOM and the carriage return in the words check_bytes uses for
-    the CSV files. The text is then compared with the BOM removed and CRLF or
-    CR read as LF, so a file that matches its render once CRLF and CR are read
-    as LF gets the carriage-return line alone, and a length difference is
-    reported only when the lengths of that text differ. A CR that replaced the
-    LF ending a line followed by a blank line is read with the LF of that blank
-    line as one CRLF, so the line the CR ended is kept, the blank line is lost,
-    and that file also gets a differs report, or a shorter report when nothing
-    but blank lines follows the CR to the end of the file. A shorter or longer
-    report on a file that had a BOM or a carriage return names how its text
-    was read.
+    the CSV files, and each of the three with WRITE_HINT, since --write writes
+    the rendered file and not a CSV. The line of a byte that is not UTF-8 is
+    counted before carriage returns are read as LF. The text is then compared
+    with the BOM removed and CRLF or CR read as LF, so a file that matches its
+    render once CRLF and CR are read as LF gets the carriage-return line
+    alone, and a length difference is reported only when the lengths of that
+    text differ. A CR that replaced the LF ending a line followed by a blank
+    line is read with the LF of that blank line as one CRLF, so the line the
+    CR ended is kept, the blank line is lost, and that file also gets a
+    differs report, or a shorter report when nothing but blank lines follows
+    the CR to the end of the file. A shorter or longer report on a file that
+    had a BOM or a carriage return names how its text was read.
     """
     if committed is None:
         fail(errors, rel, "file is missing")
@@ -699,20 +760,19 @@ def compare_render(errors, rel, committed, rendered, source):
     data = committed
     read_as = []
     if data.startswith(b"\xef\xbb\xbf"):
-        fail(errors, f"{rel}:1", "file starts with a UTF-8 BOM")
+        fail(errors, f"{rel}:1", f"file starts with a UTF-8 BOM; {WRITE_HINT}")
         data = data[3:]
         read_as.append("its BOM removed")
-    if b"\r" in data:
+    carriage_return = b"\r" in data
+    if carriage_return:
         line = data[: data.index(b"\r")].count(b"\n") + 1
-        fail(errors, f"{rel}:{line}", "carriage return found; LF line endings required")
-        data = data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
-        read_as.append("line endings read as LF")
-    try:
-        text = data.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        line = data[: exc.start].count(b"\n") + 1
-        fail(errors, f"{rel}:{line}", f"byte 0x{data[exc.start]:02X} is not UTF-8; {WRITE_HINT}")
+        fail(errors, f"{rel}:{line}", f"carriage return found; LF line endings required; {WRITE_HINT}")
+    text = decode_utf8(errors, rel, data, f"; {WRITE_HINT}")
+    if text is None:
         return
+    if carriage_return:
+        text = text.replace("\r\n", "\n").replace("\r", "\n")
+        read_as.append("line endings read as LF")
     if text == rendered:
         return
     pos = len(os.path.commonprefix([text, rendered]))
@@ -756,12 +816,15 @@ def load_rows(errors, csv_path):
     """The data rows of a crosswalk CSV, or None when the file cannot be read as one.
 
     A CSV with the header and no rows gives an empty list, not None, so its
-    .md is still rendered, compared, and written.
+    .md is still rendered, compared, and written. A CSV that holds a byte that
+    is not UTF-8 gives None (decode_utf8).
     """
     data = csv_path.read_bytes()
     rel = csv_path.relative_to(ROOT)
     check_bytes(errors, csv_path, data)
-    text = data.decode("utf-8")
+    text = decode_utf8(errors, rel, data)
+    if text is None:
+        return None
     reader = csv.reader(io.StringIO(text, newline=""), strict=True)
     try:
         table = list(reader)
@@ -996,7 +1059,7 @@ def main(argv):
     print(f"{CONTROLS_EXPORT}: {len(entries)} controls")
     spec_path = ROOT / SPECIFICATION
     if spec_path.is_file():
-        text = spec_path.read_text(encoding="utf-8")
+        text = read_source(errors, spec_path, SPECIFICATION)
         check_registry_table(errors, SPECIFICATION, text, entries, dict(domain_order))
         check_applicability_matrix(errors, SPECIFICATION, text, tiers)
         check_tier_counts(errors, SPECIFICATION, text, tiers)
@@ -1004,7 +1067,7 @@ def main(argv):
         fail(errors, SPECIFICATION, "file is missing")
     conformance_path = ROOT / CONFORMANCE
     if conformance_path.is_file():
-        check_conformance_levels(errors, CONFORMANCE, conformance_path.read_text(encoding="utf-8"), entries,
+        check_conformance_levels(errors, CONFORMANCE, read_source(errors, conformance_path, CONFORMANCE), entries,
                                  attributes)
     else:
         fail(errors, CONFORMANCE, "file is missing")

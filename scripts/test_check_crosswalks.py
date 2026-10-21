@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Tests for scripts/check_crosswalks.py: the JSON control export, the render
-comparison, the attribute tables, the section 5.3 registry table, the section
-3.5 applicability matrix and the tier counts of section 3, and the
-.gitattributes line-ending pins of the files it compares byte for byte; the
-name its message gives a README.md passage it requires verbatim; and the
-terms README.md and the docs pages that took its reference text use in their
-prose.
+comparison, the domain and control headings, the attribute tables, the
+section 5.3 registry table, the section 3.5 applicability matrix and the tier
+counts of section 3, the report on a byte that is not UTF-8 in a file it
+reads, and the .gitattributes line-ending pins of the files it compares byte
+for byte; the name its message gives a README.md passage it requires
+verbatim; and the terms README.md and the docs pages that took its reference
+text use in their prose.
 
 Run from anywhere:  python3 scripts/test_check_crosswalks.py
 
@@ -155,19 +156,21 @@ class RenderComparison(unittest.TestCase):
         rendered = '{\n  "a": 1\n}\n'
         for ending in ("\r\n", "\r"):
             errors = self.compare_committed_bytes(rendered.replace("\n", ending).encode("utf-8"), rendered)
-            self.assertEqual(errors, ["RED controls.json:1: carriage return found; LF line endings required"],
-                             repr(ending))
+            self.assertEqual(errors, ["RED controls.json:1: carriage return found; LF line endings required; "
+                                      "run python3 scripts/check_crosswalks.py --write"], repr(ending))
 
     def test_one_crlf_line_among_lf_lines_is_red_at_that_line(self):
         rendered = '{\n  "a": 1,\n  "b": 2\n}\n'
         errors = self.compare_committed_bytes(b'{\n  "a": 1,\r\n  "b": 2\n}\n', rendered)
-        self.assertEqual(errors, ["RED controls.json:2: carriage return found; LF line endings required"])
+        self.assertEqual(errors, ["RED controls.json:2: carriage return found; LF line endings required; "
+                                  "run python3 scripts/check_crosswalks.py --write"])
 
     def test_line_endings_and_a_content_difference_are_both_red(self):
         rendered = '{\n  "a": 1\n}\n'
         errors = self.compare_committed_bytes(b'{\r\n  "a": 2\r\n}\r\n', rendered)
         self.assertEqual(errors, [
-            "RED controls.json:1: carriage return found; LF line endings required",
+            "RED controls.json:1: carriage return found; LF line endings required; "
+            "run python3 scripts/check_crosswalks.py --write",
             "RED controls.json:2: committed file differs from the render of the domain files; "
             "run python3 scripts/check_crosswalks.py --write",
         ])
@@ -176,7 +179,8 @@ class RenderComparison(unittest.TestCase):
         rendered = '{\n  "a": 1,\n\n  "b": 2\n}\n'
         errors = self.compare_committed_bytes(b'{\n  "a": 1,\r\n  "b": 2\n}\n', rendered)
         self.assertEqual(errors, [
-            "RED controls.json:2: carriage return found; LF line endings required",
+            "RED controls.json:2: carriage return found; LF line endings required; "
+            "run python3 scripts/check_crosswalks.py --write",
             "RED controls.json:3: committed file differs from the render of the domain files; "
             "run python3 scripts/check_crosswalks.py --write",
         ])
@@ -185,7 +189,8 @@ class RenderComparison(unittest.TestCase):
         rendered = '{\n  "a": 1\n}\n\n'
         errors = self.compare_committed_bytes(b'{\n  "a": 1\n}\r\n', rendered)
         self.assertEqual(errors, [
-            "RED controls.json:3: carriage return found; LF line endings required",
+            "RED controls.json:3: carriage return found; LF line endings required; "
+            "run python3 scripts/check_crosswalks.py --write",
             "RED controls.json:4: committed file, with line endings read as LF, is shorter than its "
             "render of the domain files, which continues here; run python3 scripts/check_crosswalks.py --write",
         ])
@@ -193,13 +198,24 @@ class RenderComparison(unittest.TestCase):
     def test_utf8_byte_order_mark_is_red(self):
         rendered = '{\n  "a": 1\n}\n'
         errors = self.compare_committed_bytes(b"\xef\xbb\xbf" + rendered.encode("utf-8"), rendered)
-        self.assertEqual(errors, ["RED controls.json:1: file starts with a UTF-8 BOM"])
+        self.assertEqual(errors, [
+            "RED controls.json:1: file starts with a UTF-8 BOM; run python3 scripts/check_crosswalks.py --write",
+        ])
 
     def test_invalid_utf8_is_red_without_a_traceback(self):
         rendered = '{\n  "a": 1\n}\n'
         errors = self.compare_committed_bytes(b'{\n  "a": \xff\n}\n', rendered)
         self.assertEqual(errors, [
             "RED controls.json:2: byte 0xFF is not UTF-8; run python3 scripts/check_crosswalks.py --write",
+        ])
+
+    def test_line_of_a_byte_that_is_not_utf8_is_counted_before_carriage_returns_are_read_as_lf(self):
+        # Read as LF, the CR inside line 3 would put the byte on line 4.
+        errors = self.compare_committed_bytes(b"a\nb\nc\r\xff\n", "a\nb\nc\nd\n")
+        self.assertEqual(errors, [
+            "RED controls.json:3: carriage return found; LF line endings required; "
+            "run python3 scripts/check_crosswalks.py --write",
+            "RED controls.json:3: byte 0xFF is not UTF-8; run python3 scripts/check_crosswalks.py --write",
         ])
 
     def test_length_difference_is_reported_only_when_the_lengths_differ(self):
@@ -216,12 +232,14 @@ class RenderComparison(unittest.TestCase):
     def test_length_difference_names_the_text_read_with_lf_line_endings(self):
         # Both inputs are 6 bytes: the committed file is shorter only once CRLF is read as LF.
         self.assertEqual(self.compare_committed_bytes(b"a\r\nb\r\n", "a\nb\nc\n"), [
-            "RED controls.json:1: carriage return found; LF line endings required",
+            "RED controls.json:1: carriage return found; LF line endings required; "
+            "run python3 scripts/check_crosswalks.py --write",
             "RED controls.json:3: committed file, with line endings read as LF, is shorter than its "
             "render of the domain files, which continues here; run python3 scripts/check_crosswalks.py --write",
         ])
         self.assertEqual(self.compare_committed_bytes(b"a\rb\rc\r\r", "a\nb\nc\n"), [
-            "RED controls.json:1: carriage return found; LF line endings required",
+            "RED controls.json:1: carriage return found; LF line endings required; "
+            "run python3 scripts/check_crosswalks.py --write",
             "RED controls.json:4: committed file, with line endings read as LF, is longer than its "
             "render of the domain files, which ends here; run python3 scripts/check_crosswalks.py --write",
         ])
@@ -229,13 +247,14 @@ class RenderComparison(unittest.TestCase):
     def test_length_difference_names_the_text_with_the_bom_removed(self):
         # 7 committed bytes against a 6-byte render: shorter only once the BOM is removed.
         self.assertEqual(self.compare_committed_bytes(b"\xef\xbb\xbfa\nb\n", "a\nb\nc\n"), [
-            "RED controls.json:1: file starts with a UTF-8 BOM",
+            "RED controls.json:1: file starts with a UTF-8 BOM; run python3 scripts/check_crosswalks.py --write",
             "RED controls.json:3: committed file, with its BOM removed, is shorter than its "
             "render of the domain files, which continues here; run python3 scripts/check_crosswalks.py --write",
         ])
         self.assertEqual(self.compare_committed_bytes(b"\xef\xbb\xbfa\r\nb\r\nc\r\n\r\n", "a\nb\nc\n"), [
-            "RED controls.json:1: file starts with a UTF-8 BOM",
-            "RED controls.json:1: carriage return found; LF line endings required",
+            "RED controls.json:1: file starts with a UTF-8 BOM; run python3 scripts/check_crosswalks.py --write",
+            "RED controls.json:1: carriage return found; LF line endings required; "
+            "run python3 scripts/check_crosswalks.py --write",
             "RED controls.json:4: committed file, with its BOM removed and line endings read as LF, is longer "
             "than its render of the domain files, which ends here; run python3 scripts/check_crosswalks.py --write",
         ])
@@ -353,6 +372,24 @@ class EntryAttributes(unittest.TestCase):
         self.assertTrue(errors[0].endswith(
             ": attribute row separated from the attribute table of SOUL-TH-001; it is not read"), errors[0])
 
+    def test_indented_attribute_row_after_the_table_is_red(self):
+        text = domain_file([ACTIVE])
+        for indent in (" ", "   ", "    ", "\t"):
+            row = f"{indent}| **Status** | deprecated |"
+            for place, variant in (
+                    ("after the blank line that ends the table",
+                     text.replace("**Description**: Text.", f"{row}\n\n**Description**: Text.")),
+                    ("on the line under the last row of the table",
+                     text.replace("| **Severity** | HIGH |\n", f"| **Severity** | HIGH |\n{row}\n"))):
+                with self.subTest(row=row, place=place):
+                    lineno = variant.splitlines().index(row) + 1
+                    entries, errors = entries_for_text(variant)
+                    self.assertEqual(len(errors), 1, errors)
+                    self.assertTrue(errors[0].endswith(f"11-trust-hierarchy.md:{lineno}: attribute row separated "
+                                                       "from the attribute table of SOUL-TH-001; it is not read"),
+                                    errors[0])
+                    self.assertEqual(entries[0]["status"], "active")
+
     def test_attribute_row_inside_a_fenced_block_is_not_read(self):
         # domain_file puts "| **Status** | ignored |" in a fenced block after every table.
         self.assertIn("```\n| **Status** | ignored |\n```", domain_file([ACTIVE]))
@@ -360,12 +397,53 @@ class EntryAttributes(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertEqual(entries[0]["status"], "active")
 
+    def test_attribute_row_inside_a_tilde_fenced_block_is_not_read(self):
+        text = domain_file([ACTIVE]).replace("```", "~~~")
+        self.assertIn("~~~\n| **Status** | ignored |\n~~~", text)
+        entries, errors = entries_for_text(text)
+        self.assertEqual(errors, [])
+        self.assertEqual(entries[0]["status"], "active")
+
+    def test_fence_closes_only_at_a_run_of_its_own_character_at_least_as_long(self):
+        example = "```\n| **Status** | ignored |\n```"
+        self.assertIn(example, domain_file([ACTIVE]))
+        for block, red in (("~~~\n```\n| **Status** | ignored |\n```\n~~~", False),
+                           ("````\n```\n| **Status** | ignored |\n```\n````", False),
+                           ("~~~~\n~~~\n| **Status** | ignored |\n~~~\n~~~~", False),
+                           ("~~~\n```\n~~~\n| **Status** | ignored |", True)):
+            with self.subTest(block=block):
+                _, errors = entries_for_text(domain_file([ACTIVE]).replace(example, block))
+                self.assertEqual([e.split(": ", 1)[1] for e in errors],
+                                 ["attribute row separated from the attribute table of SOUL-TH-001; it is not read"]
+                                 if red else [])
+
     def test_long_row_that_does_not_match_is_rejected_in_linear_time(self):
         skip_the_time_bound_when_optimized(self)
         row = "| **x** | " + "** | " * 20000 + "x"
         start = time.perf_counter()
         self.assertIsNone(cc.ATTRIBUTE_ROW.match(row))
         self.assertLess(time.perf_counter() - start, 1.0)
+
+    def test_heading_with_a_long_run_of_interior_spaces_is_read_in_linear_time(self):
+        skip_the_time_bound_when_optimized(self)
+        title = "a" + " " * 40000 + "b"
+        for pattern, line in ((cc.CONTROL_HEADING, f"### SOUL-TH-001: {title}"),
+                              (cc.DOMAIN_HEADING, f"# Domain 11: {title}")):
+            with self.subTest(pattern=pattern.pattern):
+                start = time.perf_counter()
+                m = pattern.match(line)
+                elapsed = time.perf_counter() - start
+                self.assertLess(elapsed, 1.0)
+                self.assertEqual(m.group(2), title)
+
+    def test_heading_title_is_read_up_to_its_last_character_that_is_not_a_space(self):
+        # A title of spaces alone is read as its first space, as the earlier (.+?)\s*$ form read it.
+        for title, read in (("Title", "Title"), ("Two  words \t ", "Two  words"), ("  Indented", "  Indented"),
+                            ("   ", " "), ("", None)):
+            for pattern, prefix in ((cc.CONTROL_HEADING, "### SOUL-TH-001: "), (cc.DOMAIN_HEADING, "# Domain 11: ")):
+                with self.subTest(title=title, pattern=pattern.pattern):
+                    m = pattern.match(prefix + title)
+                    self.assertEqual(m and m.group(2), read)
 
     def test_control_in_a_domain_file_without_a_domain_heading_is_red_without_a_traceback(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -471,7 +549,15 @@ class RegistryTable(unittest.TestCase):
         self.assertEqual(self.check([
             "| SOUL-TH-002 | Second Control | Trust Hierarchy | LOW |",
             "| SOUL-TH-001 | First Control | Trust Hierarchy | HIGH |",
-        ]), ["RED specification.md: the registry rows under section 5.3 are not in domain order then NNN"])
+        ]), ["RED specification.md:8: registry row SOUL-TH-001 follows SOUL-TH-002; the rows under section 5.3 must be "
+             "in domain order then NNN"])
+
+    def test_repeated_row_is_red(self):
+        self.assertEqual(self.check([
+            "| SOUL-TH-001 | First Control | Trust Hierarchy | HIGH |",
+            "| SOUL-TH-001 | First Control | Trust Hierarchy | HIGH |",
+            "| SOUL-TH-002 | Second Control | Trust Hierarchy | LOW |",
+        ]), ["RED specification.md:8: registry row SOUL-TH-001 is repeated"])
 
     def test_row_with_the_wrong_number_of_cells_is_red(self):
         self.assertEqual(self.check([
@@ -482,10 +568,41 @@ class RegistryTable(unittest.TestCase):
             "RED specification.md: the registry table under section 5.3 has no row for SOUL-TH-001",
         ])
 
+    def test_row_with_no_closing_pipe_is_red_and_not_read(self):
+        self.assertEqual(self.check([
+            "| SOUL-TH-001 | First Control | Trust Hierarchy | HIGH",
+            "| SOUL-TH-002 | Second Control | Trust Hierarchy | LOW |",
+        ]), [
+            "RED specification.md:7: registry row has no closing pipe; it is not read",
+            "RED specification.md: the registry table under section 5.3 has no row for SOUL-TH-001",
+        ])
+        # Spaces after the closing pipe are not part of the row.
+        self.assertEqual(self.check([
+            "| SOUL-TH-001 | First Control | Trust Hierarchy | HIGH |  ",
+            "| SOUL-TH-002 | Second Control | Trust Hierarchy | LOW |\t",
+        ]), [])
+
     def test_missing_heading_is_red(self):
         errors = []
         cc.check_registry_table(errors, "specification.md", "# Spec\n", self.ENTRIES, self.DOMAINS)
         self.assertEqual(errors, ["RED specification.md: heading '### 5.3 Complete Control Registry' not found"])
+
+    def test_table_without_the_header_is_red(self):
+        rows = "\n".join(["| SOUL-TH-001 | First Control | Trust Hierarchy | HIGH |",
+                          "| SOUL-TH-002 | Second Control | Trust Hierarchy | LOW |"])
+        header = "| ID | Name | Domain | Severity |"
+        texts = {
+            "a column renamed": REGISTRY.format(rows=rows).replace(header, "| ID | Title | Domain | Severity |"),
+            "a column missing": REGISTRY.format(rows=rows).replace(header, "| ID | Name | Domain |"),
+            "the header row alone": REGISTRY.format(rows="").replace("|----|------|--------|----------|\n", ""),
+            "no table": "### 5.3 Complete Control Registry\n\nNo table.\n",
+        }
+        for case, text in texts.items():
+            with self.subTest(case=case):
+                errors = []
+                cc.check_registry_table(errors, "specification.md", text, self.ENTRIES, self.DOMAINS)
+                self.assertEqual(errors, ["RED specification.md: the registry table under section 5.3 must have the "
+                                          "header | ID | Name | Domain | Severity |"])
 
 
 CONFORMANCE = """# Conformance Levels
@@ -853,6 +970,58 @@ class MainRun(unittest.TestCase):
         self.assertEqual(code, 1, out)
         self.assertIn("RED conformance.md: file is missing\n", out)
 
+    def test_missing_specification_file_is_red(self):
+        code, out, _ = self.run_main([], lambda root: (root / cc.SPECIFICATION).unlink())
+        self.assertEqual(code, 1, out)
+        self.assertIn("RED specification.md: file is missing\n", out)
+        self.assertIn("\n1 problem(s) found", out)
+
+    def test_byte_that_is_not_utf8_in_a_file_it_reads_is_red_at_its_line(self):
+        csv_rel = f"crosswalks/{cc.CROSSWALK_SET[0]['csv']}"
+        for rel in (cc.SPECIFICATION, cc.CONFORMANCE, "domains/11-trust-hierarchy.md", csv_rel):
+            def drift(root, rel=rel):
+                path = root / rel
+                lines = path.read_bytes().split(b"\n")
+                lines[2] += b" \xff"
+                path.write_bytes(b"\n".join(lines))
+            with self.subTest(file=rel):
+                code, out, _ = self.run_main([], drift)
+                self.assertEqual(code, 1, out)
+                self.assertIn(f"RED {rel}:3: byte 0xFF is not UTF-8\n", out)
+                self.assertIn("\n1 problem(s) found", out)
+                if rel == csv_rel:
+                    # The CSV is not read, so its .md is neither rendered nor compared.
+                    self.assertNotIn(f"{csv_rel}: ", out)
+
+    def test_rest_of_the_file_is_read_after_a_byte_that_is_not_utf8(self):
+        row = "| SOUL-TH-001 | Trust Chain Defined | Trust Hierarchy | HIGH |"
+        lineno = (cc.ROOT / cc.SPECIFICATION).read_text(encoding="utf-8").splitlines().index(row) + 1
+
+        def drift(root):
+            path = root / cc.SPECIFICATION
+            data = row.encode("utf-8")
+            path.write_bytes(path.read_bytes().replace(data, data.replace(b"Defined", b"Defined\xff"), 1))
+        code, out, _ = self.run_main([], drift)
+        self.assertEqual(code, 1, out)
+        self.assertIn(f"RED specification.md:{lineno}: byte 0xFF is not UTF-8\n", out)
+        # The byte is read as U+FFFD, REPLACEMENT CHARACTER.
+        self.assertIn(f"RED specification.md:{lineno}: Name 'Trust Chain Defined" "\N{REPLACEMENT CHARACTER}" "' of "
+                      "SOUL-TH-001 differs from the domain heading 'Trust Chain Defined'\n", out)
+        self.assertIn("\n2 problem(s) found", out)
+
+    def test_carriage_return_in_a_crosswalk_csv_is_red_without_the_write_hint(self):
+        spec = cc.CROSSWALK_SET[0]
+
+        def drift(root):
+            path = root / "crosswalks" / spec["csv"]
+            path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+        code, out, _ = self.run_main([], drift)
+        self.assertEqual(code, 1, out)
+        self.assertIn(f"RED crosswalks/{spec['csv']}:1: carriage return found; LF line endings required\n", out)
+        self.assertIn(f"RED crosswalks/{spec['csv']}: file is not in canonical RFC 4180 form (minimal quoting, LF)\n",
+                      out)
+        self.assertIn("\n2 problem(s) found", out)
+
     def test_applicable_tiers_that_differ_from_the_matrix_are_red(self):
         domain = "16-agentic-safety.md"
         table = "| **ID** | SOUL-AS-004 |\n| **Severity** | LOW |\n| **Applicable tiers** | MULTI-AGENT |\n"
@@ -897,7 +1066,8 @@ class MainRun(unittest.TestCase):
         spec = cc.CROSSWALK_SET[0]
         code, out, _ = self.run_main([], self.header_only(spec, b"anything at all\r\n"))
         self.assertEqual(code, 1, out)
-        self.assertIn(f"RED crosswalks/{spec['md']}:1: carriage return found; LF line endings required\n", out)
+        self.assertIn(f"RED crosswalks/{spec['md']}:1: carriage return found; LF line endings required; "
+                      "run python3 scripts/check_crosswalks.py --write\n", out)
         self.assertIn(f"RED crosswalks/{spec['md']}:1: committed file differs from the render of its CSV; "
                       "run python3 scripts/check_crosswalks.py --write\n", out)
         self.assertIn("\n2 problem(s) found", out)
@@ -1004,17 +1174,22 @@ class ReadmeTerms(unittest.TestCase):
 
 
 class TimeBound(unittest.TestCase):
+    TIMED_TESTS = ("test_long_row_that_does_not_match_is_rejected_in_linear_time",
+                   "test_heading_with_a_long_run_of_interior_spaces_is_read_in_linear_time")
+
     def test_runs_under_python3_O_and_OO_skip_the_time_bound(self):
         # A skip placed after the timed call still reports a skip, so the clock of this module fails the test that
         # reads it. unittest times each test with time.perf_counter too, so only this module's name is replaced.
-        for optimize in (1, 2):
-            result = unittest.TestResult()
-            clock = mock.Mock(perf_counter=mock.Mock(side_effect=self.failureException("timed before the skip")))
-            with self.subTest(optimize=optimize), mock.patch.object(sys, "flags", mock.Mock(optimize=optimize)), \
-                    mock.patch.object(sys.modules[__name__], "time", clock):
-                EntryAttributes("test_long_row_that_does_not_match_is_rejected_in_linear_time").run(result)
-                clock.perf_counter.assert_not_called()
-                self.assertEqual([TIME_BOUND_SKIP], [reason for _, reason in result.skipped])
+        for name in self.TIMED_TESTS:
+            for optimize in (1, 2):
+                result = unittest.TestResult()
+                clock = mock.Mock(perf_counter=mock.Mock(side_effect=self.failureException("timed before the skip")))
+                with self.subTest(test=name, optimize=optimize), \
+                        mock.patch.object(sys, "flags", mock.Mock(optimize=optimize)), \
+                        mock.patch.object(sys.modules[__name__], "time", clock):
+                    EntryAttributes(name).run(result)
+                    clock.perf_counter.assert_not_called()
+                    self.assertEqual([TIME_BOUND_SKIP], [reason for _, reason in result.skipped])
 
     def test_the_run_without_python3_O_checks_the_time_bound(self):
         # A skip here would report this test as skipped, not failed, so skipTest is replaced and must not be called.
