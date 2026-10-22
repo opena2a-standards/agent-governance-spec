@@ -1322,7 +1322,8 @@ def check_required_prose(errors):
     text and each copy of it has a line inside a fenced code block, the message says that the text is missing or
     altered outside a fenced code block; when a copy lies in lines outside one and each such copy has a line inside an
     indented code block or an HTML block, it says that the text is missing or altered outside a code block or an HTML
-    block.
+    block. The file holds the text when its lines, joined by LF as in the runs, hold it, so a CR LF or CR line ending
+    inside the text does not hide it.
     """
     contents = {}  # each file is read once, so a byte that is not UTF-8 in it is red once
     for rel, name, text in REQUIRED_PROSE:
@@ -1339,7 +1340,7 @@ def check_required_prose(errors):
         if any(text in run for run in unfenced_runs(lines)):
             fail(errors, rel, f"the ruled {name} is missing or altered outside a code block or an HTML block, which "
                               "GFM does not render as Markdown text; it is required verbatim outside one")
-        elif text in content:
+        elif text in "\n".join(lines):
             fail(errors, rel, f"the ruled {name} is missing or altered outside a fenced code block, which GFM renders "
                               "as code; it is required verbatim outside one")
         else:
