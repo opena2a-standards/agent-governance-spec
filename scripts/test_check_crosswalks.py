@@ -2033,6 +2033,28 @@ class MainRun(unittest.TestCase):
                     self.assertIn("\n1 problem(s) found", out)
                     self.assertNotIn("all checks green", out)
 
+    def test_ruled_text_held_only_inside_a_fenced_block_is_red_in_a_file_with_crlf_or_cr_line_endings(self):
+        # A block fenced by backticks wraps the lines of each text of REQUIRED_PROSE, as in the test above, and the file
+        # is then saved with CRLF or CR line endings, as an editor may save a working copy: .gitattributes pins LF for
+        # crosswalks/README.md only in a checkout, and not at all for README.md. GFM ends a line at LF, CR LF or CR, so
+        # the report is the one a file with LF line endings gives. The three lines of the basis definitions are joined
+        # by the file's line ending, which is not LF here.
+        for rel, name, ruled in cc.REQUIRED_PROSE:
+            for ending in ("\r\n", "\r"):
+                def wrap(root, rel=rel, ruled=ruled, ending=ending):
+                    path = root / rel
+                    text = path.read_text(encoding="utf-8")
+                    self.assertIn(f"\n{ruled}\n", text)
+                    text = text.replace(f"\n{ruled}\n", f"\n```\n{ruled}\n```\n", 1)
+                    path.write_bytes(text.replace("\n", ending).encode("utf-8"))
+                with self.subTest(text=name, ending=ending):
+                    code, out, _ = self.run_main([], wrap)
+                    self.assertEqual(code, 1, out)
+                    self.assertIn(f"RED {rel}: the ruled {name} is missing or altered outside a fenced code block, "
+                                  "which GFM renders as code; it is required verbatim outside one\n", out)
+                    self.assertIn("\n1 problem(s) found", out)
+                    self.assertNotIn("all checks green", out)
+
     def test_ruled_text_with_one_of_its_lines_inside_a_fenced_block_is_red(self):
         # The first of the three lines of the basis definitions becomes the last line of a block fenced in the list item
         # "- item". The next line ends the item, and the block with it, so GFM renders that first line as code and the

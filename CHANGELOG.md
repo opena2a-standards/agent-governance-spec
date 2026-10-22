@@ -120,6 +120,10 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   comment that starts a line, does not satisfy the requirement either; when
   each copy outside a fenced code block has a line in one, the report says
   the text is missing or altered outside a code block or an HTML block.
+  The report on a copy inside a fenced code block does not change when the
+  file ends its lines with CRLF or CR. With either, a fenced copy of the
+  three lines of the basis definitions was reported as missing or altered,
+  without the words "outside a fenced code block".
   A byte that is not UTF-8 in README.md or `crosswalks/README.md` is
   reported once at its line, and the rest of the checks run.
 - `scripts/test_readme.py` reads the numbers the README states against
