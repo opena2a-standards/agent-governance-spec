@@ -4,7 +4,8 @@ comparison, the domain and control headings, the lines it splits a domain
 file into, the attribute tables and the fenced code blocks around them, the
 lines of fenced code blocks it does not read in specification.md and
 conformance.md and does not take a ruled text from in crosswalks/README.md
-and README.md, the section 5.3 registry table, the section 3.5 applicability
+and README.md, nor from an indented code block or an HTML block there, a
+crosswalk row naming a control no domain file holds, the section 5.3 registry table, the section 3.5 applicability
 matrix and the tier counts of section 3, the report on a byte that is not
 UTF-8 in a file it reads, and the .gitattributes line-ending pins of the files
 it compares byte for byte; the name its message gives a README.md passage it
@@ -788,6 +789,24 @@ class UnfencedRuns(unittest.TestCase):
     def test_fence_in_a_list_item_is_read_as_by_fenced_lines(self):
         # The line "c" ends the list item, and with it the block the item holds.
         self.assertEqual(cc.unfenced_runs(["- a", "  ```", "  b", "c"]), ["- a", "c"])
+
+
+class TextRuns(unittest.TestCase):
+    def test_lines_of_code_blocks_and_html_blocks_are_left_out(self):
+        lines = ["a", "", "    code", "", "<!--", "b", "-->", "c", "```", "d", "```", "<div>", "e", "", "f"]
+        # The blank line that ends the <div> block is the line that holds the end of its kind, as CodeFences reads it.
+        self.assertEqual(cc.text_runs(lines), ["a\n", "", "c", "f"])
+
+    def test_indented_line_that_continues_a_paragraph_or_a_list_item_is_text(self):
+        self.assertEqual(cc.text_runs(["a", "    b"]), ["a\n    b"])
+        self.assertEqual(cc.text_runs(["- a", "", "    b"]), ["- a\n\n    b"])
+        # Four spaces past the content column of the item open an indented code block inside it.
+        self.assertEqual(cc.text_runs(["- a", "", "      b"]), ["- a\n"])
+
+    def test_html_comment_after_text_on_its_line_is_not_an_html_block(self):
+        self.assertEqual(cc.text_runs(["a <!-- b -->"]), ["a <!-- b -->"])
+        # A comment at the start of a line opens an HTML block, which interrupts a paragraph.
+        self.assertEqual(cc.text_runs(["a", "<!-- b -->"]), ["a"])
 
 
 def deprecated(cid, successor):
@@ -2050,6 +2069,102 @@ class MainRun(unittest.TestCase):
         self.assertIn(f"RED crosswalks/{spec['csv']}:1: header must be exactly {','.join(cc.HEADER)}\n", out)
         self.assertNotIn(f"crosswalks/{spec['csv']}: ", out)
         self.assertIn("\n1 problem(s) found", out)
+
+    def test_row_naming_a_control_no_domain_file_holds_is_red_in_the_report(self):
+        spec = cc.CROSSWALK_SET[0]
+
+        def unknown(root):
+            path = root / "crosswalks" / spec["csv"]
+            lines = path.read_text(encoding="utf-8").split("\n")
+            lines[1] = "SOUL-TH-000" + lines[1][lines[1].index(","):]
+            path.write_text("\n".join(lines), encoding="utf-8")
+        code, out, _ = self.run_main([], unknown)
+        self.assertEqual(code, 1, out)
+        self.assertIn(f"RED crosswalks/{spec['csv']}:2: control_id 'SOUL-TH-000' is not a control heading in "
+                      "domains/\n", out)
+        self.assertRegex(out, r"\n\d+ problem\(s\) found")
+
+    def test_row_whose_control_heading_is_deleted_or_fenced_is_red_in_the_report(self):
+        def delete(root):
+            path = root / "domains" / "11-trust-hierarchy.md"
+            text = path.read_text(encoding="utf-8")
+            path.write_text("\n".join(line for line in text.split("\n") if not line.startswith("### SOUL-TH-002: ")),
+                            encoding="utf-8")
+
+        def unclosed(root):
+            # A fence that no line closes, after the blank line that ends the attribute table of SOUL-TH-001: the
+            # control headings after it are inside the block.
+            path = root / "domains" / "11-trust-hierarchy.md"
+            lines = path.read_text(encoding="utf-8").split("\n")
+            i = lines.index(next(line for line in lines if line.startswith("### SOUL-TH-001: ")))
+            while not lines[i].startswith("|"):
+                i += 1
+            while lines[i].startswith("|"):
+                i += 1
+            self.assertEqual(lines[i], "")
+            lines.insert(i + 1, "```")
+            path.write_text("\n".join(lines), encoding="utf-8")
+        for name, edit in (("deleted", delete), ("unclosed fence", unclosed)):
+            with self.subTest(heading=name):
+                code, out, _ = self.run_main([], edit)
+                self.assertEqual(code, 1, out)
+                self.assertIn("control_id 'SOUL-TH-002' is not a control heading in domains/\n", out)
+                self.assertRegex(out, r"\n\d+ problem\(s\) found")
+
+    def test_ruled_text_held_only_in_an_indented_code_block_or_an_html_block_is_red(self):
+        # The ruled text GFM renders is altered, and an unchanged copy is appended in a block GFM does not render as
+        # Markdown text.
+        for rel, name, ruled in cc.REQUIRED_PROSE:
+            first = ruled.split("\n")[0]
+            for kind, copy in (("indented code block", "\n" + "\n".join("    " + line for line in ruled.split("\n"))),
+                               ("HTML comment", "\n<!--\n" + ruled + "\n-->"),
+                               ("HTML block", "\n<div>\n" + ruled + "\n</div>")):
+                def alter(root, rel=rel, ruled=ruled, first=first, copy=copy):
+                    path = root / rel
+                    text = path.read_text(encoding="utf-8")
+                    self.assertIn(f"\n{ruled}\n", text)
+                    altered = first[:-1] + "X" + first[-1] + ruled[len(first):]
+                    path.write_text(text.replace(f"\n{ruled}\n", f"\n{altered}\n", 1) + copy + "\n",
+                                    encoding="utf-8")
+                with self.subTest(text=name, copy=kind):
+                    code, out, _ = self.run_main([], alter)
+                    self.assertEqual(code, 1, out)
+                    if kind == "indented code block" and "\n" in ruled:
+                        # Each line of the copy starts with four spaces, so the file no longer holds the text.
+                        self.assertIn(f"RED {rel}: the ruled {name} is missing or altered; it is required verbatim\n",
+                                      out)
+                    else:
+                        self.assertIn(f"RED {rel}: the ruled {name} is missing or altered outside a code block or an "
+                                      "HTML block, which GFM does not render as Markdown text; it is required verbatim "
+                                      "outside one\n", out)
+                    # The banned scan also reads the altered text of crosswalks/README.md, which is no ruled constant.
+                    self.assertNotIn("all checks green", out)
+
+    def test_ruled_text_with_a_copy_in_an_indented_code_block_or_an_html_block_too_is_green(self):
+        def copy(root):
+            for rel, _, ruled in cc.REQUIRED_PROSE:
+                path = root / rel
+                indented = "\n".join("    " + line for line in ruled.split("\n"))
+                path.write_text(path.read_text(encoding="utf-8") + "\n" + indented + "\n\n<!--\n" + ruled + "\n-->\n",
+                                encoding="utf-8")
+        code, out, _ = self.run_main([], copy)
+        self.assertEqual(code, 0, out)
+        self.assertIn("crosswalks: all checks green", out)
+
+    def test_byte_that_is_not_utf8_in_a_readme_it_requires_prose_from_is_red_at_its_line(self):
+        for rel in ("README.md", "crosswalks/README.md"):
+            def append(root, rel=rel):
+                path = root / rel
+                lineno = path.read_bytes().count(b"\n") + 1
+                path.write_bytes(path.read_bytes() + b"\xff\n")
+                return lineno
+            lines = []
+            with self.subTest(file=rel):
+                code, out, _ = self.run_main([], lambda root, rel=rel: lines.append(append(root)))
+                self.assertEqual(code, 1, out)
+                self.assertIn(f"RED {rel}:{lines[0]}: byte 0xFF is not UTF-8\n", out)
+                self.assertEqual(out.count("is not UTF-8"), 1, out)
+                self.assertIn("\n1 problem(s) found", out)
 
 
 def section_above(text, passage):

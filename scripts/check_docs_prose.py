@@ -208,7 +208,10 @@ class CodeFences:
     starts, after at most three spaces, with one of the seven kinds of start of HTML_BLOCK, the last of which does not
     interrupt a paragraph, and no other block opens inside it. It ends at the first line, from the one that opens it,
     that holds the end of its kind (HTML_BLOCK_END), which for the last two kinds is a blank line, or with the list
-    item or block quote that holds it.
+    item or block quote that holds it. After a line is read, literal is True when the line is part of an HTML block,
+    or is a line of an indented code block that is not blank: a line indented four spaces or more past the column
+    where the content of its list item or block quote starts, or past the start of the line outside them, that does
+    not continue a paragraph. GFM renders neither as Markdown text.
     """
 
     def __init__(self):
@@ -222,6 +225,7 @@ class CodeFences:
         self.paragraph = False  # the last block read is a paragraph, which a line can continue without its containers
         self.fence = None  # the run of backticks or tildes that opened the fenced code block that is open
         self.html = None  # the pattern of HTML_BLOCK_END that ends the HTML block that is open
+        self.literal = False  # the last line read is part of an HTML block or an indented code block
 
     def close(self, depth):
         """Ends the open list items and block quotes past the first depth of them."""
@@ -261,8 +265,10 @@ class CodeFences:
                     self.fence = None
                 return True
             self.fence = None  # the line ends a list item or a block quote that holds the block, and the block with it
+        self.literal = False
         if self.html is not None:
             if matched == len(self.containers):
+                self.literal = True
                 if self.html.match(line, index):
                     self.html = None  # the line holds the end of the block
                 return False
@@ -333,10 +339,12 @@ class CodeFences:
             self.empty = leaf is None and blank and self.containers[-1] > 0
             self.fence = leaf or None
             self.html = None if html is None or html.match(line, index) else html
+            self.literal = html is not None or (leaf is None and not blank and column - base > 3)
             return bool(leaf)
         if lazy and not blank:
             return False  # the line continues the paragraph, and the containers that hold it stay open
         self.close(matched)
+        self.literal = not blank and not in_paragraph and column - base > 3
         self.paragraph = not blank and (in_paragraph or column - base <= 3)
         self.empty = False
         return False
