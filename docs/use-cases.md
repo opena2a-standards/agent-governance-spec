@@ -28,7 +28,7 @@ What you can do today: scan a copy of the tool-using template, as copied and bef
 ```bash
 mkdir -p /tmp/oasb2-demo
 cp templates/tool-using.md /tmp/oasb2-demo/SOUL.md
-npx hackmyagent@0.33.2 scan-soul /tmp/oasb2-demo --json --no-contribute \
+npx --yes hackmyagent@0.33.2 scan-soul /tmp/oasb2-demo --json --no-contribute \
   | jq '{agentTier, agentProfile, conformance, score, grade, totalPassed, totalControls, criticalMissing}'
 ```
 
@@ -66,7 +66,7 @@ How it maps onto what the team runs: the governance file is where the agent's si
 What you can do today: read the three controls from a scan of the same copy as in the first use case.
 
 ```bash
-npx hackmyagent@0.33.2 scan-soul /tmp/oasb2-demo --json --no-contribute \
+npx --yes hackmyagent@0.33.2 scan-soul /tmp/oasb2-demo --json --no-contribute \
   | jq -c '.domains[].controls[] | select(.id == "SOUL-TH-004" or .id == "SOUL-TH-006" or .id == "SOUL-HO-006") | {id, name, passed}'
 ```
 
