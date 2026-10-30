@@ -49,7 +49,7 @@ The copy meets Essential: no CRITICAL control is missing. It does not meet Stand
 
 Where it stops today: the scan output carries the tier, profile, scores, level and missing controls, but not the file hash or the specification version; whoever writes the audit report adds them.
 
-Out of scope: a level describes what the governance file declares, not what the running agent does. Runtime enforcement is out of scope ([`specification.md:22`](../specification.md#12-scope)), and the manual audit is where someone confirms that the file matches the agent's implementation ([`conformance.md:207-212`](../conformance.md#manual-audit)).
+Out of scope: a level comes from a scan of the governance file, which detects controls by keyword matching ([`conformance.md:197-202`](../conformance.md#automated-audit)); it does not show what the running agent does, or that the file says what each detected control asks. Runtime enforcement is out of scope ([`specification.md:22`](../specification.md#12-scope)), and the manual audit is where someone checks that detected controls are substantive and that the file matches the agent's implementation ([`conformance.md:207-212`](../conformance.md#manual-audit)).
 
 ## An identity team asks how the agent decides who may give it orders
 
@@ -78,7 +78,7 @@ npx hackmyagent@0.33.2 scan-soul /tmp/oasb2-demo --json --no-contribute \
 
 The template, as copied, declares none of the three; those sections are written for the agent's own principals.
 
-Out of scope: the specification does not authenticate anyone, issue credentials or enforce access; runtime enforcement belongs to runtime platforms ([`specification.md:22`](../specification.md#12-scope)). A passing control means the file contains the declaration: scanners detect controls by keyword matching ([`conformance.md:200`](../conformance.md#automated-audit)) and do not test that the agent authenticates anyone.
+Out of scope: the specification does not authenticate anyone, issue credentials or enforce access; runtime enforcement belongs to runtime platforms ([`specification.md:22`](../specification.md#12-scope)). A passing control means that the scan found keywords for that control in the file: scanners detect controls by keyword matching ([`conformance.md:200`](../conformance.md#automated-audit)), and a control counts as detected when its detection keywords are found ([`scoring.md:21`](../scoring.md#per-domain-score)). It does not show that the file says what the control asks, or that the agent authenticates anyone; step 1 of the manual audit checks that detected controls are substantive ([`conformance.md:209`](../conformance.md#manual-audit)).
 
 ## A second tool needs to score governance files the same way
 
