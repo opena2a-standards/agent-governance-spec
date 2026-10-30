@@ -1,6 +1,6 @@
 # Use cases
 
-Who reads this specification, the question each reader brings, and where the specification answers it. [`specification.md`](../specification.md) is the normative text, and each citation below points into it, into [`conformance.md`](../conformance.md) or into a control definition under [`domains/`](../domains/). The [README](../README.md#use-cases) holds two use cases, an auditor asking what each agent promised and an agent taking an action nobody approved; this page adds three for readers the README does not address.
+Who reads this specification, the question each reader brings, and where the specification answers it. [`specification.md`](../specification.md) is the normative text, and each line citation below points into it, into [`conformance.md`](../conformance.md), into [`scoring.md`](../scoring.md) or into a control definition under [`domains/`](../domains/). The [README](../README.md#use-cases) holds two use cases, an auditor asking what each agent promised and an agent taking an action nobody approved; this page adds three for readers the README does not address.
 
 ## Who reads this
 
