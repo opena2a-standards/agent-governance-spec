@@ -38,6 +38,17 @@ npx hackmyagent scan-soul
 
 ---
 
+## Who this is for
+
+- **Security leaders and CISOs**: what to require of a team or a vendor, and the evidence that comes back.
+- **IAM professionals and identity architects**: how an agent's declared principals relate to the identity systems you run.
+- **Platform and security engineers, agent developers and scanner authors**: how to gate, write and score a governance file.
+- **GRC, audit and compliance readers, and standards reviewers**: which artifact to read, and how this relates to existing work.
+
+[`docs/use-cases.md`](docs/use-cases.md) gives each reader's question, where the specification answers it, and three more use cases.
+
+---
+
 ## Use cases
 
 ### Your company runs a hundred agents and an auditor asks what each one promised
