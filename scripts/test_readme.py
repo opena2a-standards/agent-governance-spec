@@ -8,8 +8,9 @@ specification.md give each level, the definition of a conformance level in the t
 of specification.md section 1.4, the score
 thresholds those files and the README pages name, the list of example
 files in examples/README.md, the scripts the repository structure in CONTRIBUTING.md lists, the
-counts, domain ranges and scan-soul exit codes README.md states, and the length of each paragraph
-of README.md and the versions and dates it names.
+counts, domain ranges and scan-soul exit codes README.md states, the length of each paragraph
+of README.md and the versions and dates it names, and that README.md states the status the
+Status line of specification.md gives and makes no priority claim.
 
 Run from anywhere:  python3 scripts/test_readme.py
 
@@ -59,6 +60,9 @@ JSON_FENCE = re.compile(r"^```json\n(.*?)^```", re.MULTILINE | re.DOTALL)
 TABLE_KEY = re.compile(r"^\| `([^`]+)` \|", re.MULTILINE)
 SPEC_VERSION = re.compile(r"^\*\*Version\*\*:\s*(\S+)", re.MULTILINE)
 SPEC_STATUS = re.compile(r"^\*\*Status\*\*:\s*(\S+)", re.MULTILINE)
+STATUS_LINE = re.compile(r"^\*\*Status\*\*: (.+?)\s*$")
+STATUS_SENTENCE = "ABGS is an open specification in {} status."
+PRIORITY_CLAIM = "The first open specification"
 SPEC_ENTRY = re.compile(r"^specification\.md\s+(.*)$")
 # A version claim such as "v1.0", "1.0.0" or "1.0.0-draft".
 VERSION_CLAIM = re.compile(r"\bv?\d+\.\d+(?:\.\d+)?(?:-[0-9A-Za-z]+)?")
@@ -572,6 +576,22 @@ def long_paragraphs(text, limit=README_PARAGRAPH_WORDS):
 def version_or_date_lines(text):
     """Each line of text, outside code blocks, that names a release version or a date."""
     return [line.strip() for line in FENCE.sub("", text).splitlines() if VERSION_OR_DATE.search(line)]
+
+
+def status_problems(readme, spec):
+    """Each way readme differs from one line that states the status the first Status line of spec gives, and
+    each readme line that makes a priority claim."""
+    statuses = [m.group(1) for m in map(STATUS_LINE.match, spec.splitlines()) if m]
+    if not statuses:
+        return ["the specification has no Status line"]
+    sentence = STATUS_SENTENCE.format(statuses[0])
+    lines = readme.splitlines()
+    count = lines.count(sentence)
+    problems = [] if count == 1 else [f"{count} lines read {sentence!r}, not 1"]
+    for number, line in enumerate(lines, 1):
+        if PRIORITY_CLAIM in line:
+            problems.append(f"line {number} makes a priority claim: {line}")
+    return problems
 
 
 class TemplateScans(unittest.TestCase):
@@ -1334,6 +1354,29 @@ class ReadmeShortForm(unittest.TestCase):
         self.assertEqual(
             ["Measured with hackmyagent 0.33.2 on a 154-byte file.", "Recorded on 2026-10-14."],
             version_or_date_lines(text),
+        )
+
+
+class SpecificationStatus(unittest.TestCase):
+    """README.md states, once, the status the Status line of specification.md gives, and makes no priority claim."""
+
+    def test_readme_states_the_specification_status(self):
+        readme = README.read_text(encoding="utf-8")
+        spec = SPECIFICATION.read_text(encoding="utf-8")
+        self.assertEqual([], status_problems(readme, spec))
+
+    def test_a_readme_status_that_differs_from_the_specification_is_reported(self):
+        readme = "# ABGS\n\nABGS is an open specification in Draft status.\n"
+        spec = "# Specification\n\n**Status**: Candidate\n"
+        self.assertEqual(["0 lines read 'ABGS is an open specification in Candidate status.', not 1"],
+                         status_problems(readme, spec))
+
+    def test_a_priority_claim_is_reported(self):
+        readme = ("# ABGS\n\nABGS is an open specification in Draft status.\n\n"
+                  "The first open specification for AI agent behavioral governance.\n")
+        self.assertEqual(
+            ["line 5 makes a priority claim: The first open specification for AI agent behavioral governance."],
+            status_problems(readme, "**Status**: Draft\n"),
         )
 
 

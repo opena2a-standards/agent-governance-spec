@@ -3,7 +3,7 @@
 
 ABGS, published as OASB-2, is the governance companion to the OASB security benchmark. OASB-2 is its position: domains 11 to 19 of the OASB domain set, beside OASB-1's domains 1 to 10.
 
-The first open specification for AI agent behavioral governance.
+ABGS is an open specification in Draft status.
 
 OASB-2 defines what goes in a governance file (SOUL.md), how to measure governance coverage across nine behavioral domains, and three conformance levels for auditing agent deployments. It is maintained by [OpenA2A](https://opena2a.org) and licensed under Apache-2.0.
 
