@@ -472,6 +472,22 @@ class EntryAttributes(unittest.TestCase):
         self.assertTrue(errors[0].endswith(f"11-trust-hierarchy.md:{last + 2}: {NOT_BLANK_UNDER_THE_TABLE}"), errors[0])
         self.assertEqual([(e["id"], e["severity"]) for e in entries], [("SOUL-TH-001", "HIGH"), ("SOUL-TH-002", "LOW")])
 
+    def test_domain_heading_directly_under_the_table_is_red_and_ends_it(self):
+        # GFM ends the table at the heading and renders a pipe line under it that has no delimiter row as a paragraph,
+        # so that line is not read as a row of the table. The heading is red as any line there that is not blank is.
+        text = domain_file([ACTIVE])
+        for row, red in (("| **Status** | deprecated |", True), ("| Status | deprecated |", False)):
+            with self.subTest(row=row):
+                variant = text.replace("| **Severity** | HIGH |\n",
+                                       f"| **Severity** | HIGH |\n# Domain 11: Trust Hierarchy\n{row}\n")
+                last = variant.splitlines().index("| **Severity** | HIGH |")
+                entries, errors = entries_for_text(variant)
+                self.assertEqual([e.split("11-trust-hierarchy.md:", 1)[1] for e in errors],
+                                 [f"{last + 2}: {NOT_BLANK_UNDER_THE_TABLE}"]
+                                 + ([f"{last + 3}: attribute row separated from the attribute table of SOUL-TH-001; "
+                                     "it is not read"] if red else []))
+                self.assertEqual(entries[0]["status"], "active")
+
     def test_line_of_spaces_and_tabs_directly_under_the_table_is_green(self):
         text = domain_file([ACTIVE])
         self.assertIn("| **Severity** | HIGH |\n\n", text)
