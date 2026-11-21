@@ -138,6 +138,15 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   `integrations/README.md`. A `# Domain N:` line inside a fenced code block
   of a domain file is not counted as a domain heading, as
   `scripts/check_crosswalks.py` does not read it as one.
+  A domain range is read in the forms "domains 11-19" (with a hyphen or an
+  en dash), "domains 11 to 19" and "domains 1 through 10", and is the range
+  of the OASB-1 or OASB-2 named last before it in its sentence, so the
+  opening sentence of the README ("OASB-2 is its position: domains 11 to 19
+  of the OASB domain set, beside OASB-1's domains 1 to 10") is checked as
+  well as "OASB-2 behavioral domains 11-19". The test read only the form
+  "OASB-2 behavioral domains 11-19", so with that opening sentence changed
+  to "domains 11 to 18" and "domains 1 to 9" it passed. A range whose
+  sentence names neither standard before it is reported.
 - This changelog; version qualified to the spec-family ladder (1.0.0-draft).
 
 ### Changed
