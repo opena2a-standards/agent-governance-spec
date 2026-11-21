@@ -1,7 +1,9 @@
 > **[OpenA2A](https://github.com/opena2a-org/opena2a)**: [CLI](https://github.com/opena2a-org/opena2a) · [HackMyAgent](https://github.com/opena2a-org/hackmyagent) · [Secretless](https://github.com/opena2a-org/secretless-ai) · [AIM](https://github.com/opena2a-org/agent-identity-management) · [Browser Guard](https://github.com/opena2a-org/AI-BrowserGuard) · [DVAA](https://github.com/opena2a-org/damn-vulnerable-ai-agent)
-# OASB-2: Agent Behavioral Governance Specification
+# Agent Behavioral Governance Specification (ABGS)
 
-The first open specification for AI agent behavioral governance.
+ABGS, published as OASB-2, is the governance companion to the OASB security benchmark. OASB-2 is its position: domains 11 to 19 of the OASB domain set, beside OASB-1's domains 1 to 10.
+
+ABGS is an open specification in Draft status.
 
 OASB-2 defines what goes in a governance file (SOUL.md), how to measure governance coverage across nine behavioral domains, and three conformance levels for auditing agent deployments. It is maintained by [OpenA2A](https://opena2a.org) and licensed under Apache-2.0.
 
