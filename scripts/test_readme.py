@@ -7,8 +7,9 @@ conformance.md, the requirements the level table of conformance.md and section 7
 specification.md give each level, the definition of a conformance level in the terminology table
 of specification.md section 1.4, the score
 thresholds those files and the README pages name, the list of example
-files in examples/README.md, the scripts the repository structure in CONTRIBUTING.md lists, and
-the counts, domain ranges and scan-soul exit codes README.md states.
+files in examples/README.md, the scripts the repository structure in CONTRIBUTING.md lists, the
+counts, domain ranges and scan-soul exit codes README.md states, and the length of each paragraph
+of README.md and the versions and dates it names.
 
 Run from anywhere:  python3 scripts/test_readme.py
 
@@ -182,6 +183,15 @@ EXIT_CASES = (
     ("a CRITICAL control is not detected", "A CRITICAL control was not detected"),
     ("nothing to measure", "Nothing was measured"),
 )
+# The most words a paragraph of README.md holds. A passage that needs more goes to the page the README links for it.
+README_PARAGRAPH_WORDS = 60
+# A line that starts a list item, and a heading or a horizontal rule, which ends a paragraph and is not one.
+LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s")
+HEADING_OR_RULE = re.compile(r"^ {0,3}(?:#{1,6}(?:\s|$)|(?:(?:-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$)")
+# A release version such as 0.33.2, or a date such as 2026-10-14. README.md names neither, since each goes stale
+# there with no test that reads it. integrations/README.md names the scanner release the CI examples pin, and
+# scripts/test_scan_soul_commands.py holds that name to the pin.
+VERSION_OR_DATE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+|20[0-9]{2}-[0-9]{2}-[0-9]{2}")
 
 
 def command_blocks(text):
@@ -531,6 +541,37 @@ def guide_exit_codes(text, words):
         if code and words in line and code not in codes:
             codes.append(code)
     return codes
+
+
+def readme_paragraphs(text):
+    """Each paragraph of text outside code blocks, its lines joined by a space. A list item or a table row is a
+    paragraph, and so is a run of other prose lines; a hard-wrapped line continues the paragraph above it. A blank
+    line, a heading or a horizontal rule ends a paragraph and is part of none."""
+    paragraphs, lines = [], []
+    for line in FENCE.sub("", text).splitlines():
+        ends = not line.strip() or HEADING_OR_RULE.match(line)
+        if lines and (ends or LIST_ITEM.match(line) or line.lstrip().startswith("|")):
+            paragraphs.append(" ".join(lines))
+            lines = []
+        if not ends:
+            lines.append(line.strip())
+    if lines:
+        paragraphs.append(" ".join(lines))
+    return paragraphs
+
+
+def long_paragraphs(text, limit=README_PARAGRAPH_WORDS):
+    """The (word count, first eight words) of each paragraph of text longer than limit words."""
+    return [
+        (len(words), " ".join(words[:8]))
+        for words in (paragraph.split() for paragraph in readme_paragraphs(text))
+        if len(words) > limit
+    ]
+
+
+def version_or_date_lines(text):
+    """Each line of text, outside code blocks, that names a release version or a date."""
+    return [line.strip() for line in FENCE.sub("", text).splitlines() if VERSION_OR_DATE.search(line)]
 
 
 class TemplateScans(unittest.TestCase):
@@ -1244,6 +1285,56 @@ class ReadmeNumbers(unittest.TestCase):
         self.assertEqual("3", stated_exit_code(sentence, "nothing to measure"))
         self.assertEqual(["2"], guide_exit_codes(self.guide, "Nothing was measured"))
         self.assertEqual("1", stated_exit_code(sentence, "a CRITICAL control is not detected"))
+
+
+class ReadmeShortForm(unittest.TestCase):
+    """README.md is the short form: no paragraph is longer than README_PARAGRAPH_WORDS words, and no line outside
+    code blocks names a release version or a date. The text that runs longer, or that names the scanner release it
+    was measured with, is on the page the README links for it."""
+
+    def setUp(self):
+        self.text = README.read_text(encoding="utf-8")
+
+    def test_no_paragraph_is_longer_than_the_limit(self):
+        self.assertGreaterEqual(len(readme_paragraphs(self.text)), 10)
+        self.assertEqual([], long_paragraphs(self.text))
+
+    def test_no_line_outside_code_blocks_names_a_version_or_a_date(self):
+        self.assertEqual([], version_or_date_lines(self.text))
+
+    def test_a_paragraph_one_word_over_the_limit_is_reported(self):
+        words = [f"w{n}" for n in range(README_PARAGRAPH_WORDS + 1)]
+        at_limit = " ".join(words[:-1])
+        over = " ".join(words)
+        self.assertEqual([], long_paragraphs(at_limit + "\n"))
+        self.assertEqual([(README_PARAGRAPH_WORDS + 1, " ".join(words[:8]))], long_paragraphs(over + "\n"))
+
+    def test_hard_wrapped_lines_are_one_paragraph(self):
+        words = [f"w{n}" for n in range(README_PARAGRAPH_WORDS + 1)]
+        wrapped = " ".join(words[:30]) + "\n" + " ".join(words[30:]) + "\n"
+        self.assertEqual([" ".join(words)], readme_paragraphs(wrapped))
+        self.assertEqual([(README_PARAGRAPH_WORDS + 1, " ".join(words[:8]))], long_paragraphs(wrapped))
+
+    def test_each_list_item_and_table_row_is_a_paragraph(self):
+        text = "- one two\n  three\n- four\n1. five\n\n| six | seven |\n| eight |\n"
+        self.assertEqual(["- one two three", "- four", "1. five", "| six | seven |", "| eight |"],
+                         readme_paragraphs(text))
+
+    def test_headings_rules_and_code_blocks_are_not_paragraphs(self):
+        text = "# Title\n## Section\n\n---\n* * *\n\n```bash\nnpx hackmyagent@0.33.2 scan-soul\n```\n\nProse.\n"
+        self.assertEqual(["Prose."], readme_paragraphs(text))
+        self.assertEqual([], version_or_date_lines(text))
+
+    def test_a_version_or_a_date_in_prose_is_reported(self):
+        text = (
+            "Measured with hackmyagent 0.33.2 on a 154-byte file.\n"
+            "Recorded on 2026-10-14.\n"
+            "Read specification.md section 2.3 and the NIST AI RMF 1.0 crosswalk.\n"
+        )
+        self.assertEqual(
+            ["Measured with hackmyagent 0.33.2 on a 154-byte file.", "Recorded on 2026-10-14."],
+            version_or_date_lines(text),
+        )
 
 
 if __name__ == "__main__":
