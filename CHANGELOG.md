@@ -160,6 +160,16 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
   altered, `scripts/check_crosswalks.py` names it the crosswalk bullet of the
   Documentation list, the README section that holds it, rather than the
   Related Work bullet.
+- The README Quick Start states the `scan-soul` exit codes in one paragraph
+  and, in the next, the length and heading minimum the Essential level
+  requires besides the CRITICAL controls, with a link to the exit code list
+  of `integrations/README.md`, which names the scanner release that checks
+  neither. The two had been one paragraph of 90 words that named that
+  release; they are now 40 and 49 words. Tests in `scripts/test_readme.py`
+  check that no paragraph of README.md outside code blocks is longer than 60
+  words, counting a list item or a table row as a paragraph, and that no line
+  of it outside code blocks names a version such as 0.33.2 or a date such as
+  2026-10-14.
 
 ### Fixed
 
