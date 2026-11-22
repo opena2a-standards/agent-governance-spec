@@ -174,8 +174,14 @@ COUNT_CLAIM = re.compile(
     r"(?<![\w-])(" + "|".join(NUMBER_WORDS) + r"|\d+)[ -](behavioral domains|domains|controls?|conformance levels)\b",
     re.IGNORECASE,
 )
-# The domain numbers given to a standard: "OASB-2 behavioral domains 11-19".
-DOMAIN_RANGE_CLAIM = re.compile(r"\b(OASB-[12]) \w+ domains (\d+)-(\d+)\b")
+# A domain range: "domains 11-19" (with a hyphen or an en dash), "domains 11 to 19" or "domains 1 through 10". It is
+# the range of the standard named last before it in its sentence: "OASB-2 behavioral domains 11-19", "OASB-2 is its
+# position: domains 11 to 19", "beside OASB-1's domains 1 to 10".
+DOMAIN_RANGE_CLAIM = re.compile(r"\bdomains (\d+)(?:-|–| to | through )(\d+)\b", re.IGNORECASE)
+STANDARD_NAME = re.compile(r"\bOASB-[12]\b")
+# Where the sentence of a domain range ends: a full stop, question mark or exclamation mark before a space or line
+# break, or a blank line. A colon or semicolon does not end it, as in "OASB-2 is its position: domains 11 to 19".
+RANGE_SENTENCE_END = re.compile(r"[.!?](?=\s)|\n[ \t]*\n")
 SPEC_OASB1_RANGE = re.compile(r"^- \*\*OASB-1\*\* covers technical security: domains (\d+) through (\d+)\.$", re.MULTILINE)
 SCAN_SOUL_EXITS = re.compile(r"`scan-soul` exits [^.]*\.")
 GUIDE_EXIT_ENTRY = re.compile(r"^- `(\d+)`: ")
@@ -521,8 +527,17 @@ def count_claims(text):
 
 
 def domain_range_claims(text):
-    """Each (standard, (first, last)) domain range in text, such as ("OASB-2", (11, 19))."""
-    return [(m.group(1), (int(m.group(2)), int(m.group(3)))) for m in DOMAIN_RANGE_CLAIM.finditer(text)]
+    """Each (standard, (first, last)) domain range in text, such as ("OASB-2", (11, 19)).
+
+    The standard is the OASB-1 or OASB-2 named last before the range in its sentence, or None when the sentence
+    names neither before it.
+    """
+    claims = []
+    for m in DOMAIN_RANGE_CLAIM.finditer(text):
+        sentence = RANGE_SENTENCE_END.split(text[:m.start()])[-1]
+        names = STANDARD_NAME.findall(sentence)
+        claims.append((names[-1] if names else None, (int(m.group(1)), int(m.group(2)))))
+    return claims
 
 
 def stated_exit_code(sentence, words):
@@ -1266,7 +1281,8 @@ class ReadmeNumbers(unittest.TestCase):
         claims = domain_range_claims(self.text)
         self.assertTrue(claims)
         for standard, numbers in claims:
-            with self.subTest(standard=standard):
+            with self.subTest(standard=standard, numbers=numbers):
+                self.assertIn(standard, self.ranges, "no OASB-1 or OASB-2 is named before the range in its sentence")
                 self.assertEqual(self.ranges[standard], numbers)
 
     def test_each_scan_soul_exit_code_is_the_one_the_integrations_guide_lists(self):
@@ -1297,6 +1313,39 @@ class ReadmeNumbers(unittest.TestCase):
         self.assertEqual([("OASB-2", (11, 18)), ("OASB-1", (0, 10))], claims)
         for standard, numbers in claims:
             self.assertNotEqual(self.ranges[standard], numbers)
+
+    def test_a_shifted_range_in_the_to_form_is_reported(self):
+        claims = domain_range_claims("OASB-2 is its position: domains 11 to 18 of the OASB domain set.")
+        self.assertEqual([("OASB-2", (11, 18))], claims)
+        self.assertNotEqual(self.ranges["OASB-2"], claims[0][1])
+
+    def test_a_shifted_range_after_a_possessive_is_reported(self):
+        claims = domain_range_claims("It sits beside OASB-1's domains 1 to 9.")
+        self.assertEqual([("OASB-1", (1, 9))], claims)
+        self.assertNotEqual(self.ranges["OASB-1"], claims[0][1])
+
+    def test_each_range_of_a_sentence_takes_the_standard_named_last_before_it(self):
+        claims = domain_range_claims("ABGS, published as OASB-2, is the governance companion to the OASB security "
+                                     "benchmark. OASB-2 is its position: domains 11 to 18 of the OASB domain set, "
+                                     "beside OASB-1's domains 1 to 9.")
+        self.assertEqual([("OASB-2", (11, 18)), ("OASB-1", (1, 9))], claims)
+        for standard, numbers in claims:
+            self.assertNotEqual(self.ranges[standard], numbers)
+
+    def test_a_shifted_range_in_the_en_dash_and_through_forms_is_reported(self):
+        for text, expected in (("OASB-2 behavioral domains 11–18.", ("OASB-2", (11, 18))),
+                               ("OASB-1 covers technical security: domains 1 through 9.", ("OASB-1", (1, 9)))):
+            with self.subTest(text=text):
+                claims = domain_range_claims(text)
+                self.assertEqual([expected], claims)
+                self.assertNotEqual(self.ranges[expected[0]], expected[1])
+
+    def test_a_range_whose_sentence_names_no_standard_before_it_has_none(self):
+        claims = domain_range_claims("OASB-2 is the governance benchmark.\n\nIt covers domains 11 to 19, as OASB-2 "
+                                     "states. Domains 1-10 are technical.")
+        self.assertEqual([(None, (11, 19)), (None, (1, 10))], claims)
+        for standard, _ in claims:
+            self.assertNotIn(standard, self.ranges)
 
     def test_an_exit_code_the_guide_gives_another_case_is_reported(self):
         sentence = ("`scan-soul` exits 0 when every CRITICAL control applicable to the agent's tier is detected, 1 "
