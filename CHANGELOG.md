@@ -151,6 +151,10 @@ Versions follow the OpenA2A spec-family ladder `MAJOR.MINOR.PATCH-{draft|rcN|fin
 
 ### Changed
 
+- The Crosswalks workflow also runs `python3 scripts/check_docs_prose.py`
+  and `python3 -m unittest discover -s scripts -p 'test_*.py'`, and its job
+  timeout is 15 minutes instead of 5, since the tests take about two
+  minutes. (#30)
 - README Related Work and `specification.md` section 1.3 state the OASB
   relationship with the OASB-1 count (46, published at oasb.ai) and the
   unified total (118, the sum 72 + 46, not measured on its own).
